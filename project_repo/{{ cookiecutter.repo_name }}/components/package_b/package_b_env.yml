@@ -1,0 +1,10 @@
+name: package-b
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - pip:
+    - package-b==0.0.1
+    - >-
+      --extra-index-url
+      https://pkgs.dev.azure.com/{{cookiecutter.organisation_name}}/{{cookiecutter.project_name}}/_packaging/{{cookiecutter.package_feed}}@${view}/pypi/simple/

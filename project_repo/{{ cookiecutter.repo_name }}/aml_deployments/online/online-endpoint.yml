@@ -1,0 +1,8 @@
+{% raw %}
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineEndpoint.schema.json
+name: {% endraw %}{{cookiecutter.repo_name}}{% raw %}-online
+auth_mode: key
+public_network_access: disabled
+tags:
+  managed: true
+{% endraw %}

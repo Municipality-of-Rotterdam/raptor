@@ -1,0 +1,190 @@
+{% raw %}
+name: $(Date:yyyyMMdd)-$(Rev:r)
+
+trigger: none
+pr: none
+
+schedules:
+- cron: '30 6 * * Mon-Fri'
+  displayName: {% endraw %}{{cookiecutter.repo_name}}{% raw %} deployment create
+  always: true
+  branches:
+    include:
+    - develop
+    - main
+
+- cron: '0 15 * * Mon-Fri'
+  displayName: {% endraw %}{{cookiecutter.repo_name}}{% raw %} deployment delete
+  always: true
+  branches:
+    include:
+    - develop
+    - main
+
+variables:
+# Extract variables from config.yml
+- template: /devops_pipelines/templates/config.yml
+  # If main, deploy to production
+- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+  - name: aml_endpoint_name
+    value: {% endraw %}{{cookiecutter.__aml_base_deployment_name}}{% raw %}-prod
+  - name: aml_deployment_name
+    value: {% endraw %}{{cookiecutter.__aml_base_deployment_name}}{% raw %}-deployment-prod
+  - group: AmlProdGroup
+# If not main, fallback on development settings
+- ${{ else }}:
+  - name: aml_endpoint_name
+    value: {% endraw %}{{cookiecutter.__aml_base_deployment_name}}{% raw %}-dvlm
+  - name: aml_deployment_name
+    value: {% endraw %}{{cookiecutter.__aml_base_deployment_name}}{% raw %}-deployment-dvlm
+  - group: AmlDevGroup
+
+stages:
+- stage: Deploy
+  condition: eq(variables['Build.CronSchedule.DisplayName'], '{% endraw %}{{cookiecutter.repo_name}}{% raw %} deployment create')
+  jobs:
+    - job: Deploy
+      pool: ${{ variables.sh_agent_pool_name }}
+      displayName: 'Create scheduled online deployment'
+      steps:
+      - task: AzureCLI@2
+        displayName: 'Create online endpoint if not exists'
+        inputs:
+          azureSubscription: $(AmlServiceConnection)
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            echo "Check if endpoint exists"
+            ENDPOINT_EXISTS=$(az ml online-endpoint list --query "[?name=='${{ variables.aml_endpoint_name }}'][name]" \
+            --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) \
+            --output tsv | wc -l)
+
+            if [[ ENDPOINT_EXISTS -ne 1 ]]
+            then
+                echo "Endpoint does not exist, create new endpoint"
+                az ml online-endpoint create --file online-endpoint.yml --name ${{ variables.aml_endpoint_name }} \
+                --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) \
+                --set public_network_access=disabled
+            
+                echo "Check if endpoint creation is successful"
+                endpoint_status=$(az ml online-endpoint show --name ${{ variables.aml_endpoint_name }} \
+                --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) \
+                --query "provisioning_state" --output tsv)
+                if [[ $endpoint_status == "Succeeded" ]]
+                then
+                    echo "Endpoint created successfully"
+                else
+                    echo "Endpoint creation failed"
+                    exit 1
+                fi
+            
+            else
+                echo "Endpoint exists"
+            fi
+
+            echo "Get endpoint details"
+            az ml online-endpoint show --name ${{ variables.aml_endpoint_name }} \
+            --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
+          workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/online/'
+
+      - task: AzureCLI@2
+        displayName: 'Create online deployment'
+        inputs:
+          azureSubscription: $(AmlServiceConnection)
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            set -o xtrace
+
+            echo "Create new deployment"
+            az ml online-deployment create --file online-deployment.yml --name ${{ variables.aml_deployment_name }} \
+            --endpoint-name ${{ variables.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+            --workspace-name $(AmlWorkspaceName) --set egress_public_network_access=disabled --all-traffic
+
+            deploy_status=$(az ml online-deployment show --name ${{ variables.aml_deployment_name }} \
+            --endpoint-name ${{ variables.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+            --workspace-name $(AmlWorkspaceName) --query "provisioning_state" --output tsv)
+
+            if [[ $deploy_status == "Succeeded" ]]
+            then
+                echo "Deployment completed successfully"
+            else
+                echo "Deployment failed"
+                exit 1
+            fi
+          workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/online/'
+
+      - task: AzureCLI@2
+        displayName: 'Test online deployment with REST API'
+        inputs:
+          azureSubscription: $(AmlServiceConnection)
+          scriptType: 'bash'
+          scriptLocation: 'inlineScript'
+          inlineScript: |
+            set -e
+
+            SCORING_URI=$(az ml online-endpoint show --name ${{ variables.aml_endpoint_name }} \
+            --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) \
+            --query scoring_uri --output tsv)
+
+            set +x # supress printing secret
+            ENDPOINT_KEY=$(az ml online-endpoint get-credentials --name ${{ variables.aml_endpoint_name }} \
+            --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) \
+            --query primaryKey --output tsv)
+            echo "$(curl --request POST "$SCORING_URI" --header "Authorization: Bearer $ENDPOINT_KEY" \
+            --header 'Content-Type: application/json' --data @sample-request.json)"
+            set -x
+
+            # echo "Get deployment logs"
+            # az ml online-deployment get-logs --name ${{ variables.aml_deployment_name }} \
+            # --endpoint-name ${{ variables.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+            # --workspace-name $(AmlWorkspaceName)
+          workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/online/'
+
+- stage: Destroy
+  dependsOn: [] # Indicate this stage does not depend on the previous stage
+  condition: eq(variables['Build.CronSchedule.DisplayName'], '{% endraw %}{{cookiecutter.repo_name}}{% raw %} deployment delete')
+  jobs:
+    - job: Destroy
+      pool: ${{ variables.sh_agent_pool_name }}
+      displayName: 'Delete scheduled online deployment'
+      steps:
+      - task: AzureCLI@2
+        displayName: 'Delete online deployment'
+        inputs:
+            azureSubscription: $(AmlServiceConnection)
+            scriptType: 'bash'
+            scriptLocation: 'inlineScript'
+            inlineScript: |
+              echo "Check if endpoint exists"
+              ENDPOINT_EXISTS=$(az ml online-endpoint list --query "[?name=='${{ variables.aml_endpoint_name }}'][name]" \
+              --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) \
+              --output tsv | wc -l)
+
+              if [[ ENDPOINT_EXISTS -eq 1 ]]
+              then
+                echo "Check if deployment exists"
+                DEPLOYMENT_EXISTS=$(az ml online-deployment list --endpoint-name ${{ variables.aml_endpoint_name }} --query "[?name=='${{ variables.aml_deployment_name }}'][name]" \
+                --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) \
+                --output tsv | wc -l)
+
+                if [[ DEPLOYMENT_EXISTS -eq 1 ]]
+                then
+                  echo "Downscale traffic allocation to 0%"
+                  az ml online-endpoint update --name ${{ variables.aml_endpoint_name }} \
+                  --traffic "${{ variables.aml_deployment_name }}=0" --resource-group $(AmlResourceGroup) \
+                  --workspace-name $(AmlWorkspaceName)
+
+                  echo "Delete online deployment"
+                  az ml online-deployment delete --name ${{ variables.aml_deployment_name }} \
+                  --endpoint-name ${{ variables.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+                  --workspace-name $(AmlWorkspaceName) --yes
+
+                else
+                  echo "Deployment does not exist"
+                fi
+
+              else
+                  echo "Endpoint does not exist"
+              fi
+{% endraw %}

@@ -1,0 +1,62 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+*.egg-info/
+build
+dist
+
+# Unit test / coverage reports
+junit/*
+htmlcov/*
+test-output.xml
+coverage.xml
+.coverage.*
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+
+# VSCode
+.vscode/
+
+# Idea
+.idea/
+*.iml
+
+# MacOS
+.DS_Store
+
+# Databricks eXtensions
+.dbx/lock.json
+
+# local mlflow files
+mlruns/
+
+# Env file
+*.env
+
+# Virtual environment files
+venv
+
+# Pytest coverage files
+# Commented out - unittests do not work
+# *.coverage*
+
+# Sphinx documentation
+*docs/_*
+
+# AzureML files
+.aml*
+.azureml/
+*.amltmp
+condaenv*
+*.log
+
+# Notebook checkpoints
+.ipynb_aml_checkpoints
+
+# Images
+*.png

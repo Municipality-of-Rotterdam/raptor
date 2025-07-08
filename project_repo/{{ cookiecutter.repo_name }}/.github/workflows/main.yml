@@ -1,0 +1,457 @@
+{% raw %}
+name: Raptor Project Repo CICD
+
+env:
+  PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %}  # set this to your project name
+  PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %} # set this to the Python version to use
+  PRE_COMMIT_VERSION: 2.19.0 # set this to your pre-commit version
+  AZURE_CLI_VERSION: 2.64.0 # set this to your Azure CLI version
+  TYPE_DEPLOYMENT: {% endraw %}{{cookiecutter.type_deployment}}{% raw %} # set this to your type of model deployment
+  AML_ENDPOINT_NAME: {% endraw %}{{cookiecutter.__aml_base_deployment_name}}-{{cookiecutter.type_deployment}}-endpoint{% raw %}
+  AML_DEPLOYMENT_NAME: {% endraw %}{{cookiecutter.__aml_base_deployment_name}}-{{cookiecutter.type_deployment}}-deployment{% raw %}-${{ github.run_number }}
+  AML_MIRROR_TRAFFIC: 10 # set this to % mirror traffic
+  # https://github.com/william-liebenberg/github-gated-deployments/tree/main?tab=readme-ov-file
+  ENVIRONMENT_NAME: aml_{% endraw %}{{cookiecutter.repo_name}}{% raw %}
+  RG_NAME: {% endraw %}{{cookiecutter.azure_resource_group}}{% raw %} # set this to your Azure resource group name
+  WS_NAME: {% endraw %}{{cookiecutter.azureml_workspace}}{% raw %} # set this to your Azure ML workspace name
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+      - release/*
+
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  Precommit:
+    name: Perform pre-commit checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pre-commit==${{ env.PRE_COMMIT_VERSION }}
+      
+      - name: Run pre-commit
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  BatchDeploy:
+    name: Create new batch deployment in Azure ML
+    runs-on: ubuntu-latest
+    needs: [Precommit]
+    if: success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        if: env.TYPE_DEPLOYMENT == 'batch'
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        if: env.TYPE_DEPLOYMENT == 'batch'
+
+      # https://github.com/marketplace/actions/changed-files
+      - name: CheckPackageAChanges
+        id: changed-files-package-a
+        uses: tj-actions/changed-files@v45
+        if: env.TYPE_DEPLOYMENT == 'batch'
+        with:
+          files: components/package_a/*
+        # To compare changes between the current commit and the last pushed remote commit 
+        # set `since_last_remote_commit: true`. e.g
+          since_last_remote_commit: true 
+  
+      - name: Register new package_a pipeline component
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'batch' && steps.changed-files-package-a.outputs.any_changed == 'true'
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"            
+            
+            az ml component create --file $GITHUB_WORKSPACE/components/package_a/package_a.yml --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+
+      # https://github.com/marketplace/actions/changed-files
+      - name: CheckPackageBChanges
+        id: changed-files-package-b
+        uses: tj-actions/changed-files@v45
+        if: env.TYPE_DEPLOYMENT == 'batch'
+        with:
+          files: components/package_b/*
+        # To compare changes between the current commit and the last pushed remote commit 
+        # set `since_last_remote_commit: true`. e.g
+          since_last_remote_commit: true 
+  
+      - name: Register new package_b pipeline component
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'batch' && steps.changed-files-package-b.outputs.any_changed == 'true'
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"  
+          
+            az ml component create --file $GITHUB_WORKSPACE/components/package_b/package_b.yml --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+  
+      - name: Create new batch endpoint if not exists
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'batch'
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"  
+
+            ENDPOINT_EXISTS=$(az ml batch-endpoint list -o tsv --query "[?name=='${{ env.AML_ENDPOINT_NAME }}'][name]" --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} | wc -l)
+    
+            if [[ ENDPOINT_EXISTS -ne 1 ]]; then
+                echo "Endpoint does not exist, create new endpoint"
+                az ml batch-endpoint create --file $GITHUB_WORKSPACE/aml_deployments/batch/batch-endpoint.yml --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+            else
+                echo "Endpoint exists"
+            fi
+            az ml batch-endpoint show --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+
+      - name: Create new batch deployment
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'batch'
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |
+            set -o xtrace
+
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"  
+
+            # Maximum number of deployments per endpoint (MS limit)
+            MAX_DEPLOYMENTS=20
+
+            # Get current number of deployments
+            DEPLOYMENTS=$(az ml batch-deployment list --endpoint-name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} --query "[].name" --output tsv)
+            NUMBER_DEPLOYMENTS=$(echo $DEPLOYMENTS | wc -w)
+            if [[ $NUMBER_DEPLOYMENTS -eq $MAX_DEPLOYMENTS ]]
+            then
+                OLDEST_DEPLOYMENT=$(echo $DEPLOYMENTS | cut -d ' ' -f1)
+                echo "There are already $MAX_DEPLOYMENTS batch deployments in batch endpoint ${{ env.AML_ENDPOINT_NAME }}, we need to delete deployment $OLDEST_DEPLOYMENT to proceed..."
+                
+                # We cannot delete default deployment. If the oldest deployment is default, we delete second oldest.
+                DEFAULT_DEPLOYMENT=$(az ml batch-endpoint show --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} --query "defaults.deployment_name" --output tsv)
+                if [[ $OLDEST_DEPLOYMENT -eq $DEFAULT_DEPLOYMENT ]]
+                then
+                    SECOND_OLDEST_DEPLOYMENT=$(echo $DEPLOYMENTS | cut -d ' ' -f2)
+                    echo "Deployment $OLDEST_DEPLOYMENT is set to default for the endpoint ${{ env.AML_ENDPOINT_NAME }}, we delete deployment $SECOND_OLDEST_DEPLOYMENT"
+                    az ml batch-deployment delete --name $SECOND_OLDEST_DEPLOYMENT --endpoint-name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} --yes
+                else
+                    echo "Deployment $OLDEST_DEPLOYMENT is not set to default for the endpoint ${{ env.AML_ENDPOINT_NAME }}, we delete deployment $OLDEST_DEPLOYMENT"
+                    az ml batch-deployment delete --name $OLDEST_DEPLOYMENT --endpoint-name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} --yes
+                fi
+            fi
+
+            az ml batch-deployment create --file $GITHUB_WORKSPACE/aml_deployments/batch/batch-pipeline-deployment.yml --name ${{ env.AML_DEPLOYMENT_NAME }} --endpoint-name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+            az ml batch-deployment show --name ${{ env.AML_DEPLOYMENT_NAME }} --endpoint-name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} 
+
+      - name: Invoke new batch endpoint with test data
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'batch'
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"  
+
+            INPUT_PATH=azureml://datastores/[datastore_name]/paths/[folder_on_datastore]/input/2000/01/01/
+            OUTPUT_PATH=azureml://datastores/[datastore_name]/paths/[folder_on_datastore]/predictions/${{ github.run_id }}/predictions.csv
+            az ml batch-endpoint invoke --name ${{ env.AML_ENDPOINT_NAME }} --deployment-name ${{ env.AML_DEPLOYMENT_NAME }} \
+            --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} \
+            --set inputs.input_data.path=$INPUT_PATH --set inputs.input_data.type=uri_folder  \
+            --set outputs.output_data.path=$OUTPUT_PATH --set outputs.output_data.type=uri_file
+  
+  BatchUpdate:
+    name: Update default batch deployment in Azure ML
+    needs: [BatchDeploy]
+    # https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment
+    # environment: ${{ env.ENVIRONMENT_NAME }}
+    runs-on: ubuntu-latest
+    if: success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        if: env.TYPE_DEPLOYMENT == 'batch'
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update the default batch deployment
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'batch'
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"           
+          
+            az ml batch-endpoint update --name ${{ env.AML_ENDPOINT_NAME }} --set defaults.deployment_name=${{ env.AML_DEPLOYMENT_NAME }} --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+
+  OnlineDeploy:
+    name: Create new online deployment in Azure ML
+    runs-on: ubuntu-latest
+    needs: [Precommit]
+    if: success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        if: env.TYPE_DEPLOYMENT == 'online' 
+
+      - name: Azure Login
+        uses: azure/login@v2
+        if: env.TYPE_DEPLOYMENT == 'online' 
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create new online endpoint if not exists
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'online' 
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"       
+
+            echo "Check if endpoint exists"
+            ENDPOINT_EXISTS=$(az ml online-endpoint list --query "[?name=='${{ env.AML_ENDPOINT_NAME }}'][name]" \
+            --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} --output tsv | wc -l)
+    
+            if [[ ENDPOINT_EXISTS -ne 1 ]]
+            then
+                echo "Endpoint does not exist, create new endpoint"
+                az ml online-endpoint create --file $GITHUB_WORKSPACE/aml_deployments/online/online-endpoint.yml --name ${{ env.AML_ENDPOINT_NAME }} \
+                --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+            
+                echo "Check if endpoint creation is successful"
+                endpoint_status=$(az ml online-endpoint show --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} \
+                --workspace-name ${{ env.WS_NAME }} --query "provisioning_state" --output tsv)
+    
+                if [[ $endpoint_status == "Succeeded" ]]
+                then
+                    echo "Endpoint created successfully"
+                else
+                    echo "Endpoint creation failed"
+                    exit 1
+                fi
+            else
+                echo "Endpoint exists"
+            fi
+    
+            echo "Get endpoint details"
+            az ml online-endpoint show --name ${{ env.AML_ENDPOINT_NAME }} \
+            --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+
+      - name: Create new online deployment
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'online' 
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |      
+            set -o xtrace
+
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"       
+    
+            echo "Create new deployment"
+            az ml online-deployment create --file $GITHUB_WORKSPACE/aml_deployments/online/online-deployment.yml --name ${{ env.AML_DEPLOYMENT_NAME }} \
+            --endpoint-name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} \
+            --workspace-name ${{ env.WS_NAME }}
+    
+            echo "Check if deployment creation is successful"
+            deploy_status=$(az ml online-deployment show --name ${{ env.AML_DEPLOYMENT_NAME }} --endpoint-name ${{ env.AML_ENDPOINT_NAME }} \
+            --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} --query "provisioning_state" --output tsv)
+    
+            if [[ $deploy_status == "Succeeded" ]]
+            then
+                echo "Deployment completed successfully"
+            else
+                echo "Deployment failed"
+                exit 1
+            fi
+  
+      - name: Test new online deployment with Azure CLI
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'online' 
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |
+            set -e
+
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"       
+  
+            echo "Test new deployment"
+            RESPONSE=$(az ml online-endpoint invoke --name ${{ env.AML_ENDPOINT_NAME }} --deployment-name ${{ env.AML_DEPLOYMENT_NAME }} \
+            --request-file $GITHUB_WORKSPACE/aml_deployments/online/sample-request.json --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }})
+            echo $RESPONSE
+  
+            echo "Get new deployment logs"
+            az ml online-deployment get-logs --name ${{ env.AML_DEPLOYMENT_NAME }} --endpoint-name ${{ env.AML_ENDPOINT_NAME }} \
+            --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+
+      - name: Mirror traffic in case other deployments already exist
+        uses: azure/cli@v2
+        if: env.TYPE_DEPLOYMENT == 'online' 
+        with:
+          azcliversion: ${{ env.AZURE_CLI_VERSION }}
+          inlineScript: |
+            echo "Install az ml extension"
+            az extension add -n ml -y
+            echo "Install successful!"       
+
+            echo "Get number of deployments"
+            NUMBER_DEPLOYMENTS=$(az ml online-endpoint show --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} \
+            --workspace-name ${{ env.WS_NAME }} --query traffic --output yaml | wc -l)
+            echo "There are $NUMBER_DEPLOYMENTS deployments"
+  
+            if [[ $NUMBER_DEPLOYMENTS -gt 1 ]]
+            then
+                echo "Mirror ${{ env.AML_MIRROR_TRAFFIC }}% of the traffic to the ${{ env.AML_DEPLOYMENT_NAME }} deployment"
+                az ml online-endpoint update --name ${{ env.AML_ENDPOINT_NAME }} --mirror-traffic "${{ env.AML_DEPLOYMENT_NAME }}=${{ env.AML_MIRROR_TRAFFIC }}" \
+                --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+            fi
+
+  OnlineUpdate:
+    name: Update default online deployment in Azure ML
+    needs: [OnlineDeploy]
+    # https://docs.github.com/en/actions/managing-workflow-runs-and-deployments/managing-deployments/managing-environments-for-deployment
+    # environment: ${{ env.ENVIRONMENT_NAME }}
+    runs-on: ubuntu-latest
+    if: success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
+    steps:     
+    - name: Checkout
+      uses: actions/checkout@v4
+      if: env.TYPE_DEPLOYMENT == 'online' 
+
+    - name: Azure Login
+      uses: azure/login@v2
+      if: env.TYPE_DEPLOYMENT == 'online' 
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Remove mirror traffic if it exists
+      uses: azure/cli@v2
+      if: env.TYPE_DEPLOYMENT == 'online' 
+      with:
+        azcliversion: ${{ env.AZURE_CLI_VERSION }}
+        inlineScript: |
+          echo "Install az ml extension"
+          az extension add -n ml -y
+          echo "Install successful!"
+          
+          echo "Install jq"
+          tdnf install -y jq
+          echo "Install successful!"
+      
+          MIRROR_TRAFFIC=$(az ml online-endpoint show --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} \
+          --workspace-name ${{ env.WS_NAME }} --query mirror_traffic --output json | jq -r 'keys[]' | wc -l)
+          if [[ $MIRROR_TRAFFIC != 0 ]]
+          then
+              echo "Set the mirror traffic to 0% to disable mirroring to the ${{ env.AML_DEPLOYMENT_NAME }} deployment"
+              az ml online-endpoint update --name ${{ env.AML_ENDPOINT_NAME }} --mirror-traffic "${{ env.AML_DEPLOYMENT_NAME }}=0" \
+              --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+          else
+              echo "No mirror traffic present"
+          fi
+  
+    - name: Update online endpoint traffic allocation
+      uses: azure/cli@v2
+      if: env.TYPE_DEPLOYMENT == 'online' 
+      with:
+        azcliversion: ${{ env.AZURE_CLI_VERSION }}
+        inlineScript: |
+          echo "Install az ml extension"
+          az extension add -n ml -y
+          echo "Install successful!"       
+
+          az ml online-endpoint update --name ${{ env.AML_ENDPOINT_NAME }} --traffic "${{ env.AML_DEPLOYMENT_NAME }}=100" \
+          --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+  
+    - name: Test new online deployment with REST API
+      uses: azure/cli@v2
+      if: env.TYPE_DEPLOYMENT == 'online' 
+      with:
+        azcliversion: ${{ env.AZURE_CLI_VERSION }}
+        inlineScript: |
+          set -e
+
+          echo "Install az ml extension"
+          az extension add -n ml -y
+          echo "Install successful!"       
+
+          SCORING_URI=$(az ml online-endpoint show --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} \
+          --workspace-name ${{ env.WS_NAME }} --query scoring_uri --output tsv)
+          
+          set +x # supress printing secret
+          ENDPOINT_KEY=$(az ml online-endpoint get-credentials --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} \
+          --workspace-name ${{ env.WS_NAME }} --query primaryKey --output tsv)
+          echo "$(curl --request POST "$SCORING_URI" --header "Authorization: Bearer $ENDPOINT_KEY" --header 'Content-Type: application/json' \
+          --data @$GITHUB_WORKSPACE/aml_deployments/online/sample-request.json)"
+          set -x
+          
+          echo "Get new deployment logs"
+          az ml online-deployment get-logs --name ${{ env.AML_DEPLOYMENT_NAME }} --endpoint-name ${{ env.AML_ENDPOINT_NAME }} \
+          --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+
+    - name: Delete all other deployments if present
+      uses: azure/cli@v2
+      if: env.TYPE_DEPLOYMENT == 'online' 
+      with:
+        azcliversion: ${{ env.AZURE_CLI_VERSION }}
+        inlineScript: |
+          echo "Install az ml extension"
+          az extension add -n ml -y
+          echo "Install successful!"    
+          
+          echo "Install jq"
+          tdnf install -y jq
+          echo "Install successful!"
+
+          echo "Get number of deployments"
+          NUMBER_DEPLOYMENTS=$(az ml online-endpoint show --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} \
+          --workspace-name ${{ env.WS_NAME }} --query traffic --output yaml | wc -l)
+          echo "There are $NUMBER_DEPLOYMENTS deployments"
+    
+          if [[ $NUMBER_DEPLOYMENTS -gt 1 ]]
+          then
+              echo $(az ml online-endpoint show --name ${{ env.AML_ENDPOINT_NAME }} --resource-group ${{ env.RG_NAME }} \
+              --workspace-name ${{ env.WS_NAME }} --query traffic --output json) | jq -r 'keys[]' | 
+              while IFS= read -r value; do
+                # remove linux or windows style newlines
+                normalised_value=$(echo $value | tr -d '\n\r')
+                if [[ $normalised_value != ${{ env.AML_DEPLOYMENT_NAME }} ]]
+                then
+                    echo "Remove $normalised_value deployment"
+                    az ml online-deployment delete --name $normalised_value --endpoint-name ${{ env.AML_ENDPOINT_NAME }} \
+                    --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }} --yes --no-wait
+                fi
+              done
+          fi
+{% endraw %}

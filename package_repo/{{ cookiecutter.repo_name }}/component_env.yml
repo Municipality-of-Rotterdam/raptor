@@ -1,0 +1,12 @@
+name: {{ cookiecutter.package_name }}
+channels:
+  - conda-forge
+  - anaconda
+  - nodefaults
+dependencies:
+  - python={{cookiecutter.python_version}}
+  - pip:
+    - {{ cookiecutter.package_name }}==X.X.X
+    - >-
+      --extra-index-url
+      https://pkgs.dev.azure.com/${org_name}/{{cookiecutter.project_name}}/_packaging/${feed_view}/pypi/simple/

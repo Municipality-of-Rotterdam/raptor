@@ -1,0 +1,26 @@
+{% raw %}
+name: $(Date:yyyyMMdd)-$(Rev:r)
+
+# Whether to force_deploy new scheduled pipeline or not.
+# With merge to develop/main it is always deployed), this can be used to force deploy manually before a merge.
+# Useful for testing (otherwise you can only test a deployment after a merge, slowing down development)
+parameters:
+- name: force_deploy
+  type: boolean
+  default: false
+
+trigger:
+  branches:
+    include:
+    - main
+    - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+extends:
+  template: /devops_pipelines/templates/main.yml
+  parameters:
+    force_deploy: ${{ parameters.force_deploy }}
+
+{% endraw %}

@@ -1,0 +1,133 @@
+{% raw %}
+parameters:
+- name: service_connection
+  type: string
+- name: aml_resource_group
+  type: string
+- name: aml_workspace_name
+  type: string
+- name: aml_job_name
+  type: string
+- name: feed_view
+  type: string
+- name: branch
+  type: string
+- name: commit
+  type: string
+- name: aml_keyvault_name
+  type: string
+
+
+steps:
+  - checkout: self
+    fetchDepth: 0
+
+  # TODO(MLE): for now only a single component pipeline. Can we use some kind of for loop repeating steps for different components? Investigate later with use-case. (gladheidsbestrijding?)
+  - task: ChangedFiles@1
+    name: CheckChangesComponent
+    inputs:
+      rules: components/package_a/*
+      variable: Component
+      isOutput: true
+      verbose: true
+
+  - task: Bash@3
+    displayName: 'Add proper feed including view'
+    condition: and(succeeded(), eq(variables['CheckChangesComponent.Component'], 'true'))
+    # replace placeholder view with actual view (dvlm/prod) depending on branch name
+    # cannot be changed with parameter or something, so use ugly script
+    inputs:
+      targetType: 'inline'
+      script: |
+          sed -e "s|\${view}|${{ parameters.feed_view }}|" package_a_env.yml > temp.yml
+          mv temp.yml package_a_env.yml
+      workingDirectory: '$(Build.SourcesDirectory)/components/package_a'
+
+  - task: AzureCLI@2
+    displayName: 'Register new component version'
+    condition: eq(variables['CheckChangesComponent.Component'], 'true')
+    inputs:
+      azureSubscription: '${{ parameters.service_connection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: >
+        az ml component create --file package_a.yml
+        --resource-group ${{ parameters.aml_resource_group }}
+        --workspace-name ${{ parameters.aml_workspace_name }}
+        --set tags.branch="${{ parameters.branch }}"
+        --set tags.commit="${{ parameters.commit }}"
+      workingDirectory: '$(Build.SourcesDirectory)/components/package_a'
+
+  - task: ChangedFiles@1
+    name: CheckChangesPipelineJob
+    inputs:
+      rules: aml_deployments/scheduled_pipeline/pipeline_job.yml
+      variable: PipelineJob
+      isOutput: true
+      verbose: true
+
+  - task: AzureCLI@2
+    # register and run new pipelinejob, so we can link the new schedule to this job.
+    # you can also link the schedule to a yml definition of a pipelinejob (so you don't need this extra run),
+    # but then we cannot easily pass all parameters as done in the inlineScript below 
+    displayName: 'Register new pipelineJob version'
+    # update if pipelineJob definition or underlying component has changed
+    condition: >
+      and(
+        succeeded(),
+        or(
+          eq(variables['CheckChangesComponent.Component'], 'true'),
+          eq(variables['CheckChangesPipelineJob.PipelineJob'], 'true')
+        )
+      )
+    inputs:
+      azureSubscription: '${{ parameters.service_connection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: >
+        az ml job create --file pipeline_job.yml
+        --resource-group ${{ parameters.aml_resource_group }}
+        --workspace-name ${{ parameters.aml_workspace_name }}
+        --name ${{ parameters.aml_job_name }}
+        --set jobs.package_a.environment_variables.KEY_VAULT_NAME="${{ parameters.aml_keyvault_name }}"
+        --set tags.branch="${{ parameters.branch }}"
+        --set tags.commit="${{ parameters.commit }}"
+      # Above we gave an example how to pass environment variables to jobs. See package_a_script for an example.
+      workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/scheduled_pipeline'
+
+  - task: ChangedFiles@1
+    name: CheckChangesSchedule
+    inputs:
+      rules: aml_deployments/scheduled_pipeline/schedule.yml
+      variable: Schedule
+      isOutput: true
+      verbose: true
+
+  - task: AzureCLI@2
+    # create new schedule (will replace the old one with same name)
+    # schedule pinpoints to an exact pipelinejob version (not latest), so updating pipelinejob only is not enough
+    displayName: 'Register new schedule version'
+    # update if schedule definition or underlying component or pipeline has changed
+    condition: >
+      and(
+        succeeded(),
+        or(
+          eq(variables['CheckChangesComponent.Component'], 'true'),
+          eq(variables['CheckChangesPipeline.Pipeline'], 'true'),
+          eq(variables['CheckChangesSchedule.Schedule'], 'true')
+        )
+      )
+    inputs:
+      azureSubscription: '${{ parameters.service_connection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: >
+        az ml schedule create --file schedule.yml
+        --resource-group ${{ parameters.aml_resource_group }}
+        --workspace-name ${{ parameters.aml_workspace_name }}
+        --set create_job.job="azureml:${{ parameters.aml_job_name }}"
+        --set tags.branch="${{ parameters.branch }}"
+        --set tags.commit="${{ parameters.commit }}"
+      workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/scheduled_pipeline'
+
+{% endraw %}

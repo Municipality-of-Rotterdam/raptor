@@ -1,0 +1,16 @@
+{
+    "welcome_message" : "Press Enter to continue..",
+    "project_name": "project_name",
+    "package_name": "package_name",
+    "repo_name": "pkg_{{ cookiecutter.package_name.lower().replace(' ', '_').replace('-', '_') }}",
+    "additional_prompts": "DevOps",
+    "__prompts__": {
+        "welcome_message": "------------------------\n\tWelcome to Raptor! 🚀\n\tValues shown in brackets are the default options.\n\tSet organisation_name, project_name and package_feed for Devops: https://pkgs.dev.azure.com/ORGANISATION_NAME/PROJECT_NAME/_packaging/PACKAGE_FEED/pypi/simple/ or \n\tproject_name for Github (PyPi): https://pypi.org/p/PROJECT_NAME\n",
+        "project_name": "The project name",
+        "package_name": "Enter a package name",
+        "repo_name": "Enter the repository name",
+        "additional_prompts": "Are you using Azure DevOps or Github?"
+    },
+    "__cookiecutter_template_version": "0.0.1",
+    "_extensions": ["local_extensions.AdditionalPrompts"]
+}

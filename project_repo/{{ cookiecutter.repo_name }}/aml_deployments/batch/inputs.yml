@@ -1,0 +1,10 @@
+inputs:
+  input_data:
+    type: uri_folder
+    path: azureml://datastores/[datastore_name]/paths/[folder_on_datastore]
+    mode: ro_mount
+outputs:
+  output_data:
+      type: uri_file
+      path: azureml://datastores/[datastore_name]/paths/[folder_on_datastore]/output.csv
+      mode: upload

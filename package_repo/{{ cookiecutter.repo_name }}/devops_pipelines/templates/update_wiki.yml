@@ -1,0 +1,54 @@
+{% raw %}
+parameters:
+- name: python_version
+  type: string
+- name: poetry_version
+  type: string
+- name: pat_username
+  type: string
+- name: pat
+  type: string
+- name: keyvault_name
+  type: string
+- name: service_connection
+  type: string
+- name: tenant
+  type: string
+- name: organisation
+  type: string
+- name: branchName
+  type: string
+
+steps:
+- template: /devops_pipelines/templates/configure_python.yml
+  parameters:
+    python_version: '${{ parameters.python_version }}'
+    poetry_version: '${{ parameters.poetry_version }}'
+    pat_username: '${{ parameters.pat_username }}'
+    pat: '${{ parameters.pat }}'
+
+- script: poetry install --only docs
+  displayName: 'Install docs dependencies with poetry'
+
+- task: AzureKeyVault@2
+  displayName: Obtain Secrets from Key Vault
+  inputs:
+    azureSubscription: '${{ parameters.service_connection }}'
+    KeyVaultName: '${{ parameters.keyvault_name }}'
+    SecretsFilter: 'SP-Wiki-ID,SP-Wiki-SECRET'
+
+- download: current
+  artifact: documentation_dir
+
+- script: |
+    python $(Agent.BuildDirectory)/s/devops_pipelines/scripts/create_or_update_wiki.py ^
+      --filepath $(Pipeline.Workspace)/documentation_dir ^
+      --project $(System.TeamProject) ^
+      --name $(Build.Repository.Name) ^
+      --branch ${{ parameters.branchName }} ^
+      --clientsecret $(SP-Wiki-SECRET) ^
+      --clientid $(SP-Wiki-ID) ^
+      --tenant ${{ parameters.tenant }} ^
+      --organisation ${{ parameters.organisation }}
+  displayName: 'Create/Update Wiki'
+{% endraw %}

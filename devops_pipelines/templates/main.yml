@@ -1,0 +1,36 @@
+variables:
+  - template: /devops_pipelines/templates/config.yml
+  - name: isMain
+    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+  - name: isDev
+    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/develop')]
+  - name: PublishPackage
+    value: True
+
+stages:
+  - stage: cookiecutter_self
+    jobs:
+      - job: self_precommit
+        displayName: 'Validate YAML files and check for merge conflicts'
+        steps:
+          - checkout: self
+            path: $(project_name)
+          - template: /devops_pipelines/templates/pre_commit.yml
+
+  - stage: cookiecutter_package
+    jobs:
+      - job: package_pipeline
+        displayName: 'Call cookiecutter on package_repo and run pre-commit'
+        steps:
+          - checkout: self
+            path: $(project_name)
+          - template: /devops_pipelines/templates/create_and_check_package_repo.yml
+
+  - stage: cookiecutter_project
+    jobs:
+      - job: project_pipeline
+        displayName: 'Call cookiecutter on project_repo and run pre-commit'
+        steps:
+          - checkout: self
+            path: $(project_name)
+          - template: /devops_pipelines/templates/create_and_check_project_repo.yml

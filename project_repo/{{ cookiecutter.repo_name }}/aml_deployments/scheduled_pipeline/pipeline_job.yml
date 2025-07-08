@@ -1,0 +1,38 @@
+{% raw %}
+$schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
+type: pipeline
+# this experiment name is only used for the jobs started by CI/CD, not for the jobs started by schedule
+experiment_name: {% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_experiment
+
+settings:
+  default_compute: azureml:cpu001-compute
+  # enable force rerun to disable caching. caching can be useful, but may have unintended consequences when not set up
+  # correctly.
+  force_rerun: true
+
+# <inputs_and_outputs>
+inputs:
+  operator: "multiply"
+  a: 2
+  b: 3
+# </inputs_and_outputs>
+
+# <jobs>
+jobs:
+  package_a:
+    type: command
+    compute: azureml:cpu001-compute
+    component: azureml:package_a@latest
+    limits:
+      timeout: 21600  # timeout in seconds (now set to 6 hours), adjust if needed
+    inputs:
+      operator: ${{parent.inputs.operator}}
+      a: ${{parent.inputs.a}}
+      b: ${{parent.inputs.b}}
+    environment_variables:
+      # example setting an environment variable. use only for setting non-secret variables.
+      # set secret variables in keyvault or pass from devops library.
+      KEYVAULT_NAME: PASSED_BY_DEPLOYMENT_YML
+# </jobs>
+
+{% endraw %}

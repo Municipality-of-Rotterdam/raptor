@@ -1,0 +1,23 @@
+{% raw %}
+variables:
+  pythonVersion: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+  poetryVersion: {% endraw %}{{cookiecutter.poetry_version}}{% raw %}
+  devops_organisation: {{cookiecutter.organisation_name}}
+    devops_project: {% endraw %}{{cookiecutter.project_name}}{% raw %}
+  # Name of artifacts feed
+  package_feed:  {% endraw %}{{cookiecutter.package_feed}}{% raw %}
+  # Whether to register environment in Azure Machine Learning based on package
+  RegisterAmlEnv: {% endraw %}{{cookiecutter.create_aml_environment_in_cicd}}{% raw %}
+  aml_environment: {% endraw %}{{cookiecutter.package_name}}{% raw %}
+  sh_agent_pool_name: {% endraw %}{{cookiecutter.private_agent_name}}{% raw %}
+  base_image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04
+  # Create booleans for branches we want to build
+  # should be true when triggered after merge to main (after PR)
+  isMain: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+  # should be true when triggered after merge to a release branch (after PR)
+  isRelease: $[startsWith(variables['Build.SourceBranch'], 'refs/heads/release/')]
+  # should be true when triggered after merge to develop (after PR)
+  isDev: $[eq(variables['Build.SourceBranch'], 'refs/heads/develop')]
+  # branch to read the documentation files from
+  docsBranch: 'refs/head/generated/docs'
+{% endraw %}

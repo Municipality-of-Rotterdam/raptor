@@ -1,0 +1,31 @@
+{% raw %}
+$schema: https://azuremlschemas.azureedge.net/latest/schedule.schema.json
+# name of job when triggered by schedule
+name: {% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_experiment_monthly
+
+trigger:
+  type: recurrence
+  frequency: month  # can be minute, hour, day, week, month
+  interval: 1  # every day/week/month
+  # if schedule is omitted, will be based on frequency, interval and start_time (if omitted is job creation time)
+  # schedule:
+  #   hours: 2
+  #   minutes: 30
+  # If start_time is not given, this will be set to job creation time.
+  # If start_time is not in the past, it will trigger a run when creating the schedule. Not advisable with long jobs!
+  time_zone: "W. Europe Standard Time"  # optional - default will be UTC
+
+create_job:
+  type: pipeline
+  # by refering to local ./pipeline_job.yml you can create a schedule without running the job first
+  # but then you cannot easily pass any parameters (such as using dvlm or prod datalake)
+  # so we run the pipeline job first in CD (although we are probably not going to use the output)
+  job: azureml:{% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_experiment
+  # set experiment name explicitly, docs state that schedule name will be used if not specified, but that is not true
+  # this will be the experiment name for all scheduled jobs
+  experiment_name: {% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_experiment
+  # runtime settings
+  settings:
+    default_compute: azureml:cpu001-compute
+
+{% endraw %}

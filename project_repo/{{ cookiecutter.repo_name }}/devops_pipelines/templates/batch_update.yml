@@ -1,0 +1,22 @@
+{% raw %}
+parameters:
+- name: service_connection
+  type: string
+- name: aml_resource_group
+  type: string
+- name: aml_workspace_name
+  type: string
+- name: aml_endpoint_name
+  type: string
+- name: aml_deployment_name
+  type: string
+
+steps:
+  - task: AzureCLI@2
+    displayName: 'Update the default batch deployment'
+    inputs:
+      azureSubscription: '${{ parameters.service_connection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: az ml batch-endpoint update --name ${{ parameters.aml_endpoint_name }} --set defaults.deployment_name=${{ parameters.aml_deployment_name }} --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+{% endraw %}

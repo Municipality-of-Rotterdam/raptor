@@ -1,0 +1,22 @@
+
+{% raw %}
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: package_a
+type: command
+inputs:
+  operator:
+    type: string
+  a:
+    type: integer
+  b:
+    type: integer
+environment:
+  conda_file: ./package_a_env.yml
+  image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:20240304.v1
+code: ./
+command: >-
+  python package_a_script.py
+  --operator ${{inputs.operator}}
+  --a ${{inputs.a}}
+  --b ${{inputs.b}}
+{% endraw %}

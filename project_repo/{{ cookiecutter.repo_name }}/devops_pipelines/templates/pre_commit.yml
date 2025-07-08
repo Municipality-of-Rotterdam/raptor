@@ -1,0 +1,17 @@
+{% raw %}
+parameters:
+- name: python_version
+  type: string
+- name: pre_commit_version
+  type: string
+
+steps:
+  - template: /devops_pipelines/templates/install_and_configure_python.yml
+    parameters:
+      python_version: '${{ parameters.python_version }}'
+      pre_commit_version: ${{ parameters.pre_commit_version }}
+
+  - script: |
+      pre-commit run --all-files --show-diff-on-failure
+    displayName: 'Run pre-commit'
+{% endraw %}

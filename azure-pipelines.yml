@@ -1,0 +1,12 @@
+trigger:
+  branches:
+    include:
+    - main
+    - release/*
+    - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+extends:
+  template: /devops_pipelines/templates/main.yml

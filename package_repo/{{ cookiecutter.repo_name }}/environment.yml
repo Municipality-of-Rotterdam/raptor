@@ -1,0 +1,10 @@
+name: {{ cookiecutter.package_name }}
+channels:
+  - conda-forge
+  - anaconda
+  - nodefaults
+dependencies:
+  - python={{cookiecutter.python_version}}
+  - pip==23.0
+  - poetry={{cookiecutter.poetry_version}}  
+

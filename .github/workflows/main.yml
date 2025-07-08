@@ -1,0 +1,101 @@
+name: Raptor CICD
+
+env:
+  PYTHON_VERSION: '3.11'                  # set this to the Python version to use
+
+on:
+  push:
+    branches:
+      - main
+      - release/*
+      - develop
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  Precommit:
+    name: Run pre-commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r tests/test_requirements.txt
+
+      - name: Run pre-commit on raptor repo
+        run: |
+          cd ${{ github.workspace }} && pre-commit run --all-files --show-diff-on-failure
+
+  Create_and_test_package_repo:
+    name: Create package repo and run pre-commit
+    needs: [Precommit]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r tests/test_requirements.txt
+
+      - name: Create test repo with cookiecutter
+        run: |
+          cd ${{ github.workspace }} && cookiecutter ${{ github.workspace }} --no-input --directory package_repo
+
+      - name: Run pre-commit in test repo
+        run: |
+          cd ${{ github.workspace }}/pkg_package_name && git add .
+          cd ${{ github.workspace }}/pkg_package_name && pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run pytest in test repo
+        run: |
+          cd ${{ github.workspace }}/pkg_package_name && poetry install --only test && poetry run pip install poetry
+          cd ${{ github.workspace }}/pkg_package_name && poetry run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
+
+  Create_and_test_project_repo:
+    name: Create project repo and run pre-commit
+    needs: [Precommit, Create_and_test_package_repo]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r tests/test_requirements.txt
+
+      - name: Create test repo with cookiecutter
+        run: |
+          cd ${{ github.workspace }} && cookiecutter ${{ github.workspace }} --no-input --directory project_repo
+
+      - name: Run pre-commit in test repo
+        run: |
+          cd ${{ github.workspace }}/project_name && git add .
+          cd ${{ github.workspace }}/project_name && pre-commit run --all-files --show-diff-on-failure

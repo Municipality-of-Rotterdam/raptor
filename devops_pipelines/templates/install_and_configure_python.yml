@@ -1,0 +1,13 @@
+
+steps:
+  - task: UsePythonVersion@0
+    name: UsePythonLocation
+    inputs:
+      versionSpec: '$(pythonVersion)'
+    displayName: 'Use Python $(pythonVersion)'
+  - script: |
+      pipx install poetry==$(poetryVersion) --python $(which python)
+      poetry config virtualenvs.create false
+      poetry install
+      poetry config virtualenvs.create true
+    displayName: 'Install dependencies'

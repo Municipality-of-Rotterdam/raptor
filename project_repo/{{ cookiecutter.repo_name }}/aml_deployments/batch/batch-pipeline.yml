@@ -1,0 +1,44 @@
+{% raw %}
+$schema: https://azuremlschemas.azureedge.net/latest/pipelineComponent.schema.json
+type: pipeline
+name: {% endraw %}{{cookiecutter.repo_name}}{% raw %}-pipeline
+
+# <inputs_and_outputs>
+inputs:
+  input_data:
+    type: uri_folder
+
+outputs:
+  output_data:
+    type: uri_file
+    mode: upload
+# </inputs_and_outputs>
+
+# <jobs>
+jobs:
+  package_a_job:
+    type: command
+    compute: azureml:cpu-cluster
+    component: azureml:package_b@latest
+    limits:
+      timeout: 21600  # timeout in seconds (now set to 6 hours), adjust if needed
+    inputs:
+      input_data:  ${{parent.inputs.input_data}}
+    outputs:
+      package_a_output:
+        mode: upload
+        path: ${{parent.outputs.output_data}}
+  package_b_job:
+    type: command
+    compute: azureml:cpu-cluster
+    component: azureml:package_b@latest
+    limits:
+      timeout: 21600  # timeout in seconds (now set to 6 hours), adjust if needed
+    inputs:
+      input_data:  ${{parent.jobs.package_a_job.outputs.package_a_output}}
+    outputs:
+      package_b_output:
+        mode: upload
+        path: ${{parent.outputs.output_data}}
+# </jobs>
+{% endraw %}

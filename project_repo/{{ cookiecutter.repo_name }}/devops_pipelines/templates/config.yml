@@ -1,0 +1,12 @@
+{% raw %}
+variables:
+  pythonVersion: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+  poetryVersion: {% endraw %}{{cookiecutter.poetry_version}}{% raw %}
+  pre_commit_version: 2.19.0
+  devops_organisation: {{cookiecutter.organisation_name}}
+  devops_project: {% endraw %}{{cookiecutter.project_name}}{% raw %}
+  sh_agent_pool_name: {% endraw %}{{cookiecutter.private_agent_name}}{% raw %}
+  # Create booleans for branches we want to build.
+  isMain: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+  isDev: $[eq(variables['Build.SourceBranch'], 'refs/heads/develop')]
+{% endraw %}

@@ -1,0 +1,11 @@
+name: {{ cookiecutter.repo_name }}
+channels:
+  - conda-forge
+  - anaconda
+  - nodefaults
+dependencies:
+  - chardet=5.2.0
+  - python={{cookiecutter.python_version}}
+  - pip==23.0
+  - poetry={{cookiecutter.poetry_version}}  
+  - pre-commit={{cookiecutter.precommit_version}} 

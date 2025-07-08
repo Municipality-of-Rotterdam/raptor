@@ -1,0 +1,25 @@
+{% raw %}
+$schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
+type: pipeline
+experiment_name: {% endraw %}{{cookiecutter.repo_name}}{% raw %}
+
+settings:
+  # force_rerun: True
+  # default_datastore: azureml:rdameuwdvlmdloxgn01_datascience
+  continue_on_step_failure: false
+
+component: batch-pipeline.yml
+
+# <inputs_and_outputs>
+inputs:
+  input_data:
+    type: uri_folder
+    path: azureml://datastores/[datastore_name]/paths/[folder_on_datastore]
+    mode: ro_mount
+
+outputs:
+  output_data:
+    type: uri_file
+    mode: upload
+# </inputs_and_outputs>
+{% endraw %}

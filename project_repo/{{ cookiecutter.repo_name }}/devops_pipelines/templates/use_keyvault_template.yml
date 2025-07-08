@@ -1,0 +1,22 @@
+{% raw %}
+# To use KeyVault secrets and propagate to subsequent stages, copy the following to main.yml:
+  - stage: KeyVault
+    jobs:
+    - template: /devops_pipelines/templates/keyvault.yml
+      parameters:
+        service_connection: $(AmlServiceConnection)
+        keyvault_name: $(AmlKeyvaultName)
+        pat_secret_name: $(AmlPatSecretName)
+        pool_name: ${{ variables.sh_agent_pool_name }}
+  - stage: UseKeyVault
+    dependsOn: KeyVault
+    jobs:
+    - job: UseKeyVaultJob
+      variables:
+        PAT: $[ stageDependencies.KeyVault.KeyVault.outputs['setvar.PAT'] ]
+      displayName: 'Use secret from KeyVault'
+      steps:
+      - template: /devops_pipelines/templates/dummy_template.yml
+        parameters:
+          pat: $(PAT)
+{% endraw %}

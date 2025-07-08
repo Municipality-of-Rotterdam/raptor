@@ -1,0 +1,2 @@
+# decrease risk of merge conflicts (https://stackoverflow.com/questions/34636177/strategies-for-avoiding-merge-conflicts-e-g-in-git)
+changelog.md merge=union

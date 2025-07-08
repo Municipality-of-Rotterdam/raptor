@@ -1,0 +1,28 @@
+{% raw %}
+parameters:
+  - name: service_connection
+    type: string
+  - name: keyvault_name
+    type: string
+  - name: pat_secret_name
+    type: string
+  - name: pool_name
+    type: string
+    
+jobs:
+- job: KeyVault
+  pool: '${{ parameters.pool_name }}'
+  steps:
+    - task: AzureKeyVault@2
+      displayName: 'Obtain secrets from Key Vault'
+      inputs:
+        azureSubscription: '${{ parameters.service_connection }}'
+        KeyVaultName: '${{ parameters.keyvault_name }}'
+        SecretsFilter: '${{ parameters.pat_secret_name }}'
+    - bash: |
+        echo "##vso[task.setvariable variable=PAT;isoutput=true;issecret=true]$PAT"
+      env:
+        PAT: ${{ parameters.pat_secret_name }}
+      name: setvar
+      displayName: 'Set secrets as environment variables'
+{% endraw %}

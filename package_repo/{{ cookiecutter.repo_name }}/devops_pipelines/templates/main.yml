@@ -1,0 +1,128 @@
+{% raw %}
+variables:
+# Extract variables from config.yml
+- template: /devops_pipelines/templates/config.yml
+# check whether this is a PR to main, run checks for things we want to do when isMain (after PR is completed)
+# note: this variable is only available at runtime, not compile time, so using this variable can be complicated
+- name: toMain
+  value: $[eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main')]
+# use complicated ifelse to define feed_view, cannot use if at runtime, only at compile time (and toMain is only available at runtime)
+- name: feed_view
+  value: $[replace(replace(or(eq(variables['toMain'], true), eq(variables['isMain'], true)), True, 'prod'), False, 'dvlm')]
+# if we want to register aml environment
+- ${{ if eq(variables['RegisterAmlEnv'], true) }}:
+  # If main, create aml environment in production aml workspace
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+    - group: AmlProdGroup
+  # If not main, create aml environment in development aml workspace
+  - ${{ else }}:
+    - group: AmlDevGroup 
+# otherwise fallback on development settings
+- ${{ else }}:
+  - group: AmlDevGroup 
+
+stages:
+- stage: PreCommit
+  jobs:
+  - job: ExecutePreCommit
+    displayName: 'Perform pre-commit checks'
+    steps:
+    - template: /devops_pipelines/templates/pre_commit.yml
+      parameters:
+        python_version: ${{ variables.pythonVersion }}
+        poetry_version: ${{ variables.poetryVersion }}
+        pat_username: $(PatUsername)
+        pat: $(DevOpsPAT)
+- stage: UnitTest
+  jobs:
+  - job: ExecuteUnitTests
+    displayName: 'Unit Tests Coverage'
+    steps:
+    - template: /devops_pipelines/templates/test.yml
+      parameters:
+        python_version: ${{ variables.pythonVersion }}
+        poetry_version: ${{ variables.poetryVersion }}
+        pat_username: $(PatUsername)
+        pat: $(DevOpsPAT)
+- stage: Build
+  dependsOn:
+    - PreCommit
+    - UnitTest
+  condition: succeeded()
+  jobs:
+  - job: Check
+    displayName: 'Check changed files in source folder'
+    steps:
+      - checkout: self
+        fetchDepth: 0
+      - task: ChangedFiles@1
+        name: CheckSourceChanges
+        inputs:
+          rules: |
+            [SourceHasChanged]
+            src/**/*
+            pyproject.toml
+  - job: Build
+    displayName: 'Build and store staging artifact'
+    dependsOn: 
+      - Check
+    condition: eq(dependencies.Check.outputs['CheckSourceChanges.SourceHasChanged'], 'true')
+    variables:
+      build:  $[or(eq(variables['isDev'], true), eq(variables['isRelease'], true), eq(variables['isMain'], true))]
+      prod:  $[or(eq(variables['toMain'], true), eq(variables['isMain'], true))]
+    steps:
+    - template: /devops_pipelines/templates/build.yml
+      parameters:
+        python_version: ${{ variables.pythonVersion }}
+        poetry_version: ${{ variables.poetryVersion }}
+        devops_project: ${{ variables.devops_project }}
+        package_feed: ${{ variables.package_feed }}
+        feed_view: $(feed_view)
+        pat_username: $(PatUsername)
+        pat: $(DevOpsPAT)
+  - job: Register
+    dependsOn: 
+      - Build
+    condition: and(succeeded(), eq(variables.RegisterAmlEnv, true),  or(eq(variables.isDev, true), eq(variables.isRelease, true), eq(variables.isMain, true)))
+    pool: ${{ variables.sh_agent_pool_name }}
+    displayName: 'Register new environment in Azure ML'
+    steps:
+    - template: /devops_pipelines/templates/register.yml
+      parameters:
+        service_connection: $(AmlServiceConnection)
+        devops_organisation: ${{ variables.devops_organisation }}
+        package_feed_view: ${{ variables.package_feed }}@$(feed_view)
+        aml_environment: ${{ variables.aml_environment }}
+        base_image: ${{ variables.base_image }}
+- stage: Documentation
+  dependsOn:
+    - PreCommit
+    - UnitTest
+  condition: and(succeeded(), eq(variables.isMain, true))
+  jobs:
+  - job: BuildDocs
+    displayName: "Generate Wiki Documentation"
+    steps:
+      - template: /devops_pipelines/templates/generate_docs.yml
+        parameters:
+          python_version: ${{ variables.pythonVersion }}
+          poetry_version: ${{ variables.poetryVersion}}
+          pat_username: $(PatUsername)
+          pat: $(DevOpsPAT)
+  - job: WikiUpdate
+    displayName: "Sync Documentation to Devops"
+    pool: ${{ variables.sh_agent_pool_name }}
+    dependsOn: BuildDocs
+    steps:
+      - template: /devops_pipelines/templates/update_wiki.yml
+        parameters:
+          python_version: ${{ variables.pythonVersion }}
+          poetry_version: ${{ variables.poetryVersion}}
+          pat_username: $(PatUsername)
+          pat: $(DevOpsPAT)
+          keyvault_name: $(SharedKeyvault)
+          service_connection: $(AmlServiceConnection)
+          tenant: $(TenantName)
+          organisation: $(Organisation)
+          branchName: ${{ variables.docsBranch }}
+{% endraw %}

@@ -1,0 +1,123 @@
+{% raw %}
+parameters:
+- name: force_deploy
+  type: boolean
+
+variables:
+# Extract variables from config.yml
+- template: /devops_pipelines/templates/config.yml
+- name: type_deployment
+  value: {% endraw %}{{cookiecutter.type_deployment}}{% raw %}
+  # Mirror traffic (for online deployments only)
+  # The maximum percentage of traffic you can mirror is 50%
+- name: aml_mirror_traffic
+  value: '10'
+  # Batch ML pipeline deployment base name
+- name: aml_deployment_name
+  value: {% endraw %}{{cookiecutter.__aml_base_deployment_name}}{% raw %}-pipeline
+# If main, deploy to production
+- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+  - name: aml_endpoint_name
+    value: {% endraw %}{{cookiecutter.__aml_base_deployment_name}}{% raw %}-{% endraw %}{{cookiecutter.type_deployment}}{% raw %}-prod
+  - name: environment
+    value: aml_{% endraw %}{{cookiecutter.repo_name}}{% raw %}_production
+  - name: feed_view
+    value: prod
+  - group: AmlProdGroup
+# If not main, fallback on development settings
+- ${{ else }}:
+  - name: aml_endpoint_name
+    value: {% endraw %}{{cookiecutter.__aml_base_deployment_name}}{% raw %}-{% endraw %}{{cookiecutter.type_deployment}}{% raw %}-dev
+  - name: environment
+    value: aml_{% endraw %}{{cookiecutter.repo_name}}{% raw %}_development
+  - name: feed_view
+    value: dvlm
+  - group: AmlDevGroup
+
+# To get and propagate keyvault secrets, see the dummy file use_keyvault_template.yml
+stages:
+  - stage: PreCommit
+    jobs:
+      - job: ExecutePreCommit
+        displayName: 'Perform pre-commit checks'
+        steps:
+        - template: /devops_pipelines/templates/pre_commit.yml
+          parameters:
+            python_version: ${{ variables.pythonVersion }}
+            pre_commit_version: ${{ variables.pre_commit_version }}
+
+  - stage: Deploy
+    condition: and(succeeded(), or(eq(variables.isDev, true), eq(variables.isMain, true), ${{ eq(parameters.force_deploy, true) }}), ne(variables.type_deployment, 'none'))
+    jobs:
+      - job: Deploy
+        pool: ${{ variables.sh_agent_pool_name }}
+        displayName: 'Create new ${{ variables.type_deployment }} deployment in Azure ML'
+        steps:
+        - ${{ if eq(variables['type_deployment'], 'batch') }}:
+          - template: /devops_pipelines/templates/batch_deployment.yml
+            parameters:
+              python_version: ${{ variables.pythonVersion }}
+              service_connection: $(AmlServiceConnection)
+              aml_keyvault_name: $(AmlKeyvaultName)
+              aml_resource_group: $(AmlResourceGroup)
+              aml_workspace_name: $(AmlWorkspaceName)
+              aml_endpoint_name: ${{ variables.aml_endpoint_name }}
+              aml_deployment_name: ${{ variables.aml_deployment_name }}-$(Build.BuildNumber)
+        - ${{ if eq(variables['type_deployment'], 'online') }}:
+          - template: /devops_pipelines/templates/online_deployment.yml
+            parameters:
+              service_connection: $(AmlServiceConnection)
+              aml_resource_group: $(AmlResourceGroup)
+              aml_workspace_name: $(AmlWorkspaceName)
+              aml_endpoint_name: ${{ variables.aml_endpoint_name }}
+              aml_deployment_name: ${{ variables.aml_deployment_name }}-$(Build.BuildNumber)
+              aml_mirror_traffic: ${{ variables.aml_mirror_traffic }}
+        - ${{ if eq(variables['type_deployment'], 'scheduled-pipeline') }}:
+          - template: /devops_pipelines/templates/scheduled_pipeline_deployment.yml
+            parameters:
+              service_connection: $(AmlServiceConnection)
+              aml_resource_group: $(AmlResourceGroup)
+              aml_workspace_name: $(AmlWorkspaceName)
+              # job name used for pipelinejob run triggered by ci/cd (not those triggered by schedule)
+              aml_job_name: {% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_experiment_$(Build.BuildNumber)
+              # include view to use packages from correct artifacts view (prod/dvlm)
+              feed_view: ${{ variables.feed_view }}
+              # include branch/commit for deploying pipelinejobs, so we know even better what versions are used
+              branch: ${{ variables['Build.SourceBranch'] }}
+              commit: ${{ variables['Build.SourceVersion'] }}
+              # keyvault name only if keyvault is used in project
+              aml_keyvault_name: $(AmlKeyvaultName)
+
+  - ${{ if or(eq(variables['type_deployment'], 'batch'), eq(variables['type_deployment'], 'online')) }}:
+    - stage: Update
+      dependsOn: [Deploy]
+      condition: succeeded('Deploy')
+      jobs:
+        - deployment: Update
+          pool: ${{ variables.sh_agent_pool_name }}
+          displayName: 'Update default ${{ variables.type_deployment }} deployment in Azure ML'
+          continueOnError: false
+          environment: ${{ variables.environment }}
+          timeoutInMinutes: 120
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                - ${{ if eq(variables['type_deployment'], 'batch') }}:
+                  - template: /devops_pipelines/templates/batch_update.yml
+                    parameters:
+                      service_connection: $(AmlServiceConnection)
+                      aml_resource_group: $(AmlResourceGroup)
+                      aml_workspace_name: $(AmlWorkspaceName)
+                      aml_endpoint_name: ${{ variables.aml_endpoint_name }}
+                      aml_deployment_name: ${{ variables.aml_deployment_name }}-$(Build.BuildNumber)
+                - ${{ if eq(variables['type_deployment'], 'online') }}:
+                  - template: /devops_pipelines/templates/online_update.yml
+                    parameters:
+                      service_connection: $(AmlServiceConnection)
+                      aml_resource_group: $(AmlResourceGroup)
+                      aml_workspace_name: $(AmlWorkspaceName)
+                      aml_endpoint_name: ${{ variables.aml_endpoint_name }}
+                      aml_deployment_name: ${{ variables.aml_deployment_name }}-$(Build.BuildNumber)
+                      aml_mirror_traffic: ${{ variables.aml_mirror_traffic }}
+{% endraw %}

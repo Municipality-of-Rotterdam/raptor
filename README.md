@@ -11,17 +11,19 @@ This repository is a cookiecutter template to be used for projects in Azure Mach
 
 
 # Table of Content
-1. [Introduction](#1-introduction)
-2. [Repository templates](#2-repository-templates)
-3. [Repository setup](#3-repository-setup)
-4. [Environment setup](#4-environment-setup)
-5. [Continuous Integration](#5-continuous-integration)
-6. [Writing code](#6-writing-code)
-7. [Running code in Azure Machine Learning](#7-running-code-in-azure-machine-learning)
-8. [Ecosystem/resource requirements and setup](#8-ecosystemresource-requirements-and-setup)
-9. [Resources](#9-resources)
+1. [Introduction](#introduction)
+2. [Repository templates](#repository-templates)
+3. [Repository setup](#repository-setup)
+4. [Environment setup](#environment-setup)
+5. [Continuous Integration](#continuous-integration)
+6. [Writing code](#writing-code)
+7. [Running code in Azure Machine Learning](#running-code-in-azure-machine-learning)
+8. [Ecosystem/resource requirements and setup](#ecosystemresource-requirements-and-setup)
+9. [Resources](#resources)
+9. [Known Issues](#known-issues)
+9. [License](#license)
 
-### 1. Introduction
+## Introduction
 
 This document will guide you through setting up your repository, configuring your development environment, and managing dependencies with Conda and Poetry.
 This document supports two types of repository templates used in AzureML projects:
@@ -29,7 +31,7 @@ This document supports two types of repository templates used in AzureML project
 - Package Repository: for developing and maintaining reusable Python packages (mainly .py files)
 - Project Repository: for orchestrating machine learning projects and pipelines (mainly .yml files)
 
-### 2. Repository templates
+## Repository templates
 
 Both repository templates serve a specific purpose and follow best practices to ensure maintainability, scalability, and efficient collaboration between data scientists and ML engineers. Below, we outline the structure, usage, and CI/CD setup for both repository types.
 A package repo is focused on a single package, usually used in a component.
@@ -77,7 +79,7 @@ Once the project scales up to a Pilot/Production phase, you follow the best prac
 For each project, you will ultimately have one project repository and one or more package repositories.
 Typically, you use one package per component. Data scientists can use the project repository as the main repository and clone package repositories as submodules to develop them.
 
-### 3. Repository setup
+## Repository setup
 
 After completing this section, you will be able to connect to your repository via your personal compute instance. Moreover, you will have enabled  Continuous Integration (CI) and Continuous Deployment (CD) on your repository! Note that you will encounter: "YOUR_PACKAGE_NAME" sometimes in this section, it is simply a placeholder name of the repository you will be creating, replace it by the name of your repository.
 
@@ -228,7 +230,7 @@ The update is done automatically in Azure DevOps pipeline after receiving an app
 3. The pipeline YOUR_PACKAGE_NAME should get permission to access these two environments, either during the first pipeline run
 or beforehand in "Environments > Environment_name > Security > Pipeline permissions".
 
-### 4. Environment setup
+## Environment setup
 
 In this section, you will have setup your environment to work in and setup the dependency management properly.
 Conda will setup and manage a virtual environment, with the python runtime and some base packages. Conda is also used by azureml to setup environments.
@@ -344,7 +346,7 @@ The custom package and its dependencies will be installed in editable mode (i.e.
 Note that this install will not be reflected in the main package's pyproject.toml, and thus also not in its CI/CD.
 If a package has private package dependencies, and these packages will be used in the CI/CD, make sure they are added to the pyproject.toml from the artifacts feed.
 
-### 5. Continuous Integration
+## Continuous Integration
 
 In this section, we will first explain how to use pre-commit and run tests locally. Such that you can ensure that Continuous Integration (CI) pipelines will succeed. Herefater, the CI/CD workflow, security guidelines and API functionality of your new repository are elaborated on.
 
@@ -405,7 +407,7 @@ In Pipelines, the .coverage file should be stored with default options. Therefor
 which configures coverage for pipelines. So if you need to tweak something regarding coverage: there is two
 files you may need to deal with (`.coveragerc` for local tests and `.coveragerc_pipeline` for your pipeline).
 
-### 6. Writing code
+## Writing code
 
 #### 6.1 Using the API functionality
 Our cookiecutter template is designed with simplicity and effectiveness in mind, especially for new users. It includes two key Python files: __version__.py and _api.py, each serving a distinct purpose.
@@ -421,9 +423,10 @@ result = multiply(2, 3)
 print(result)
 ```
 
-### 7. Running code in Azure Machine Learning
+## Running code in Azure Machine Learning
+TODO
 
-### 8. Ecosystem/resource requirements and setup
+## Ecosystem/resource requirements and setup
 The following provides an overview of the necessary parts to make the CI/CD workflow work in either Github or DevOps, connecting with Azure Machine Learning.
 A service connection from AML to a package repository is only necessary if we publish packages to a private location.
 A dedicated Github/DevOps worker is only necessary if we want to work in a private environment.
@@ -479,11 +482,11 @@ https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-secr
 ##### 8.1.2 Using Github secrets
 https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions#using-secrets-in-a-workflow
 
-### 9. Resources
+## Resources
 
 * [Releases](changelog.md)
 
-### 10. Known Issues
+## Known Issues
 
 * If you choose the GitHub platform, components will not work since we haven't fixed the --extra-index-url parameter inside the env.yml files. We will fix this at a later stage.
 
@@ -491,7 +494,7 @@ https://docs.github.com/en/actions/security-for-github-actions/security-guides/u
 
 **Note:** All DevOps options have been tested using Azure DevOps, as this is the platform used by Gemeente Rotterdam which we might still have some bugs. While the GitHub workflows are included, they have not been fully tested and may contain some bugs. If you encounter any issues or have improvements, please open an issue and submit a pull request if feasible.
 
-### 11. Licence
+## License
 
 This project is licensed under the **European Union Public Licence (EUPL) v1.2**.  
 For more details, see the [EUPL official website](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12).

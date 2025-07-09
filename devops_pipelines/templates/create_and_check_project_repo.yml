@@ -4,6 +4,8 @@ steps:
       pythonVersion: '$(pythonVersion)'
   - script: |
       cookiecutter . --no-input --directory project_repo
+    env:
+      COOKIECUTTER_NO_INPUT: "1"
     displayName: 'Call cookiecutter on project_repo'
   - script: |
       cd ./project_name

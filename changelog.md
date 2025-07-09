@@ -3,6 +3,14 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.0.3] - 2025-07-09
+Fixed file cleanup after conditional prompt. Added CI tests for Github repo variant.
+
+### **Added**
+- CI tests for Github repo variant
+### **Fixed**
+- File cleanup after conditional prompt now happens before committing the template files.
+
 ## [0.0.2] - 2025-07-09
 CI/CD fixes.
 

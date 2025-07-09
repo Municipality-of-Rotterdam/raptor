@@ -101,5 +101,5 @@ jobs:
 
       - name: Run pre-commit in test repo
         run: |
-          cd ${{ github.workspace }}/project_name && git add .
-          cd ${{ github.workspace }}/project_name && pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/repo_name && git add .
+          cd ${{ github.workspace }}/repo_name && pre-commit run --all-files --show-diff-on-failure

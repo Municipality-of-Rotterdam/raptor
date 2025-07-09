@@ -4,9 +4,11 @@ steps:
       pythonVersion: '$(pythonVersion)'
   - script: |
       cookiecutter . --no-input --directory project_repo
+    env:
+      COOKIECUTTER_NO_INPUT: "1"
     displayName: 'Call cookiecutter on project_repo'
   - script: |
-      cd ./project_name
+      cd ./repo_name
       git add .
       pre-commit run --all-files --show-diff-on-failure
     displayName: 'Run project_repo own pre-commit config'

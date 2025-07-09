@@ -57,21 +57,37 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tests/test_requirements.txt
 
-      - name: Create test repo with cookiecutter DevOps variant
+      - name: Create test repo with cookiecutter (DevOps variant)
         run: |
           cd ${{ github.workspace }} && cookiecutter . --no-input --directory package_repo
         env:
           COOKIECUTTER_NO_INPUT: "1"
 
-      - name: Run pre-commit in test repo
+      - name: Run pre-commit in test repo (DevOps variant)
         run: |
           cd ${{ github.workspace }}/pkg_package_name && git add .
           cd ${{ github.workspace }}/pkg_package_name && pre-commit run --all-files --show-diff-on-failure
 
-      - name: Run pytest in test repo
+      - name: Run pytest in test repo (DevOps variant)
         run: |
           cd ${{ github.workspace }}/pkg_package_name && poetry install --only test && poetry run pip install poetry
           cd ${{ github.workspace }}/pkg_package_name && poetry run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
+
+      - name: Create test repo with cookiecutter (Github variant)
+        run: |
+          cd ${{ github.workspace }} && cookiecutter . --no-input --directory package_repo additional_prompts=Github repo_name=pkg_package_name_gh
+        env:
+          COOKIECUTTER_NO_INPUT: "1"
+
+      - name: Run pre-commit in test repo (Github variant)
+        run: |
+          cd ${{ github.workspace }}/pkg_package_name_gh && git add .
+          cd ${{ github.workspace }}/pkg_package_name_gh && pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run pytest in test repo (Github variant)
+        run: |
+          cd ${{ github.workspace }}/pkg_package_name_gh && poetry install --only test && poetry run pip install poetry
+          cd ${{ github.workspace }}/pkg_package_name_gh && poetry run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
 
   Create_and_test_project_repo:
     name: Create project repo and run pre-commit
@@ -93,13 +109,24 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tests/test_requirements.txt
 
-      - name: Create test repo with cookiecutter
+      - name: Create test repo with cookiecutter (DevOps variant)
         run: |
           cd ${{ github.workspace }} && cookiecutter . --no-input --directory project_repo
         env:
           COOKIECUTTER_NO_INPUT: "1"
 
-      - name: Run pre-commit in test repo
+      - name: Run pre-commit in test repo (DevOps variant)
         run: |
           cd ${{ github.workspace }}/repo_name && git add .
           cd ${{ github.workspace }}/repo_name && pre-commit run --all-files --show-diff-on-failure
+
+      - name: Create test repo with cookiecutter (Github variant)
+        run: |
+          cd ${{ github.workspace }} && cookiecutter . --no-input --directory project_repo additional_prompts=Github repo_name=repo_name_gh
+        env:
+          COOKIECUTTER_NO_INPUT: "1"
+
+      - name: Run pre-commit in test repo (Github variant)
+        run: |
+          cd ${{ github.workspace }}/repo_name_gh && git add .
+          cd ${{ github.workspace }}/repo_name_gh && pre-commit run --all-files --show-diff-on-failure

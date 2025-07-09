@@ -6,9 +6,19 @@ steps:
       cookiecutter . --no-input --directory project_repo
     env:
       COOKIECUTTER_NO_INPUT: "1"
-    displayName: 'Call cookiecutter on project_repo'
+    displayName: 'Call cookiecutter on project_repo (DevOps variant)'
   - script: |
       cd ./repo_name
       git add .
       pre-commit run --all-files --show-diff-on-failure
-    displayName: 'Run project_repo own pre-commit config'
+    displayName: 'Run project_repo own pre-commit config (DevOps variant)'
+  - script: |
+      cookiecutter . --no-input --directory project_repo additional_prompts=Github repo_name=repo_name_gh
+    env:
+      COOKIECUTTER_NO_INPUT: "1"
+    displayName: 'Call cookiecutter on project_repo (Github variant)'
+  - script: |
+      cd ./repo_name_gh
+      git add .
+      pre-commit run --all-files --show-diff-on-failure
+    displayName: 'Run project_repo own pre-commit config (Github variant)'

@@ -57,9 +57,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r tests/test_requirements.txt
 
-      - name: Create test repo with cookiecutter
+      - name: Create test repo with cookiecutter DevOps variant
         run: |
-          cd ${{ github.workspace }} && cookiecutter ${{ github.workspace }} --no-input --directory package_repo
+          cd ${{ github.workspace }} && cookiecutter . --no-input --directory package_repo
+        env:
+          COOKIECUTTER_NO_INPUT: "1"
 
       - name: Run pre-commit in test repo
         run: |
@@ -93,9 +95,11 @@ jobs:
 
       - name: Create test repo with cookiecutter
         run: |
-          cd ${{ github.workspace }} && cookiecutter ${{ github.workspace }} --no-input --directory project_repo
+          cd ${{ github.workspace }} && cookiecutter . --no-input --directory project_repo
+        env:
+          COOKIECUTTER_NO_INPUT: "1"
 
       - name: Run pre-commit in test repo
         run: |
-          cd ${{ github.workspace }}/project_name && git add .
-          cd ${{ github.workspace }}/project_name && pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/repo_name && git add .
+          cd ${{ github.workspace }}/repo_name && pre-commit run --all-files --show-diff-on-failure

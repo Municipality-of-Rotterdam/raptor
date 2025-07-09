@@ -8,6 +8,7 @@
     {% if is_devops %}
         {{ cookiecutter.update({"organisation_name": prompt_user("DevOps Organisation name", "organisation_name")}) }}
         {{ cookiecutter.update({"private_agent_name": prompt_user("DevOps Private agent name", "private_agent_name")}) }}
+        {{ cookiecutter.update({"package_feed": prompt_user("Package feed name", "package_feed")}) }}
         {{ cookiecutter.update({"azure_resource_group": "azure_resource_group"}) }}
         {{ cookiecutter.update({"azureml_workspace": "azureml_workspace"}) }}
     {% endif %}
@@ -16,6 +17,7 @@
     {% if is_github %}
         {{ cookiecutter.update({"azure_resource_group": prompt_user("Azure resource group", "azure_resource_group")}) }}
         {{ cookiecutter.update({"azureml_workspace": prompt_user("AzureML workspace", "azureml_workspace")}) }}
+        {{ cookiecutter.update({"package_feed": "package_feed"}) }}
         {{ cookiecutter.update({"organisation_name": "organisation_name"}) }}
         {{ cookiecutter.update({"private_agent_name": "private_agent_name"}) }}
     {% endif %}

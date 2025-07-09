@@ -5,6 +5,8 @@ steps:
       pythonVersion: '$(pythonVersion)'
   - script: |
       cookiecutter . --no-input --directory package_repo
+    env:
+      COOKIECUTTER_NO_INPUT: "1"
     displayName: 'Call cookiecutter on package_repo'
   - script: |
       cd ./pkg_package_name

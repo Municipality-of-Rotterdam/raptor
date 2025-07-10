@@ -19,23 +19,6 @@ assert target_repo_dir.endswith(
     with the target repository name {target_repo_name}, \
     cannot mark this directory as safe."
 
-subprocess.call(
-    ["git", "config", "--global", "--add", "safe.directory", target_repo_dir]
-)
-subprocess.call(["git", "init"])
-subprocess.call(["git", "add", "."])
-print("committing initialized repo")
-subprocess.call(["git", "commit", "-m", "init"])
-
-print("switching to new branch develop")
-subprocess.call(["git", "checkout", "-b", "develop"])
-
-print("creating documentation branch based on develop")
-subprocess.call(["git", "checkout", "-b", "generated/docs"])
-
-print("switching back to branch develop")
-subprocess.call(["git", "checkout", "develop"])
-
 
 # ===========================
 # Conditional folder cleanup
@@ -74,3 +57,24 @@ elif choice == "devops":
             shutil.rmtree(folder_path)
 else:
     print(f"Unknown choice for additional_prompts: {choice}. No folders removed.")
+
+# ===========================
+# Git repo config
+# ===========================
+
+subprocess.call(
+    ["git", "config", "--global", "--add", "safe.directory", target_repo_dir]
+)
+subprocess.call(["git", "init"])
+subprocess.call(["git", "add", "."])
+print("committing initialized repo")
+subprocess.call(["git", "commit", "-m", "init"])
+
+print("switching to new branch develop")
+subprocess.call(["git", "checkout", "-b", "develop"])
+
+print("creating documentation branch based on develop")
+subprocess.call(["git", "checkout", "-b", "generated/docs"])
+
+print("switching back to branch develop")
+subprocess.call(["git", "checkout", "develop"])

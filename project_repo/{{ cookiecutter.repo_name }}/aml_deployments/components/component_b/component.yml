@@ -1,4 +1,3 @@
-{% raw %}
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
 name: {{cookiecutter.__aml_project_code}}_component_b
 type: command
@@ -12,8 +11,7 @@ inputs:
 environment: azureml:example_package@latest
 code: ./
 command: >-
-  python script.py
+  python component_b_script.py
   --operator ${{inputs.operator}}
   --a ${{inputs.a}}
   --b ${{inputs.b}}
-{% endraw %}

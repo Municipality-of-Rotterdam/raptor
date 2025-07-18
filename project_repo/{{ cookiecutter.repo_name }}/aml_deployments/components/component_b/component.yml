@@ -1,5 +1,6 @@
+{% raw %}
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
-name: {{cookiecutter.__aml_project_code}}_component_b
+name: {% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_component_b
 type: command
 inputs:
   operator:
@@ -15,3 +16,4 @@ command: >-
   --operator ${{inputs.operator}}
   --a ${{inputs.a}}
   --b ${{inputs.b}}
+{% endraw %}

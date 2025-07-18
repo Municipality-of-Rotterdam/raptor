@@ -6,6 +6,8 @@ experiment_name: {% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_experi
 
 settings:
   default_compute: azureml:cpu001-compute
+  # write to workspaceblobstore by default, used for transfering data between components. use datascience for actual input/output.
+  default_datastore: azureml:workspaceblobstore
   # enable force rerun to disable caching. caching can be useful, but may have unintended consequences when not set up
   # correctly.
   force_rerun: true
@@ -19,10 +21,10 @@ inputs:
 
 # <jobs>
 jobs:
-  package_a:
+  component_a:
     type: command
     compute: azureml:cpu001-compute
-    component: azureml:package_a@latest
+    component: azureml:{% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_component_a@latest
     limits:
       timeout: 21600  # timeout in seconds (now set to 6 hours), adjust if needed
     inputs:
@@ -31,8 +33,17 @@ jobs:
       b: ${{parent.inputs.b}}
     environment_variables:
       # example setting an environment variable. use only for setting non-secret variables.
-      # set secret variables in keyvault or pass from devops library.
+      # set secret variables in keyvault (https://wiki.rotterdam.nl/x/DD1cDg) or pass from devops library.
       KEYVAULT_NAME: PASSED_BY_DEPLOYMENT_YML
+  component_b:
+    type: command
+    compute: azureml:cpu001-compute
+    component: azureml:{% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_component_b@latest
+    limits:
+      timeout: 21600  # timeout in seconds (now set to 6 hours), adjust if needed
+    inputs:
+      operator: ${{parent.inputs.operator}}
+      a: ${{parent.inputs.a}}
+      b: ${{parent.inputs.b}}
 # </jobs>
-
 {% endraw %}

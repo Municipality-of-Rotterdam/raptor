@@ -69,7 +69,7 @@ jobs:
         uses: tj-actions/changed-files@v45
         if: env.TYPE_DEPLOYMENT == 'batch'
         with:
-          files: components/package_a/*
+          files: aml_deployments/components/component_a/*
         # To compare changes between the current commit and the last pushed remote commit 
         # set `since_last_remote_commit: true`. e.g
           since_last_remote_commit: true 
@@ -84,7 +84,7 @@ jobs:
             az extension add -n ml -y
             echo "Install successful!"            
             
-            az ml component create --file $GITHUB_WORKSPACE/components/package_a/package_a.yml --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+            az ml component create --file $GITHUB_WORKSPACE/aml_deployments/components/component_a/package_a.yml --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
 
       # https://github.com/marketplace/actions/changed-files
       - name: CheckPackageBChanges
@@ -92,7 +92,7 @@ jobs:
         uses: tj-actions/changed-files@v45
         if: env.TYPE_DEPLOYMENT == 'batch'
         with:
-          files: components/package_b/*
+          files: aml_deployments/components/component_b/*
         # To compare changes between the current commit and the last pushed remote commit 
         # set `since_last_remote_commit: true`. e.g
           since_last_remote_commit: true 
@@ -107,7 +107,7 @@ jobs:
             az extension add -n ml -y
             echo "Install successful!"  
           
-            az ml component create --file $GITHUB_WORKSPACE/components/package_b/package_b.yml --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+            az ml component create --file $GITHUB_WORKSPACE/aml_deployments/components/component_b/package_b.yml --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
   
       - name: Create new batch endpoint if not exists
         uses: azure/cli@v2

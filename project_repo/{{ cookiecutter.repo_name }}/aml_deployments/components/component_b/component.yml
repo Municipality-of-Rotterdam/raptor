@@ -1,7 +1,6 @@
-
 {% raw %}
 $schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
-name: package_a
+name: {{cookiecutter.__aml_project_code}}_component_b
 type: command
 inputs:
   operator:
@@ -10,12 +9,10 @@ inputs:
     type: integer
   b:
     type: integer
-environment:
-  conda_file: ./package_a_env.yml
-  image: mcr.microsoft.com/azureml/openmpi5.0-ubuntu24.04
+environment: azureml:example_package@latest
 code: ./
 command: >-
-  python package_a_script.py
+  python script.py
   --operator ${{inputs.operator}}
   --a ${{inputs.a}}
   --b ${{inputs.b}}

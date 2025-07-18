@@ -1,11 +1,5 @@
 {% raw %}
 parameters:
-- name: service_connection
-  type: string
-- name: aml_resource_group
-  type: string
-- name: aml_workspace_name
-  type: string
 - name: aml_endpoint_name
   type: string
 - name: aml_deployment_name
@@ -19,17 +13,17 @@ steps:
 - task: AzureCLI@2
   displayName: 'Remove mirror traffic if it exists'
   inputs:
-    azureSubscription: '${{ parameters.service_connection }}'
+    azureSubscription: '$(AmlServiceConnection)'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
-      MIRROR_TRAFFIC=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} \
-      --workspace-name ${{ parameters.aml_workspace_name }} --query mirror_traffic --output json | jq -r 'keys[]' | wc -l)
+      MIRROR_TRAFFIC=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+      --workspace-name $(AmlWorkspaceName) --query mirror_traffic --output json | jq -r 'keys[]' | wc -l)
       if [[ $MIRROR_TRAFFIC != 0 ]]
       then
           echo "Set the mirror traffic to 0% to disable mirroring to the ${{ parameters.aml_deployment_name }} deployment"
           az ml online-endpoint update --name ${{ parameters.aml_endpoint_name }} --mirror-traffic "${{ parameters.aml_deployment_name }}=0" \
-          --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+          --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
       else
           echo "No mirror traffic present"
       fi
@@ -37,51 +31,51 @@ steps:
 - task: AzureCLI@2
   displayName: 'Update online endpoint traffic allocation'
   inputs:
-    azureSubscription: '${{ parameters.service_connection }}'
+    azureSubscription: '$(AmlServiceConnection)'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: >
       az ml online-endpoint update --name ${{ parameters.aml_endpoint_name }} --traffic "${{ parameters.aml_deployment_name }}=100"
-      --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+      --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
 
 - task: AzureCLI@2
   displayName: 'Test new online deployment with REST API'
   inputs:
-    azureSubscription: '${{ parameters.service_connection }}'
+    azureSubscription: '$(AmlServiceConnection)'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
       set -e
-      SCORING_URI=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} \
-      --workspace-name ${{ parameters.aml_workspace_name }} --query scoring_uri --output tsv)
+      SCORING_URI=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+      --workspace-name $(AmlWorkspaceName) --query scoring_uri --output tsv)
       
       set +x # supress printing secret
-      ENDPOINT_KEY=$(az ml online-endpoint get-credentials --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} \
-      --workspace-name ${{ parameters.aml_workspace_name }} --query primaryKey --output tsv)
+      ENDPOINT_KEY=$(az ml online-endpoint get-credentials --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+      --workspace-name $(AmlWorkspaceName) --query primaryKey --output tsv)
       echo "$(curl --request POST "$SCORING_URI" --header "Authorization: Bearer $ENDPOINT_KEY" --header 'Content-Type: application/json' --data @sample-request.json)"
       set -x
       
       # echo "Get new deployment logs"
       # az ml online-deployment get-logs --name ${{ parameters.aml_deployment_name }} --endpoint-name ${{ parameters.aml_endpoint_name }} \
-      # --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+      # --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
     workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/online/'
 
 - task: AzureCLI@2
   displayName: 'Delete all other deployments if present'
   inputs:
-    azureSubscription: '${{ parameters.service_connection }}'
+    azureSubscription: '$(AmlServiceConnection)'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
       echo "Get number of deployments"
-      NUMBER_DEPLOYMENTS=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} \
-      --workspace-name ${{ parameters.aml_workspace_name }} --query traffic --output yaml | wc -l)
+      NUMBER_DEPLOYMENTS=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+      --workspace-name $(AmlWorkspaceName) --query traffic --output yaml | wc -l)
       echo "There are $NUMBER_DEPLOYMENTS deployments"
 
       if [[ $NUMBER_DEPLOYMENTS -gt 1 ]]
       then
-          echo $(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} \
-          --workspace-name ${{ parameters.aml_workspace_name }} --query traffic --output json) | jq -r 'keys[]' | 
+          echo $(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+          --workspace-name $(AmlWorkspaceName) --query traffic --output json) | jq -r 'keys[]' | 
           while IFS= read -r value; do
             # remove linux or windows style newlines
             normalised_value=$(echo $value | tr -d '\n\r')
@@ -89,7 +83,7 @@ steps:
             then
                 echo "Remove $normalised_value deployment"
                 az ml online-deployment delete --name $normalised_value --endpoint-name ${{ parameters.aml_endpoint_name }} \
-                --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }} --yes --no-wait
+                --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --yes --no-wait
             fi
           done
       fi

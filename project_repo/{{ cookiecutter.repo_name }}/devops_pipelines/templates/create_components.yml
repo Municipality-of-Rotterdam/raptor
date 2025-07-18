@@ -1,0 +1,41 @@
+{% raw %}
+parameters:
+- name: components
+  type: object
+  # list components
+  default:
+  - name: 'component_a'
+  - name: 'component_b'
+
+steps:
+  - task: ChangedFiles@2
+    name: CheckChangesComponents
+    inputs:
+      # add rule per component
+      # also add environment to rebuild component when environment changes
+      rules: |
+        [component_a]
+        aml_deployments/environments/example_package/*
+        aml_deployments/components/component_a/*
+
+        [component_b]
+        aml_deployments/environments/example_package/*
+        aml_deployments/components/component_b/*
+
+  # loop over components to register each component
+  - ${{ each component in parameters.components }}:
+    - task: AzureCLI@2
+      displayName: Register new component ${{ component.name }}
+      condition: eq(variables['CheckChangesComponents.${{ component.name }}'], 'true')
+      inputs:
+        azureSubscription: '$(AmlServiceConnection)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: >
+          az ml component create --file ${{ component.name }}/component.yml
+          --resource-group $(AmlResourceGroup)
+          --workspace-name $(AmlWorkspaceName)
+          --set tags.branch=$(Build.SourceBranch)
+          --set tags.commit=$(Build.SourceVersion)
+        workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/components'
+{% endraw %}

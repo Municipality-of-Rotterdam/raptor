@@ -1,0 +1,40 @@
+{% raw %}
+parameters:
+- name: environments
+  type: object
+  # list environments
+  default:
+  - name: 'example_package'
+
+steps:
+  - task: ChangedFiles@2
+    name: CheckChangesEnvironments
+    inputs:
+      # add rule per environment
+      rules: |
+        [example_package]
+        aml_deployments/environments/example_package/*
+
+  - task: replacetokens@6
+    # in all conda files, replace the feed view '#{feed_view}#' with dvlm or prod
+    inputs:
+      root: '$(Build.SourcesDirectory)/aml_deployments/environments'
+      sources: '**/conda.yml'
+
+  # loop over environments to register each environment
+  - ${{ each environment in parameters.environments }}:
+    - task: AzureCLI@2
+      displayName: Register new environment ${{ environment.name }}
+      condition: eq(variables['CheckChangesEnvironments.${{ environment.name }}'], 'true')
+      inputs:
+        azureSubscription: '$(AmlServiceConnection)'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: >
+          az ml environment create --file ${{ environment.name }}/environment.yml
+          --resource-group $(AmlResourceGroup)
+          --workspace-name $(AmlWorkspaceName)
+          --set tags.branch=$(Build.SourceBranch)
+          --set tags.commit=$(Build.SourceVersion)
+        workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/environments'
+{% endraw %}

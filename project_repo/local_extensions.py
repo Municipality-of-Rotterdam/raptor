@@ -17,17 +17,14 @@ from jinja2.ext import Extension  # type: ignore
 # Detect non-interactive mode
 NO_INPUT = os.environ.get("COOKIECUTTER_NO_INPUT", "0") == "1
 
-# Load the config file (if specified)
-CONFIG_PATH = os.environ.get("COOKIECUTTER_CONFIG") or None
+# Load default context from config file (if specified)
+CONFIG_PATH = os.environ.get("COOKIECUTTER_CONFIG")
 DEFAULT_CONTEXT_FROM_FILE = {}
 
-if CONFIG_PATH:
-    if Path(CONFIG_PATH).exists():
-        with open(CONFIG_PATH, "r") as f:
-            loaded = yaml.safe_load(f)
-            DEFAULT_CONTEXT_FROM_FILE = loaded.get("default_context", {})
-    else:
-else:
+if CONFIG_PATH and Path(CONFIG_PATH).exists():
+    with open(CONFIG_PATH, "r") as f:
+        loaded = yaml.safe_load(f)
+        DEFAULT_CONTEXT_FROM_FILE = loaded.get("default_context", {})
 
 def get_context_value(var_name: str, fallback=None):
     """

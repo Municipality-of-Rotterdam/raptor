@@ -8,7 +8,7 @@ code_configuration:
   scoring_script: package_c_script.py
 environment: 
   conda_file: ../../components/package_c/package_c_env.yml
-  image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest
+  image: mcr.microsoft.com/azureml/openmpi5.0-ubuntu24.04
 instance_type: Standard_DS3_v2
 instance_count: 1
 app_insights_enabled: true

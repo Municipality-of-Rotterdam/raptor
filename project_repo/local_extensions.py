@@ -15,7 +15,7 @@ from cookiecutter.prompt import read_user_variable, read_user_yes_no, read_user_
 from jinja2.ext import Extension  # type: ignore
 
 # Detect non-interactive mode
-NO_INPUT = os.environ.get("COOKIECUTTER_NO_INPUT", "0") == "1
+NO_INPUT = os.environ.get("COOKIECUTTER_NO_INPUT", "0") == "1"
 
 # Load default context from config file (if specified)
 CONFIG_PATH = os.environ.get("COOKIECUTTER_CONFIG")

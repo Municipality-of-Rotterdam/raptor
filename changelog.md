@@ -10,6 +10,7 @@ Added support for supplying user config.
 - Support for supplying a user config.
 ### **Fixed**
 - Update to newest mcr.microsoft.com/azureml base image.
+- author name including email bug
 
 ## [0.0.3] - 2025-07-09
 Fixed file cleanup after conditional prompt. Added CI tests for Github repo variant.

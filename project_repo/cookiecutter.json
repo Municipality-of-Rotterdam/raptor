@@ -15,6 +15,6 @@
         "repo_name": "Enter a repository name",
         "additional_prompts": "Are you using Azure DevOps or Github?"
     },
-    "__cookiecutter_template_version": "0.0.3",
+    "__cookiecutter_template_version": "0.0.4",
     "_extensions": ["local_extensions.AdditionalPrompts"]
 }

@@ -14,20 +14,20 @@
 
     {# DevOps-specific prompt #}
     {% if is_devops %}
-        {{ cookiecutter.update({"organisation_name": prompt_user("DevOps Organisation name", "organisation_name")}) }}
-        {{ cookiecutter.update({"package_feed": prompt_user("Package feed name", "package_feed")}) }}
-        {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("Do you want to create aml environment in ci/cd?", False)}) }}
-        {{ cookiecutter.update({"private_agent_name": prompt_user("DevOps Private agent name", "private_agent_name")}) }}
+        {{ cookiecutter.update({"organisation_name": prompt_user("organisation_name")}) }}
+        {{ cookiecutter.update({"package_feed": prompt_user("package_feed")}) }}
+        {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("create_aml_environment_in_cicd", False)}) }}
+        {{ cookiecutter.update({"private_agent_name": prompt_user("private_agent_name")}) }}
         {{ cookiecutter.update({"azure_resource_group": "azure_resource_group"}) }}
         {{ cookiecutter.update({"azureml_workspace": "azureml_workspace"}) }}
     {% endif %}
 
     {# GitHub-specific prompts #}
     {% if is_github %}
-        {{ cookiecutter.update({"azure_resource_group": prompt_user("Azure resource group", "azure_resource_group")}) }}
-        {{ cookiecutter.update({"azureml_workspace": prompt_user("AzureML workspace", "azureml_workspace")}) }}
+        {{ cookiecutter.update({"azure_resource_group": prompt_user("azure_resource_group")}) }}
+        {{ cookiecutter.update({"azureml_workspace": prompt_user("azureml_workspace")}) }}
         {{ cookiecutter.update({"organisation_name": "organisation_name"}) }}
-        {{ cookiecutter.update({"create_aml_environment_in_cicd": False}) }}
+        {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("create_aml_environment_in_cicd", False)}) }}
         {{ cookiecutter.update({"package_feed": "package_feed"}) }}
         {{ cookiecutter.update({"private_agent_name": "private_agent_name"}) }}
     {% endif %}
@@ -65,9 +65,3 @@ if not re.match(EMAILREGEX, author_email):
         f"ERROR: author email '{author_email}' is not valid. Should be like: nameornumber.nameornumber@my.domain"
     )
     sys.exit(1)
-
-author_name = f"{author_name} <{author_email}>"
-
-"""
-{{ cookiecutter.update({"author_name": cookiecutter.author_name+" <"+cookiecutter.author_email+">" }) }}
-"""

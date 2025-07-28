@@ -3,6 +3,15 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.0.4] - 2025-07-21
+Added support for supplying user config.
+
+### **Added**
+- Support for supplying a user config.
+### **Fixed**
+- Update to newest mcr.microsoft.com/azureml base image.
+- author name including email bug
+
 ## [0.0.3] - 2025-07-09
 Fixed file cleanup after conditional prompt. Added CI tests for Github repo variant.
 

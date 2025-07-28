@@ -132,7 +132,27 @@ If you want to create a repo from a specific raptor branch or tag, run e.g.
 ```bash
 cookiecutter <raptor_repo_url> -c <branch or tag name> --directory package_repo
 ```
+You can also supply a user config .yaml file with default values being set. 
+You should set env variable COOKIECUTTER_CONFIG to your configuration file:
+```bash
+export COOKIECUTTER_CONFIG=path/to/config.yml
+```
+with schema e.g.
+```yaml
+default_context: 
+    organisation_name: "MyOrg"
+    package_feed: "MyFeed"
+    additional_prompts: "devops"
+```
 
+If you want to run noninteractively, run
+```bash
+COOKIECUTTER_NO_INPUT=1 cookiecutter <raptor_repo_url> --no-input --directory package_repo
+```
+Extra input args can be set like this (e.g. specifying to use the github variant and setting the repo_name):
+```bash
+COOKIECUTTER_NO_INPUT=1 cookiecutter <raptor_repo_url> --no-input --directory package_repo additional_prompts=Github repo_name=myrepo
+```
 ##### Prompts Explained
 ---
 

@@ -11,7 +11,7 @@ inputs:
     type: integer
 environment:
   conda_file: ./package_b_env.yml
-  image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:20240304.v1
+  image: mcr.microsoft.com/azureml/openmpi5.0-ubuntu24.04
 code: ./
 command: >-
   python package_b_script.py

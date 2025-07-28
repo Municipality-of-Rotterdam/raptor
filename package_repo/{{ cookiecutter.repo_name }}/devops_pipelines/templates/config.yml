@@ -10,7 +10,7 @@ variables:
   RegisterAmlEnv: {% endraw %}{{cookiecutter.create_aml_environment_in_cicd}}{% raw %}
   aml_environment: {% endraw %}{{cookiecutter.package_name}}{% raw %}
   sh_agent_pool_name: {% endraw %}{{cookiecutter.private_agent_name}}{% raw %}
-  base_image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04
+  base_image: mcr.microsoft.com/azureml/openmpi5.0-ubuntu24.04
   # Create booleans for branches we want to build
   # should be true when triggered after merge to main (after PR)
   isMain: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]

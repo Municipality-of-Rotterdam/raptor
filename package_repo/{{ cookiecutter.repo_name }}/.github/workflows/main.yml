@@ -1,5 +1,5 @@
 {% raw %}
-name: {{cookiecutter.package_name}} CICD
+name: {% endraw %}{{cookiecutter.package_name}} CICD{% raw %}
 
 env:
   PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %} # set this to your project name

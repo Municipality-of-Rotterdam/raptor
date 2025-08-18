@@ -4,6 +4,7 @@ channels:
 dependencies:
   - python=3.11
   - pip:
+    # this is a package registered in the artifacts feed specified below (from a package repo)
     - example_package==0.0.1
     - >-
       --extra-index-url

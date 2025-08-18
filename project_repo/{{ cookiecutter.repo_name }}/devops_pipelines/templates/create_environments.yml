@@ -17,6 +17,8 @@ steps:
 
   - task: replacetokens@6
     # in all conda files, replace the feed view '#{feed_view}#' with dvlm or prod
+    # #{...}# is the default pattern, for more info see
+    # https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens
     inputs:
       root: '$(Build.SourcesDirectory)/aml_deployments/environments'
       sources: '**/conda.yml'

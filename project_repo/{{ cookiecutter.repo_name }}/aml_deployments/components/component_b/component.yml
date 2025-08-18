@@ -9,6 +9,7 @@ inputs:
     type: integer
   b:
     type: integer
+# this environment is created in the ci/cd pipeline before creating the components
 environment: azureml:example_package@latest
 code: ./
 command: >-

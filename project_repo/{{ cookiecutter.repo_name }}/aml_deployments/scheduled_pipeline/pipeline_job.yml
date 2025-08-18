@@ -24,6 +24,7 @@ jobs:
   component_a:
     type: command
     compute: azureml:cpu001-compute
+    # this component is created in the ci/cd pipeline before creating the pipelinejob
     component: azureml:{% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_component_a@latest
     limits:
       timeout: 21600  # timeout in seconds (now set to 6 hours), adjust if needed
@@ -38,6 +39,7 @@ jobs:
   component_b:
     type: command
     compute: azureml:cpu001-compute
+    # this component is created in the ci/cd pipeline before creating the pipelinejob
     component: azureml:{% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_component_b@latest
     limits:
       timeout: 21600  # timeout in seconds (now set to 6 hours), adjust if needed

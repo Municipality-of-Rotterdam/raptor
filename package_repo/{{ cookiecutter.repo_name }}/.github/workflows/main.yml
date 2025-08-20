@@ -1,5 +1,5 @@
 {% raw %}
-name: Raptor Package Repo CICD
+name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CICD
 
 env:
   PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %} # set this to your project name
@@ -25,6 +25,7 @@ on:
 permissions:
   contents: read # Permissions to read the repository code
   id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+  pages: write
 
 jobs:
   Precommit:
@@ -40,18 +41,10 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies with poetry
-        run: |
+        run: |        
           python -m pip install --upgrade pip
           python -m pip install poetry
-          echo "Mocking submodules"
-          ls -1 lib | xargs -i poetry init -C ./lib/{} --name {} -n
-          ls -1 lib | xargs -I {} sh -c 'echo "" > ./lib/{}/README.md'
-          ls -1 lib | xargs -I {} sh -c 'mkdir ./lib/{}/{}'
-          ls -1 lib | xargs -I {} sh -c 'echo "" > ./lib/{}/{}/__init__.py'
-          echo "Installing dev dependencies"
-          poetry install --only dev,test
-          echo "Installing poetry"
-          poetry run pip install poetry
+          poetry install --only precommit
       
       - name: Run pre-commit
         run: poetry run pre-commit run --all-files --show-diff-on-failure
@@ -73,18 +66,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry
-          echo "Mocking submodules"
-          ls -1 lib | xargs -i poetry init -C ./lib/{} --name {} -n
-          ls -1 lib | xargs -I {} sh -c 'echo "" > ./lib/{}/README.md'
-          ls -1 lib | xargs -I {} sh -c 'mkdir ./lib/{}/{}'
-          ls -1 lib | xargs -I {} sh -c 'echo "" > ./lib/{}/{}/__init__.py'
-          echo "Installing dev dependencies"
           poetry install --only dev,test
-          echo "Installing poetry"
-          poetry run pip install poetry
 
       - name: Unit tests
-        run: poetry run pytest ./tests --doctest-modules --junitxml=junit/test-results.xml --cov=src/package_repo --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal" 
+        run: poetry run pytest --cov-report term-missing --cov=src/{% endraw %}{{cookiecutter.package_name}}{% raw %} tests/ -m "not onlylocal" 
 
       - name: Upload test results
         # Use always() to always run this step to publish test results when there are test failures
@@ -92,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pytest-results
-          path: junit/test-results.xml
+          path: coverage.xml
 
         # https://josh-ops.com/posts/github-code-coverage/
       - name: Code Coverage Summary Report
@@ -219,4 +204,40 @@ jobs:
             az ml environment create --name ${{ env.AML_ENVIRONMENT }} --file aml_environment.yml \
             --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
             echo "Creation successful!"
+
+  Documentation:    
+    runs-on: ubuntu-latest
+    if: success() && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies with poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry install --only dev,docs
+
+      - name: Build documentation modules
+        run: poetry run sphinx-apidoc -o docs/source src --tocfile module
+
+      - name: Build documentation
+        run: |
+          cd docs
+          poetry run make clean
+          poetry run make html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs/build/html'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 {% endraw %}

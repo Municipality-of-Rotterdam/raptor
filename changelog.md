@@ -3,6 +3,14 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.0.5] - 2025-08-19
+Added support for publishing Sphinx doucmentation to github pages.
+
+### **Added**
+- Support for Sphinx documentation to github pages.
+### **Fixed**
+- Fixed main workflow with new pre-commit and unittest settings.
+
 ## [0.0.4] - 2025-07-21
 Added support for supplying user config.
 

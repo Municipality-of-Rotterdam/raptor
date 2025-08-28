@@ -3,7 +3,7 @@ variables:
   pythonVersion: {% endraw %}{{cookiecutter.python_version}}{% raw %}
   poetryVersion: {% endraw %}{{cookiecutter.poetry_version}}{% raw %}
   devops_organisation: {% endraw %}{{cookiecutter.organisation_name}}{% raw %}
-    devops_project: {% endraw %}{{cookiecutter.project_name}}{% raw %}
+  devops_project: {% endraw %}{{cookiecutter.project_name}}{% raw %}
   # Name of artifacts feed
   package_feed:  {% endraw %}{{cookiecutter.package_feed}}{% raw %}
   # Whether to register environment in Azure Machine Learning based on package

@@ -5,8 +5,6 @@
     {% set is_github = cookiecutter.additional_prompts.lower() == "github" %}
 
     {# Common prompts #}
-    {{ cookiecutter.update({"author_name": prompt_user("Author name", "Your Name")}) }}
-    {{ cookiecutter.update({"author_email": prompt_user("Author email", "your@email.com")}) }}
     {{ cookiecutter.update({"description": prompt_user("Description", "A short description of the package.")}) }}
     {{ cookiecutter.update({"python_version": prompt_user("Python version", "3.11")}) }}
     {{ cookiecutter.update({"poetry_version": prompt_user("Poetry version", "2.1.3")}) }}

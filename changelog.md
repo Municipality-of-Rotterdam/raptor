@@ -3,6 +3,13 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.1.1] - 2025-08-28
+Fix package repo ci/cd and remove double prompts.
+
+### **Fixed**
+- Fixed package repo ci/cd (whitespace issue in config.yml)
+- Remove double prompts for name and email
+
 ## [0.1.0] - 2025-08-28
 Rework project repo batch endpoint and scheduled pipeline.
 

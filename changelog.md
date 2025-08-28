@@ -3,6 +3,18 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.1.0] - 2025-08-28
+Rework project repo batch endpoint and scheduled pipeline.
+
+### **Changed**
+- Simplify creation of multiple environments or components by using for-loops
+- Creating new project repo based on scheduled pipeline results in working aml pipelinejob (within GemeenteRotterdam environment)
+- Use replacetokens devops extension replacing own ugly code
+- Rearrange parts of batch endpoint and scheduled pipeline to prevent duplicate code
+- Remove many parameters which already could be called as variable
+### **Fixed**
+- Update ChangedFiles devops extension to version 2
+
 ## [0.0.4] - 2025-07-21
 Added support for supplying user config.
 

@@ -55,7 +55,7 @@ stages:
     steps:
       - checkout: self
         fetchDepth: 0
-      - task: ChangedFiles@1
+      - task: ChangedFiles@2
         name: CheckSourceChanges
         inputs:
           rules: |

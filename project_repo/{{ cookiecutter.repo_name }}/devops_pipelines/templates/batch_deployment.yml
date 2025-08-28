@@ -2,81 +2,35 @@
 parameters:
 - name: python_version
   type: string
-- name: service_connection
-  type: string
-- name: aml_keyvault_name
-  type: string
-- name: aml_resource_group
-  type: string
-- name: aml_workspace_name
-  type: string
 - name: aml_endpoint_name
   type: string
 - name: aml_deployment_name
   type: string
 
 steps:
-  - checkout: self
-    fetchDepth: 0
-
-  - task: ChangedFiles@1
-    name: CheckChangesPackageA
-    inputs:
-      rules: components/package_a/*
-      variable: Package_A_Component
-      isOutput: true
-      verbose: true
-
-  - task: AzureCLI@2
-    displayName: 'Register new package_a pipeline component'
-    condition: eq(variables['CheckChangesPackageA.Package_A_Component'], 'true')
-    inputs:
-      azureSubscription: '${{ parameters.service_connection }}'
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
-      inlineScript: az ml component create --file package_a.yml --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
-      workingDirectory: '$(Build.SourcesDirectory)/components/package_a'
-
-  - task: ChangedFiles@1
-    name: CheckChangesPackageB
-    inputs:
-      rules: components/package_b/*
-      variable: Package_B_Component
-      isOutput: true
-      verbose: true
-
-  - task: AzureCLI@2
-    displayName: 'Register new package_b pipeline component'
-    condition: eq(variables['CheckChangesPackageB.Package_B_Component'], 'true')
-    inputs:
-      azureSubscription: '${{ parameters.service_connection }}'
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
-      inlineScript: az ml component create --file package_b.yml --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
-      workingDirectory: '$(Build.SourcesDirectory)/components/package_b'
 
   - task: AzureCLI@2
     displayName: 'Create new batch endpoint if not exists'
     inputs:
-      azureSubscription: '${{ parameters.service_connection }}'
+      azureSubscription: '$(AmlServiceConnection)'
       scriptType: 'bash'
       scriptLocation: 'inlineScript'
       inlineScript: |
-        ENDPOINT_EXISTS=$(az ml batch-endpoint list -o tsv --query "[?name=='${{ parameters.aml_endpoint_name }}'][name]" --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }} | wc -l)
+        ENDPOINT_EXISTS=$(az ml batch-endpoint list -o tsv --query "[?name=='${{ parameters.aml_endpoint_name }}'][name]" --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) | wc -l)
 
         if [[ ENDPOINT_EXISTS -ne 1 ]]; then
             echo "Endpoint does not exist, create new endpoint"
-            az ml batch-endpoint create --file batch-endpoint.yml --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+            az ml batch-endpoint create --file batch-endpoint.yml --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
         else
             echo "Endpoint exists"
         fi
-        az ml batch-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+        az ml batch-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
       workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/batch/'
 
   - task: AzureCLI@2
     displayName: 'Create new batch deployment'
     inputs:
-      azureSubscription: '${{ parameters.service_connection }}'
+      azureSubscription: '$(AmlServiceConnection)'
       scriptType: 'bash'
       scriptLocation: 'inlineScript'
       inlineScript: |
@@ -86,7 +40,7 @@ steps:
           MAX_DEPLOYMENTS=20
 
           # Get current number of deployments
-          DEPLOYMENTS=$(az ml batch-deployment list --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }} --query "[].name" --output tsv)
+          DEPLOYMENTS=$(az ml batch-deployment list --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --query "[].name" --output tsv)
           NUMBER_DEPLOYMENTS=$(echo $DEPLOYMENTS | wc -w)
           if [[ $NUMBER_DEPLOYMENTS -eq $MAX_DEPLOYMENTS ]]
           then
@@ -94,20 +48,20 @@ steps:
               echo "There are already $MAX_DEPLOYMENTS batch deployments in batch endpoint ${{ parameters.aml_endpoint_name }}, we need to delete deployment $OLDEST_DEPLOYMENT to proceed..."
               
               # We cannot delete default deployment. If the oldest deployment is default, we delete second oldest.
-              DEFAULT_DEPLOYMENT=$(az ml batch-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }} --query "defaults.deployment_name" --output tsv)
+              DEFAULT_DEPLOYMENT=$(az ml batch-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --query "defaults.deployment_name" --output tsv)
               if [[ $OLDEST_DEPLOYMENT -eq $DEFAULT_DEPLOYMENT ]]
               then
                   SECOND_OLDEST_DEPLOYMENT=$(echo $DEPLOYMENTS | cut -d ' ' -f2)
                   echo "Deployment $OLDEST_DEPLOYMENT is set to default for the endpoint ${{ parameters.aml_endpoint_name }}, we delete deployment $SECOND_OLDEST_DEPLOYMENT"
-                  az ml batch-deployment delete --name $SECOND_OLDEST_DEPLOYMENT --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }} --yes
+                  az ml batch-deployment delete --name $SECOND_OLDEST_DEPLOYMENT --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --yes
               else
                   echo "Deployment $OLDEST_DEPLOYMENT is not set to default for the endpoint ${{ parameters.aml_endpoint_name }}, we delete deployment $OLDEST_DEPLOYMENT"
-                  az ml batch-deployment delete --name $OLDEST_DEPLOYMENT --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }} --yes
+                  az ml batch-deployment delete --name $OLDEST_DEPLOYMENT --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --yes
               fi
           fi
 
-          az ml batch-deployment create --file batch-pipeline-deployment.yml --name ${{ parameters.aml_deployment_name }} --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
-          az ml batch-deployment show --name ${{ parameters.aml_deployment_name }} --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+          az ml batch-deployment create --file batch-pipeline-deployment.yml --name ${{ parameters.aml_deployment_name }} --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
+          az ml batch-deployment show --name ${{ parameters.aml_deployment_name }} --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
       workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/batch/'
 
   - task: UsePythonVersion@0
@@ -128,8 +82,8 @@ steps:
   - task: AzureKeyVault@2
     displayName: 'Obtain credentials from Key Vault'
     inputs:
-      azureSubscription: '${{ parameters.service_connection }}'
-      KeyVaultName: '${{ parameters.aml_keyvault_name }}'
+      azureSubscription: $(AmlServiceConnection)
+      KeyVaultName: $(AmlKeyvaultName)
       SecretsFilter: 'AML-CLIENT-ID,AML-CLIENT-SECRET,AML-TENANT-ID,AML-SUBSCRIPTION-ID'
 
   - task: PythonScript@0

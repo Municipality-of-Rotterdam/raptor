@@ -7,7 +7,21 @@ but conceptually should work if you publish the raptor package repo twice, as pa
 
 import argparse
 
-from package_b.examples import divide, multiply
+from example_package.examples import divide, multiply
+
+# # example how to use environment variables
+# import os
+# kv_name = os.environ["KEY_VAULT_NAME"]
+# # extended example for loading secrets from keyvault
+# from azure.identity import DefaultAzureCredential
+# from azure.keyvault.secrets import SecretClient
+# kv_uri = f"https://{kv_name}.vault.azure.net"
+# # loading credentials, should load from session.
+# # Works both for developing locally in compute instance (uses user credentials via DefaultAzureCredential) and
+# # in azureml jobs (uses AML compute cluster managed identity via ManagedIdentityCredential)
+# credential = DefaultAzureCredential()
+# client = SecretClient(vault_url=kv_uri, credential=credential)
+# secret_value = client.get_secret("SECRET_NAME").value
 
 
 def parse_args() -> argparse.Namespace:

@@ -54,39 +54,30 @@ stages:
         displayName: 'Create new ${{ variables.type_deployment }} deployment in Azure ML'
         steps:
         - ${{ if eq(variables['type_deployment'], 'batch') }}:
+          - checkout: self
+            fetchDepth: 0
+          - template: /devops_pipelines/templates/create_environments.yml
+          - template: /devops_pipelines/templates/create_components.yml
           - template: /devops_pipelines/templates/batch_deployment.yml
             parameters:
               python_version: ${{ variables.pythonVersion }}
-              service_connection: $(AmlServiceConnection)
-              aml_keyvault_name: $(AmlKeyvaultName)
-              aml_resource_group: $(AmlResourceGroup)
-              aml_workspace_name: $(AmlWorkspaceName)
               aml_endpoint_name: ${{ variables.aml_endpoint_name }}
               aml_deployment_name: ${{ variables.aml_deployment_name }}-$(Build.BuildNumber)
         - ${{ if eq(variables['type_deployment'], 'online') }}:
           - template: /devops_pipelines/templates/online_deployment.yml
             parameters:
-              service_connection: $(AmlServiceConnection)
-              aml_resource_group: $(AmlResourceGroup)
-              aml_workspace_name: $(AmlWorkspaceName)
               aml_endpoint_name: ${{ variables.aml_endpoint_name }}
               aml_deployment_name: ${{ variables.aml_deployment_name }}-$(Build.BuildNumber)
               aml_mirror_traffic: ${{ variables.aml_mirror_traffic }}
         - ${{ if eq(variables['type_deployment'], 'scheduled-pipeline') }}:
+          - checkout: self
+            fetchDepth: 0
+          - template: /devops_pipelines/templates/create_environments.yml
+          - template: /devops_pipelines/templates/create_components.yml
           - template: /devops_pipelines/templates/scheduled_pipeline_deployment.yml
             parameters:
-              service_connection: $(AmlServiceConnection)
-              aml_resource_group: $(AmlResourceGroup)
-              aml_workspace_name: $(AmlWorkspaceName)
               # job name used for pipelinejob run triggered by ci/cd (not those triggered by schedule)
               aml_job_name: {% endraw %}{{cookiecutter.__aml_project_code}}{% raw %}_experiment_$(Build.BuildNumber)
-              # include view to use packages from correct artifacts view (prod/dvlm)
-              feed_view: ${{ variables.feed_view }}
-              # include branch/commit for deploying pipelinejobs, so we know even better what versions are used
-              branch: ${{ variables['Build.SourceBranch'] }}
-              commit: ${{ variables['Build.SourceVersion'] }}
-              # keyvault name only if keyvault is used in project
-              aml_keyvault_name: $(AmlKeyvaultName)
 
   - ${{ if or(eq(variables['type_deployment'], 'batch'), eq(variables['type_deployment'], 'online')) }}:
     - stage: Update
@@ -106,17 +97,11 @@ stages:
                 - ${{ if eq(variables['type_deployment'], 'batch') }}:
                   - template: /devops_pipelines/templates/batch_update.yml
                     parameters:
-                      service_connection: $(AmlServiceConnection)
-                      aml_resource_group: $(AmlResourceGroup)
-                      aml_workspace_name: $(AmlWorkspaceName)
                       aml_endpoint_name: ${{ variables.aml_endpoint_name }}
                       aml_deployment_name: ${{ variables.aml_deployment_name }}-$(Build.BuildNumber)
                 - ${{ if eq(variables['type_deployment'], 'online') }}:
                   - template: /devops_pipelines/templates/online_update.yml
                     parameters:
-                      service_connection: $(AmlServiceConnection)
-                      aml_resource_group: $(AmlResourceGroup)
-                      aml_workspace_name: $(AmlWorkspaceName)
                       aml_endpoint_name: ${{ variables.aml_endpoint_name }}
                       aml_deployment_name: ${{ variables.aml_deployment_name }}-$(Build.BuildNumber)
                       aml_mirror_traffic: ${{ variables.aml_mirror_traffic }}

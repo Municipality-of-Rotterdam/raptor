@@ -4,10 +4,10 @@ name: {% endraw %}{{cookiecutter.repo_name}}{% raw %}-deployment
 endpoint_name: {% endraw %}{{cookiecutter.repo_name}}{% raw %}-online
 model: azureml:{% endraw %}{{cookiecutter.repo_name}}{% raw %}:1
 code_configuration:
-  code: ../../components/package_c
+  code: ../../aml_deployments/components/package_c
   scoring_script: package_c_script.py
 environment: 
-  conda_file: ../../components/package_c/package_c_env.yml
+  conda_file: ../../aml_deployments/components/package_c/package_c_env.yml
   image: mcr.microsoft.com/azureml/openmpi5.0-ubuntu24.04
 instance_type: Standard_DS3_v2
 instance_count: 1

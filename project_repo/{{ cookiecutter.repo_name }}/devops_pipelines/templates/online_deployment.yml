@@ -1,11 +1,5 @@
 {% raw %}
 parameters:
-- name: service_connection
-  type: string
-- name: aml_resource_group
-  type: string
-- name: aml_workspace_name
-  type: string
 - name: aml_endpoint_name
   type: string
 - name: aml_deployment_name
@@ -17,23 +11,23 @@ steps:
   - task: AzureCLI@2
     displayName: 'Create new online endpoint if not exists'
     inputs:
-      azureSubscription: '${{ parameters.service_connection }}'
+      azureSubscription: '$(AmlServiceConnection)'
       scriptType: 'bash'
       scriptLocation: 'inlineScript'
       inlineScript: |
         echo "Check if endpoint exists"
         ENDPOINT_EXISTS=$(az ml online-endpoint list --query "[?name=='${{ parameters.aml_endpoint_name }}'][name]" \
-        --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }} --output tsv | wc -l)
+        --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --output tsv | wc -l)
 
         if [[ ENDPOINT_EXISTS -ne 1 ]]
         then
             echo "Endpoint does not exist, create new endpoint"
             az ml online-endpoint create --file online-endpoint.yml --name ${{ parameters.aml_endpoint_name }} \
-            --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }} --set public_network_access=disabled
+            --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --set public_network_access=disabled
         
             echo "Check if endpoint creation is successful"
-            endpoint_status=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} \
-            --workspace-name ${{ parameters.aml_workspace_name }} --query "provisioning_state" --output tsv)
+            endpoint_status=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+            --workspace-name $(AmlWorkspaceName) --query "provisioning_state" --output tsv)
 
             if [[ $endpoint_status == "Succeeded" ]]
             then
@@ -48,13 +42,13 @@ steps:
 
         echo "Get endpoint details"
         az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} \
-        --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+        --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
       workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/online/'
 
   - task: AzureCLI@2
     displayName: 'Create new online deployment'
     inputs:
-      azureSubscription: '${{ parameters.service_connection }}'
+      azureSubscription: '$(AmlServiceConnection)'
       scriptType: 'bash'
       scriptLocation: 'inlineScript'
       inlineScript: |
@@ -62,12 +56,12 @@ steps:
 
         echo "Create new deployment"
         az ml online-deployment create --file online-deployment.yml --name ${{ parameters.aml_deployment_name }} \
-        --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} \
-        --workspace-name ${{ parameters.aml_workspace_name }} --set egress_public_network_access=disabled
+        --endpoint-name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+        --workspace-name $(AmlWorkspaceName) --set egress_public_network_access=disabled
 
         echo "Check if deployment creation is successful"
         deploy_status=$(az ml online-deployment show --name ${{ parameters.aml_deployment_name }} --endpoint-name ${{ parameters.aml_endpoint_name }} \
-        --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }} --query "provisioning_state" --output tsv)
+        --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --query "provisioning_state" --output tsv)
 
         if [[ $deploy_status == "Succeeded" ]]
         then
@@ -89,12 +83,12 @@ steps:
 
           echo "Test new deployment"
           RESPONSE=$(az ml online-endpoint invoke --name ${{ parameters.aml_endpoint_name }} --deployment-name ${{ parameters.aml_deployment_name }} \
-          --request-file sample-request.json --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }})
+          --request-file sample-request.json --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName))
           echo $RESPONSE
 
           # echo "Get new deployment logs"
           # az ml online-deployment get-logs --name ${{ parameters.aml_deployment_name }} --endpoint-name ${{ parameters.aml_endpoint_name }} \
-          # --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+          # --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
       workingDirectory: '$(Build.SourcesDirectory)/aml_deployments/online/'
 
   - task: AzureCLI@2
@@ -105,14 +99,14 @@ steps:
         scriptLocation: 'inlineScript'
         inlineScript: |
           echo "Get number of deployments"
-          NUMBER_DEPLOYMENTS=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group ${{ parameters.aml_resource_group }} \
-          --workspace-name ${{ parameters.aml_workspace_name }} --query traffic --output yaml | wc -l)
+          NUMBER_DEPLOYMENTS=$(az ml online-endpoint show --name ${{ parameters.aml_endpoint_name }} --resource-group $(AmlResourceGroup) \
+          --workspace-name $(AmlWorkspaceName) --query traffic --output yaml | wc -l)
           echo "There are $NUMBER_DEPLOYMENTS deployments"
 
           if [[ $NUMBER_DEPLOYMENTS -gt 1 ]]
           then
               echo "Mirror ${{ parameters.aml_mirror_traffic }}% of the traffic to the ${{ parameters.aml_deployment_name }} deployment"
               az ml online-endpoint update --name ${{ parameters.aml_endpoint_name }} --mirror-traffic "${{ parameters.aml_deployment_name }}=${{ parameters.aml_mirror_traffic }}" \
-              --resource-group ${{ parameters.aml_resource_group }} --workspace-name ${{ parameters.aml_workspace_name }}
+              --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName)
           fi
 {% endraw %}

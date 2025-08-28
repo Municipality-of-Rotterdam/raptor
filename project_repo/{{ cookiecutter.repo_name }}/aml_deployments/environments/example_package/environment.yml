@@ -1,0 +1,4 @@
+$schema: https://azuremlschemas.azureedge.net/latest/environment.schema.json
+name: example_package
+image: mcr.microsoft.com/azureml/openmpi5.0-ubuntu24.04
+conda_file: conda.yml

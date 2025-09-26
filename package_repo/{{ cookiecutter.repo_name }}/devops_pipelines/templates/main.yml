@@ -9,14 +9,9 @@ variables:
 # use complicated ifelse to define feed_view, cannot use if at runtime, only at compile time (and toMain is only available at runtime)
 - name: feed_view
   value: $[replace(replace(or(eq(variables['toMain'], true), eq(variables['isMain'], true)), True, 'prod'), False, 'dvlm')]
-# if we want to register aml environment
-- ${{ if eq(variables['RegisterAmlEnv'], true) }}:
-  # If main, create aml environment in production aml workspace
-  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
-    - group: AmlProdGroup
-  # If not main, create aml environment in development aml workspace
-  - ${{ else }}:
-    - group: AmlDevGroup 
+# If main, create aml environment in production aml workspace
+- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+  - group: AmlDevGroup
 # otherwise fallback on development settings
 - ${{ else }}:
   - group: AmlDevGroup 
@@ -118,11 +113,12 @@ stages:
         parameters:
           python_version: ${{ variables.pythonVersion }}
           poetry_version: ${{ variables.poetryVersion}}
+          branchName: ${{ variables.docsBranch }}
           pat_username: $(PatUsername)
           pat: $(DevOpsPAT)
-          keyvault_name: $(SharedKeyvault)
           service_connection: $(AmlServiceConnection)
+          clientsecret: $(WikiSecret)
+          clientid: $(WikiId)
           tenant: $(TenantName)
           organisation: $(Organisation)
-          branchName: ${{ variables.docsBranch }}
 {% endraw %}

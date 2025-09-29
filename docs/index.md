@@ -3,16 +3,16 @@ layout: default
 title: Home
 ---
 
-# Welcome to RAPToR
+# Welcome 👋
 
-This is the official homepage for RAPToR.  
-Here you’ll find an overview, quick links, and resources.
+This project is hosted on GitHub.  
+For full documentation, please see the repository homepage:
 
-## 📖 Documentation
-- [Project README](README.md) – the full documentation
-- [Issues](https://github.com/municipality-of-rotterdam/raptor/issues) – report bugs or request features
+👉 [View the project on GitHub](https://github.com/municipality-of-rotterdam/raptor)
 
-## ✨ About
-RAPToR – Rapid Analytics Product Template of Rotterdam.
+---
 
-This repository is a cookiecutter template to be used for projects in Azure Machine Learning.
+## Quick Links
+- [Issues](https://github.com/municipality-of-rotterdam/raptor/issues)
+- [Pull Requests](https://github.com/municipality-of-rotterdam/raptor/pulls)
+- [Discussions](https://github.com/municipality-of-rotterdam/raptor/discussions)

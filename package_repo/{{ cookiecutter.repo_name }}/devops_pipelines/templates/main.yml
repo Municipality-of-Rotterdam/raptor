@@ -11,7 +11,7 @@ variables:
   value: $[replace(replace(or(eq(variables['toMain'], true), eq(variables['isMain'], true)), True, 'prod'), False, 'dvlm')]
 # If main, create aml environment in production aml workspace
 - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
-  - group: AmlDevGroup
+  - group: AmlProdGroup
 # otherwise fallback on development settings
 - ${{ else }}:
   - group: AmlDevGroup 

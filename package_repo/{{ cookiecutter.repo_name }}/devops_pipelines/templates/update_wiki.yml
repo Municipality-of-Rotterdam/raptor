@@ -13,8 +13,6 @@ parameters:
   type: string
 - name: clientid
   type: string
-- name: service_connection
-  type: string
 - name: tenant
   type: string
 - name: organisation

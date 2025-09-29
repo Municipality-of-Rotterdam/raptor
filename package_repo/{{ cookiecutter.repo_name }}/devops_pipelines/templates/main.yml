@@ -114,11 +114,10 @@ stages:
           python_version: ${{ variables.pythonVersion }}
           poetry_version: ${{ variables.poetryVersion}}
           branchName: ${{ variables.docsBranch }}
+          organisation:  ${{ variables.devops_organisation }}
           pat_username: $(PatUsername)
           pat: $(DevOpsPAT)
-          service_connection: $(AmlServiceConnection)
           clientsecret: $(WikiSecret)
           clientid: $(WikiId)
           tenant: $(TenantName)
-          organisation: $(Organisation)
 {% endraw %}

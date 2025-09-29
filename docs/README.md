@@ -1,3 +1,8 @@
+---
+layout: default
+title: Readme
+---
+
 # Raptor
 
 ![build status](https://github.com/Municipality-of-Rotterdam/raptor/actions/workflows/main.yml/badge.svg?branch=feature/github_actions)

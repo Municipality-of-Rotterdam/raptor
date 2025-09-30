@@ -405,18 +405,17 @@ poetry add package_name -G test
 ```
 This is especially important for the CI, since only packages from the test dependency group will be installed in the environment that runs the tests!
 
-To run the all tests, execute:
+To run all tests (that are not marked out per default pytest settings), execute:
 ```bash
-python -m pytest
+pytest
 ```
-To run only specific tests (e.g. tests in the dir unit_tests), execute:
+To run all tests (including the example tests included with raptor), execute:
 ```bash
-python -m pytest tests/unit_tests
+pytest -m example
 ```
-Using pytest-cov
-To run tests with coverage, execute
+To check your test coverage, execute:
 ```bash
-python -m pytest tests/unit_tests --cov
+pytest --cov
 ```
 Pytest-cov does not work well on Azure ML Compute Instances. It uses a sqllite3 database, which needs
 to be stored. This has to be done in the ~/localfiles/ folder. Therefore, .coveragerc has a line to do

@@ -1,5 +1,5 @@
 import pytest
-from {{ cookiecutter.repo_name }}.examples import ModuloChecker, BitwiseChecker, LastCharacterChecker
+from {{ cookiecutter.package_name }}.examples import ModuloChecker, BitwiseChecker, LastCharacterChecker
 
 
 @pytest.fixture(params=[

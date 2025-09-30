@@ -3,7 +3,7 @@ from math import pi
 from io import BytesIO
 import json
 from urllib.error import HTTPError
-from {{ cookiecutter.repo_name }}.examples import count_odds, count_odds_to_file, RemoteChecker
+from {{ cookiecutter.package_name }}.examples import count_odds, count_odds_to_file, RemoteChecker
 
 """
 The fixtures are imported implicitely, you can find them at tests/conftest.py

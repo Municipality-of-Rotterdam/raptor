@@ -84,7 +84,7 @@ stages:
   - job: Register
     dependsOn: 
       - Build
-    condition: and(succeeded(), eq(variables.RegisterAmlEnv, true),  or(eq(variables.isDev, true), eq(variables.isRelease, true), eq(variables.isMain, true)))
+    condition: and(eq(dependencies.Build.result, 'Succeeded'), eq(variables.RegisterAmlEnv, true), or(eq(variables.isDev, true), eq(variables.isRelease, true), eq(variables.isMain, true)))
     pool: ${{ variables.sh_agent_pool_name }}
     displayName: 'Register new environment in Azure ML'
     steps:

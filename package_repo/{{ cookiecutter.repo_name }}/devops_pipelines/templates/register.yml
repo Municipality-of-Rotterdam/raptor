@@ -16,7 +16,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      PACKAGE_VERSION=$(sed '3!d' pyproject.toml | awk '{print $3}')
+      PACKAGE_VERSION=$(grep '^version *= *' pyproject.toml | sed -E 's/version *= *"(.*)"/\1/')
       echo "Current package version is ${PACKAGE_VERSION}"
       echo "##vso[task.setvariable variable=PackageVersion]${PACKAGE_VERSION}"
     workingDirectory: '$(Build.SourcesDirectory)'

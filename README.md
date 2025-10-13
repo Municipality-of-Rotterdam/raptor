@@ -468,7 +468,6 @@ These library groups contain
 
 - AML workspace credentials
 - PAT for connecting from agent to artifacts feed (or use a superuser)
-- Keyvault name and keys for doc publication on DevOps Wiki
 
 In it, we need at least the following keys:
 For connecting with Azure Machine Learning:
@@ -480,18 +479,15 @@ For connecting with the DevOps artifacts feed:
 PatUsername
 DevOpsPAT
 
-For connecting with the DevOps Wiki (and getting credentials from a shared keyvault):
-SharedKeyvault
+For connecting with the DevOps Wiki:
+WikiId
+WikiSecret
 TenantName
 
 And optionally, for connecting with a keyvault (see also use_keyvault_template.yml in the project repo):
 AmlServiceConnection
 AmlKeyvaultName
 AmlPatSecretName
-
-##### 8.1.6 Keyvault
-Necessary for Service principal for wiki generation (todo: change to service connection).
-We need to have keys SP-Wiki-ID and SP-Wiki-SECRET stored in our keyvault in order to publish the docs to our DevOps Wiki.
 
 #### 8.1 Github
 Doc generation is not implemented yet.

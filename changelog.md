@@ -3,6 +3,12 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.2.0] - 2025-09-26
+Removed the WikiGenerator keyvault from DevOps CI/CD pipelines.
+
+### **Changed**
+- The keys WikiId and WikiSecret are moved from the SharedKeyvault to the AmlProdGroup.
+
 ## [0.1.1] - 2025-08-28
 Fix package repo ci/cd and remove double prompts.
 

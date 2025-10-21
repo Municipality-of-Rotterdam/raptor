@@ -409,18 +409,17 @@ poetry add package_name -G test
 ```
 This is especially important for the CI, since only packages from the test dependency group will be installed in the environment that runs the tests!
 
-To run the all tests, execute:
+To run all tests (that are not marked out per default pytest settings), execute:
 ```bash
-python -m pytest
+pytest
 ```
-To run only specific tests (e.g. tests in the dir unit_tests), execute:
+To run all tests (including the example tests included with raptor), execute:
 ```bash
-python -m pytest tests/unit_tests
+pytest -m example
 ```
-Using pytest-cov
-To run tests with coverage, execute
+To check your test coverage, execute:
 ```bash
-python -m pytest tests/unit_tests --cov
+pytest --cov
 ```
 Pytest-cov does not work well on Azure ML Compute Instances. It uses a sqllite3 database, which needs
 to be stored. This has to be done in the ~/localfiles/ folder. Therefore, .coveragerc has a line to do
@@ -473,7 +472,6 @@ These library groups contain
 
 - AML workspace credentials
 - PAT for connecting from agent to artifacts feed (or use a superuser)
-- Keyvault name and keys for doc publication on DevOps Wiki
 
 In it, we need at least the following keys:
 For connecting with Azure Machine Learning:
@@ -485,18 +483,15 @@ For connecting with the DevOps artifacts feed:
 PatUsername
 DevOpsPAT
 
-For connecting with the DevOps Wiki (and getting credentials from a shared keyvault):
-SharedKeyvault
+For connecting with the DevOps Wiki:
+WikiId
+WikiSecret
 TenantName
 
 And optionally, for connecting with a keyvault (see also use_keyvault_template.yml in the project repo):
 AmlServiceConnection
 AmlKeyvaultName
 AmlPatSecretName
-
-##### 8.1.6 Keyvault
-Necessary for Service principal for wiki generation (todo: change to service connection).
-We need to have keys SP-Wiki-ID and SP-Wiki-SECRET stored in our keyvault in order to publish the docs to our DevOps Wiki.
 
 #### 8.1 Github
 Doc generation is not implemented yet.

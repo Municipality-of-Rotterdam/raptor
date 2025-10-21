@@ -1,4 +1,5 @@
 {% raw %}
+
 parameters:
 - name: python_version
   type: string
@@ -8,9 +9,9 @@ parameters:
   type: string
 - name: pat
   type: string
-- name: keyvault_name
+- name: clientsecret
   type: string
-- name: service_connection
+- name: clientid
   type: string
 - name: tenant
   type: string
@@ -30,13 +31,6 @@ steps:
 - script: poetry install --only docs
   displayName: 'Install docs dependencies with poetry'
 
-- task: AzureKeyVault@2
-  displayName: Obtain Secrets from Key Vault
-  inputs:
-    azureSubscription: '${{ parameters.service_connection }}'
-    KeyVaultName: '${{ parameters.keyvault_name }}'
-    SecretsFilter: 'SP-Wiki-ID,SP-Wiki-SECRET'
-
 - download: current
   artifact: documentation_dir
 
@@ -46,8 +40,8 @@ steps:
       --project $(System.TeamProject) ^
       --name $(Build.Repository.Name) ^
       --branch ${{ parameters.branchName }} ^
-      --clientsecret $(SP-Wiki-SECRET) ^
-      --clientid $(SP-Wiki-ID) ^
+      --clientsecret ${{ parameters.clientsecret }}  ^
+      --clientid ${{ parameters.clientid }}  ^
       --tenant ${{ parameters.tenant }} ^
       --organisation ${{ parameters.organisation }}
   displayName: 'Create/Update Wiki'

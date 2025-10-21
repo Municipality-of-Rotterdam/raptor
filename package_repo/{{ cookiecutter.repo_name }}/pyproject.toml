@@ -31,6 +31,7 @@ pyodbc = "^5.1.0"
 pytest = "7.1.2"
 pytest-cov = "^4.0.0"
 pytest-azurepipelines = "^1.0.4"
+pytest-mock = "^3.15.1"
 
 [tool.poetry.group.build]
 optional = true
@@ -165,7 +166,7 @@ docstring-code-line-length = "dynamic"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-s -p no:warnings"
+addopts = "-s -p no:warnings -m 'not example'"
 log_cli = 1
 log_cli_level = "INFO"
 log_cli_format = "[pytest][%(asctime)s][%(levelname)s][%(module)s][%(funcName)s] %(message)s"
@@ -173,5 +174,6 @@ log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 log_level = "INFO"
 markers =[
     "onlylocal: marks tests as slow (deselect with '-m \"not onlylocal\"')",
-    "serial"
+    "serial",
+    "example: example tests that are disabled by default"
 ]

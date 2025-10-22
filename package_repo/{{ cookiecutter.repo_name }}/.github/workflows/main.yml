@@ -191,7 +191,7 @@ jobs:
             echo "Install successful!"
 
             echo "Get current package version"
-            PACKAGE_VERSION=$(sed '3!d' pyproject.toml | awk '{print $3}' | tr -d '"')
+            PACKAGE_VERSION=$(grep '^version *= *' pyproject.toml | sed -E 's/version *= *"(.*)"/\1/')
             echo "Current package version is ${PACKAGE_VERSION}"
 
             echo "Replace version in conda.yml"

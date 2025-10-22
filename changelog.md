@@ -8,6 +8,7 @@ Updated prompting for package publishing in case of Github.
 
 ### **Changed**
 - Prompt now explicitly asks whether or not to publish to public pypi when working with Github.
+- Added earlier devops fix to github for getting package version from pyproject.toml with regex.
 
 ## [0.3.0] - 2025-09-30
 Updated test framework.

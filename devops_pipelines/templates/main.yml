@@ -6,8 +6,6 @@ variables:
     value: $[eq(variables['Build.SourceBranch'], 'refs/heads/develop')]
   - name: PublishPackage
     value: True
-  - name: EnforceVersioning
-    value: True
              
 stages:
   - stage: cookiecutter_self
@@ -20,7 +18,6 @@ stages:
           - template: /devops_pipelines/templates/pre_commit.yml
 
       - job: check_version
-        condition: eq(variables['EnforceVersioning'], true)
         displayName: 'Check if release version specified in pyproject.toml is still available'
         steps:
           - checkout: self
@@ -55,7 +52,7 @@ stages:
 
   - stage: cookiecutter_tag
     dependsOn: cookiecutter_self
-    condition: and(eq(variables['EnforceVersioning'], true), eq(variables['isDev'], true))
+    condition: eq(variables['isDev'], true)
     jobs:
       - job: tag_merge
         displayName: 'Tagging the merge commit associated with the latest PR merge'

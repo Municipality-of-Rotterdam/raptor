@@ -26,7 +26,7 @@ stages:
           - checkout: self
             persistCredentials: true
           - bash: |
-              set -e
+              set -euo pipefail
               RELEASE_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
               echo "Checking availability of version $RELEASE_VERSION"..
               if git ls-remote --tags --exit-code origin "refs/tags/$RELEASE_VERSION" >/dev/null 2>&1; then
@@ -57,31 +57,17 @@ stages:
     dependsOn: cookiecutter_self
     condition: and(eq(variables['EnforceVersioning'], true), eq(variables['isDev'], true))
     jobs:
-      - job: detect_merge
-        displayName: 'Check if the triggering commit is a merge commit (i.e. has two parents)'
-        steps:
-          - checkout: self
-            fetchDepth: 0
-          - bash: |
-              set -euo pipefail
-              commit_hash="$(Build.SourceVersion)"
-              commit_parents="$(git show -s --format=%P "$commit_hash")"
-              n_parents="$(echo "$commit_parents" | wc -w | tr -d ' ')"
-              if [ "$n_parents" -lt 2 ]; then
-                echo "ERROR: We currently only support release tagging for merge commits (default Azure DevOps merge strategy)"
-                exit 1
-              fi
-
       - job: tag_merge
         displayName: 'Tagging the merge commit associated with the latest PR merge'
-        dependsOn: detect_merge
         steps:  
           - checkout: self
             persistCredentials: true
           - bash: |
               set -euo pipefail
+              COMMIT_HASH="$(Build.SourceVersion)"
+              COMMIT_MESSAGE="$(Build.SourceVersionMessage)"
+              RELEASE_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
               git config user.name  "Azure Pipelines"
               git config user.email "ci@rotterdam.invalid"
-              RELEASE_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-              git tag -a "$RELEASE_VERSION" "$(Build.SourceVersion)" -m "$(Build.SourceVersionMessage)"
+              git tag -a "$RELEASE_VERSION" "$COMMIT_HASH" -m "$COMMIT_MESSAGE"
               git push origin "$RELEASE_VERSION"

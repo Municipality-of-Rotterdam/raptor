@@ -3,6 +3,41 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [0.1.1] - 2026-01-15
+Introduced release tagging for Raptor.
+
+## Added
+- Automatic Git tagging for releases (i.e., merge commits into `develop`) in DevOps based on the version string defined in `pyproject.toml`.
+
+## Changed
+- Updated `pyproject.toml` to comply with **PEP 621** standards.
+
+## [0.3.1] - 2025-10-21
+Updated prompting for package publishing in case of Github.
+
+### **Changed**
+- Prompt now explicitly asks whether or not to publish to public pypi when working with Github.
+- Added earlier devops fix to github for getting package version from pyproject.toml with regex.
+
+## [0.3.1] - 2025-10-21
+Updated prompting for package publishing in case of Github.
+
+### **Changed**
+- Prompt now explicitly asks whether or not to publish to public pypi when working with Github.
+- Added earlier devops fix to github for getting package version from pyproject.toml with regex.
+
+## [0.3.0] - 2025-09-30
+Updated test framework.
+
+### **Changed**
+- Test framework made minimal, showcasing basic testing features, without external dependencies.
+
+## [0.2.0] - 2025-09-26
+Removed the WikiGenerator keyvault from DevOps CI/CD pipelines.
+
+### **Changed**
+- The keys WikiId and WikiSecret are moved from the SharedKeyvault to the AmlProdGroup.
+
 ## [0.1.1] - 2025-08-28
 Fix package repo ci/cd and remove double prompts.
 

@@ -10,7 +10,7 @@ parameters:
   type: string
 
 steps:
-  - template: /devops_pipelines/templates/configure_python.yml
+  - template: configure_python.yml
     parameters:
       python_version: '${{ parameters.python_version }}'
       poetry_version: '${{ parameters.poetry_version }}'

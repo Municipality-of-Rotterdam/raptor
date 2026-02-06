@@ -1,0 +1,24 @@
+
+parameters:
+- name: python_version
+  type: string
+- name: poetry_version
+  type: string
+- name: pat_username
+  type: string
+- name: pat
+  type: string
+
+steps:
+  - template: /devops_pipelines/templates/configure_python.yml
+    parameters:
+      python_version: '${{ parameters.python_version }}'
+      poetry_version: '${{ parameters.poetry_version }}'
+      pat_username: '${{ parameters.pat_username }}'
+      pat: '${{ parameters.pat }}'
+
+  - script: poetry install --only precommit
+    displayName: 'Install precommit dependencies with poetry'
+
+  - script: poetry run pre-commit run --all-files --show-diff-on-failure
+    displayName: 'Run pre-commit'

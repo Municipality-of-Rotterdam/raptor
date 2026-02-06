@@ -1,0 +1,34 @@
+
+parameters:
+- name: service_connection
+  type: string
+- name: devops_organisation
+  type: string
+- name: package_feed_view
+  type: string
+- name: aml_environment
+  type: string
+- name: base_image
+  type: string
+
+steps:
+- task: Bash@3
+  inputs:
+    targetType: 'inline'
+    script: |
+      PACKAGE_VERSION=$(grep '^version *= *' pyproject.toml | sed -E 's/version *= *"(.*)"/\1/')
+      echo "Current package version is ${PACKAGE_VERSION}"
+      echo "##vso[task.setvariable variable=PackageVersion]${PACKAGE_VERSION}"
+    workingDirectory: '$(Build.SourcesDirectory)'
+  displayName: 'Get package version number from pyproject.toml'
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: '${{ parameters.service_connection }}'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      sed -e "s|\${org_name}|${{ parameters.devops_organisation }}|" -e "s|\${feed_view}|${{ parameters.package_feed_view }}|" -e "s|X.X.X|$(PackageVersion)|" component_env.yml > temp.yml
+      mv temp.yml component_env.yml
+      az ml environment create --name ${{ parameters.aml_environment }} --version $(PackageVersion) --image ${{ parameters.base_image }} --conda-file component_env.yml --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --no-wait
+  displayName: 'Register and build new AML environment'

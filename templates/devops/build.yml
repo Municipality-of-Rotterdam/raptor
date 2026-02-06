@@ -1,0 +1,159 @@
+
+parameters:
+- name: python_version
+  type: string
+- name: poetry_version
+  type: string
+- name: organisation_name
+  type: string
+- name: devops_project
+  type: string
+- name: package_feed
+  type: string
+- name: feed_view
+  type: string
+- name: pat_username
+  type: string
+- name: pat
+  type: string
+
+steps:
+
+  - template: /devops_pipelines/templates/configure_python.yml
+    parameters:
+      python_version: '${{ parameters.python_version }}'
+      poetry_version: '${{ parameters.poetry_version }}'
+      pat_username: '${{ parameters.pat_username }}'
+      pat: '${{ parameters.pat }}'
+
+  - script: poetry install --only build
+    displayName: 'Install build dependencies with poetry'
+
+  - script: |
+      version_toml=$(poetry run tomlq -r '.project.version' pyproject.toml)
+      echo "Version number in pyproject.toml: $version_toml"
+      echo "##vso[task.setvariable variable=version_toml;]$version_toml"
+      name_toml=$(poetry run tomlq -r '.project.name' pyproject.toml)
+      normalised_name=$(echo "$name_toml" | tr '[:upper:]' '[:lower:]' | sed 's/[^[:alnum:]]/-/g')
+      echo "Package name in pyproject.toml (normalised): $normalised_name"
+      echo "##vso[task.setvariable variable=normalised_name;]$normalised_name"
+      package_id=$(curl -u :$(System.AccessToken) 'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1' | jq '.value[] | select(.name == "'"$normalised_name"'" ) | .id')
+      package_id=${package_id//\"/}
+      echo "##vso[task.setvariable variable=package_id;]$package_id"
+    displayName: "Get version number, package name, package id"
+
+  - script: |
+      if [[ ! "$(version_toml)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Error: Version number in pyproject.toml is not in number.number.number format" >&2
+          exit 1
+      fi
+    displayName: "Check version number format in pyproject.toml"
+
+  - script: |
+      response=$(curl -u :$(System.AccessToken) -o /dev/null -w "%{http_code}" 'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1')
+      if [ ${response} -ne 200 ]; then
+        echo "Please create Artifacts feed with name ${{ parameters.package_feed }}"
+        exit 1
+      fi
+    displayName: "Check if Artifacts feed exists"
+
+  # check if version exists in feed (in any view)
+  - script: |
+      versions_info_feed=$(curl -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$(package_id)/versions?%22api-version=7.1-preview.1%22")
+      versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version'))
+      echo "Existing versions in feed are: ${versions_feed[@]}"
+      version_exists_feed=false
+      for version in "${versions_feed[@]}"
+      do
+          if [ "$version" = "$(version_toml)" ]; then
+              version_exists_feed=true
+          fi
+      done
+      echo "Version exists in feed: $version_exists_feed"
+      echo "##vso[task.setvariable variable=version_exists_feed;]$version_exists_feed"
+    displayName: "Check if version number exists in Artifacts feed"
+
+  # build and publish package if it does not exist in feed (in any view)
+  - script: |
+      poetry build
+    displayName: 'Build distribution'
+    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
+
+  - task: TwineAuthenticate@1
+    inputs:
+      artifactFeed: ${{ parameters.devops_project }}/${{ parameters.package_feed }}
+    displayName: 'Authenticate with Azure Artifacts'
+    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
+
+  - script: |
+      poetry run twine upload -r "${{ parameters.package_feed }}" --config-file $(PYPIRC_PATH) dist/*.whl --verbose
+    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
+    displayName: "Publish if version does not exists in Artifacts feed"
+
+  # check if version exists in specified view. error when merging to main, otherwise a warning
+  - script: |
+      versions_info_view=$(curl -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$(package_id)/versions?%22api-version=7.1-preview.1%22")
+      versions_view=($(echo "$versions_info_view" | jq -r '.value[].protocolMetadata.data.version'))
+      echo "Existing versions are in view: ${versions_view[@]}"
+      version_exists_view=false
+      for version in "${versions_view[@]}"
+      do
+          if [ "$version" = "$(version_toml)" ]; then
+              version_exists_view=true
+          fi
+      done
+      echo "Version exists in view: $version_exists_view"
+      if [ "$version_exists_view" = true ]; then
+        if [ "$(prod)" = True ]; then
+          echo "##vso[task.logissue type=error]Version number already exists in prod view, not allowed when merging to main"
+          echo "##vso[task.complete result=Failed;]"
+        else
+          echo "##vso[task.logissue type=warning]Version number already exists in dvlm view, will not build/promote"
+          echo "##vso[task.complete result=SucceededWithIssues;]"
+        fi
+      fi
+      echo "##vso[task.setvariable variable=version_exists_view;]$version_exists_view"
+    displayName: "Check if version number exists in Artifacts feed view"
+  
+  - powershell: |
+      $message = "The package version already exists in the specified feed. No build/promote will be triggered, make sure this is intentional."
+      $body = @"
+        {
+          "comments": [
+            {
+              "parentCommentId": 0,
+              "content": "$message",
+              "commentType": 3
+            }
+          ],
+          "status": 1
+        }
+      "@
+      $url = "$(System.CollectionUri)$(System.TeamProject)/_apis/git/repositories/$(Build.Repository.Name)/pullRequests/$(System.PullRequest.PullRequestId)/threads?api-version=7.1-preview.1"
+      try {
+        $response_list = Invoke-RestMethod -Uri $url -Method GET -Headers @{Authorization = "Bearer $(System.AccessToken)"} -ContentType application/json
+        $response=$response_list.value | ConvertTo-Json
+        if ($response.Contains($message)) {
+          Write-Host "Comment already exists, do not post a new one."
+        } else {
+          Throw "Comment does not exist yet, post a new one."
+        }
+      } catch {
+        try {
+          Invoke-RestMethod -Uri $url -Method POST -Headers @{Authorization = "Bearer $(System.AccessToken)"} -Body $Body -ContentType application/json
+        } catch {
+          Write-Host $_
+          Write-Host $_.Exception.Message
+          Write-Host "##vso[task.logissue type=error]Error occurred while posting comment to PR, add 'PullRequestContribute' permission for 'Build Service' in Project Settings > Repositories > [Repo] > Security"
+          Write-Host "##vso[task.complete result=Failed;]"
+        }
+      }
+    condition: and(succeeded(), eq(variables['version_exists_view'], 'true'), eq(variables['Build.Reason'], 'PullRequest'))
+    displayName: Post comment on PR if version already exists in view
+    # https://stackoverflow.com/questions/60048492/how-to-create-a-comment-in-azure-devops-pr-in-case-of-build-failure
+
+  # promote when version does not exist in specified view yet
+  - script: |
+      curl -X 'PATCH' "https://pkgs.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/feeds/${{ parameters.package_feed }}/PyPI/packages/$(normalised_name)/versions/$(version_toml)?api-version=7.1-preview.1" -H 'Content-Type: application/json' -u :$(System.AccessToken) -d "{\"views\": {\"op\": \"add\", \"path\": \"/views/-\", \"value\": \"${{ parameters.feed_view }}\"}}"
+    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_view'], 'false'))
+    displayName: "Promote package to view '${{ parameters.feed_view }}'"

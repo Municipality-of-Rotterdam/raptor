@@ -1,0 +1,35 @@
+
+parameters:
+- name: python_version
+  type: string
+- name: poetry_version
+  type: string
+- name: pat_username
+  type: string
+- name: pat
+  type: string
+
+steps:
+  - template: /devops_pipelines/templates/configure_python.yml
+    parameters:
+      python_version: '${{ parameters.python_version }}'
+      poetry_version: '${{ parameters.poetry_version }}'
+      pat_username: '${{ parameters.pat_username }}'
+      pat: '${{ parameters.pat }}'
+
+  - script: poetry install --only docs
+    displayName: 'Install docs dependencies with poetry'
+    
+  - script: poetry run sphinx-apidoc -o docs/source src --tocfile module
+    displayName: 'Update documentation modules'
+
+  # Change to 'poetry run make html' in case we can build and publish static html to a webserver
+  - script: |
+      cd docs
+      poetry run make clean
+      poetry run make markdown
+    displayName: 'Build the documentation'
+
+# Change to '$(Agent.BuildDirectory)/s/docs/build/html' in case we can build and publish static html to a webserver
+  - publish: $(Agent.BuildDirectory)/s/docs/build/markdown
+    artifact: documentation_dir

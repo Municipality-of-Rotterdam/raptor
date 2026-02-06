@@ -1,0 +1,46 @@
+name: Github Pages
+
+on:
+  workflow_call:
+    inputs:
+      python_version:
+        description: "Python version to use"
+        required: true
+        type: string
+
+jobs:
+  Documentation:    
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install dependencies with poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry
+          poetry install --only dev,docs
+
+      - name: Build documentation modules
+        run: poetry run sphinx-apidoc -o docs/source src --tocfile module
+
+      - name: Build documentation
+        run: |
+          cd docs
+          poetry run make clean
+          poetry run make html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs/build/html'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

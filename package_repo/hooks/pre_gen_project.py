@@ -15,6 +15,7 @@
         {{ cookiecutter.update({"organisation_name": prompt_user("organisation_name")}) }}
         {{ cookiecutter.update({"package_feed": prompt_user("package_feed")}) }}
         {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("create_aml_environment_in_cicd", False)}) }}
+        {{ cookiecutter.update({"githubServiceConnection": prompt_user("githubServiceConnection")}) }}
         {{ cookiecutter.update({"private_agent_name": prompt_user("private_agent_name")}) }}
         {{ cookiecutter.update({"azure_resource_group": "azure_resource_group"}) }}
         {{ cookiecutter.update({"azureml_workspace": "azureml_workspace"}) }}

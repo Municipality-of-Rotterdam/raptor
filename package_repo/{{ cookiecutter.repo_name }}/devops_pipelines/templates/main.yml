@@ -21,13 +21,21 @@ variables:
 - ${{ else }}:
   - group: AmlDevGroup 
 
+resources:
+  repositories:
+    - repository: raptor
+      name: GemeenteRotterdam/raptor
+      type: github
+      ref: main
+      endpoint: ${{ variables.githubServiceConnection }}
+
 stages:
 - stage: PreCommit
   jobs:
   - job: ExecutePreCommit
     displayName: 'Perform pre-commit checks'
     steps:
-    - template: /devops_pipelines/templates/pre_commit.yml
+    - template: /templates/devops/pre_commit.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
@@ -38,7 +46,7 @@ stages:
   - job: ExecuteUnitTests
     displayName: 'Unit Tests Coverage'
     steps:
-    - template: /devops_pipelines/templates/test.yml
+    - template: /templates/devops/templates/test.yml
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
@@ -71,7 +79,7 @@ stages:
       build:  $[or(eq(variables['isDev'], true), eq(variables['isRelease'], true), eq(variables['isMain'], true))]
       prod:  $[or(eq(variables['toMain'], true), eq(variables['isMain'], true))]
     steps:
-    - template: /devops_pipelines/templates/build.yml
+    - template: /templates/devops//build.yml
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
@@ -88,7 +96,7 @@ stages:
     pool: ${{ variables.sh_agent_pool_name }}
     displayName: 'Register new environment in Azure ML'
     steps:
-    - template: /devops_pipelines/templates/register.yml
+    - template: /templates/devops/register.yml
       parameters:
         service_connection: $(AmlServiceConnection)
         devops_organisation: ${{ variables.devops_organisation }}

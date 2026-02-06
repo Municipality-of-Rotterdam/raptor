@@ -20,4 +20,6 @@ variables:
   isDev: $[eq(variables['Build.SourceBranch'], 'refs/heads/develop')]
   # branch to read the documentation files from
   docsBranch: 'refs/head/generated/docs'
+  # The service connection required to connect to github repositories. 
+  githubServiceConnection: {% endraw %}{{cookiecutter.githubServiceConnection}}{% raw %}
 {% endraw %}

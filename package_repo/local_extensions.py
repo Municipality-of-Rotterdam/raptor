@@ -52,6 +52,7 @@ DEFAULT_VALUES = {
     "azureml_workspace": "default_workspace",
     "organisation_name": "organisation_name",
     "package_feed": "package_feed",
+    "githubServiceConnection": "githubServiceConnection",
     "create_aml_environment_in_cicd": "n",
     "author_name": "Your Name",
     "author_email": "your@email.com",
@@ -65,6 +66,7 @@ DEFAULT_VALUES = {
 ADDITIONAL_PROMPTS = {
     "organisation_name": "DevOps Organisation name",
     "package_feed": "Package feed name",
+    "githubServiceConnection": "The DevOps service connection required to connect to github",
     "private_agent_name": "DevOps Private agent name",
     "author_name": "Author name",
     "author_email": "Author email",

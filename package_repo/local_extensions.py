@@ -52,7 +52,7 @@ DEFAULT_VALUES = {
     "azureml_workspace": "default_workspace",
     "organisation_name": "organisation_name",
     "package_feed": "package_feed",
-    "githubServiceConnection": "githubServiceConnection",
+    "githubServiceConnection": "github-ci-templates",
     "create_aml_environment_in_cicd": "n",
     "author_name": "Your Name",
     "author_email": "your@email.com",

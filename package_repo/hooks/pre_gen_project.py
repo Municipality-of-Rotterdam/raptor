@@ -16,8 +16,7 @@
         {{ cookiecutter.update({"package_feed": prompt_user("package_feed")}) }}
         {{ cookiecutter.update({"private_agent_name": prompt_user("private_agent_name")}) }}
         {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("create_aml_environment_in_cicd")}) }}
-        {{ cookiecutter.update({"githubServiceConnection": prompt_user("githubServiceConnection")}) }}
-        {{ cookiecutter.update({"private_agent_name": prompt_user("private_agent_name")}) }}
+        {{ cookiecutter.update({"github_service_connection": prompt_user("github_service_connection")}) }}
         {{ cookiecutter.update({"azure_resource_group": "azure_resource_group"}) }}
         {{ cookiecutter.update({"azureml_workspace": "azureml_workspace"}) }}
     {% endif %}
@@ -28,6 +27,7 @@
         {{ cookiecutter.update({"azureml_workspace": prompt_user("azureml_workspace")}) }}
         {{ cookiecutter.update({"organisation_name": "organisation_name"}) }}
         {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("create_aml_environment_in_cicd", False)}) }}
+        {{ cookiecutter.update({"github_service_connection": "github_service_connection"}) }}
         {{ cookiecutter.update({"package_feed": "package_feed"}) }}
         {{ cookiecutter.update({"private_agent_name": "private_agent_name"}) }}
     {% endif %}

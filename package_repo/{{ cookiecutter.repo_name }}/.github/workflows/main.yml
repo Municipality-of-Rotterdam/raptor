@@ -1,0 +1,60 @@
+{% raw %}
+name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CICD
+
+env:
+  PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %}
+  PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %} 
+  PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %} 
+  AML_ENVIRONMENT: {% endraw %}{{cookiecutter.package_name}}{% raw %} 
+  RG_NAME: {% endraw %}{{cookiecutter.azure_resource_group}}{% raw %} 
+  WS_NAME: {% endraw %}{{cookiecutter.azureml_workspace}}{% raw %} 
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+      - release/*
+
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  Precommit:
+    uses: GemeenteRotterdam/raptor/templates/github/pre_commit.yml@main
+    with: 
+      PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+
+  UnitTest: 
+    uses: GemeenteRotterdam/raptor/templates/github/unit_test.yml@main
+    with: 
+      PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+      PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
+
+  Check: 
+    needs: [Precommit, UnitTest]
+    uses: GemeenteRotterdam/raptor/templates/github/unit_test.yml@main
+
+  # https://stackoverflow.com/questions/59882715/use-environment-variable-in-github-action-if
+  Build:
+    if: needs.Check.outputs.src_changed == 'True'
+    needs: [Check]
+    uses: GemeenteRotterdam/raptor/templates/github/build.yml@main
+
+  Register: 
+    if: success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
+    needs: [Build]
+    uses: GemeenteRotterdam/raptor/templates/github/register.yml@main
+    with: 
+      AML_ENVIRONMENT: ${{ env.AML_ENVIRONMENT }}
+      RG_NAME: ${{ env.RG_NAME }}
+      WS_NAME: ${{ env.WS_NAME }}
+
+  Documentation: 
+    if: success() && github.ref == 'refs/heads/main'
+    uses: GemeenteRotterdam/raptor/templates/github/documentation.yml@main
+    with: 
+      PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+  
+{% endraw %}

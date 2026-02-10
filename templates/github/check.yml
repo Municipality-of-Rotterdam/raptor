@@ -1,0 +1,31 @@
+name: Check changed files in source folder
+
+on: 
+  workflow_call:
+
+jobs:
+  Check:
+    runs-on: ubuntu-latest
+    
+    outputs:
+      src_changed: ${{ steps.src-changed.outputs.SRC_CHANGED }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+    
+      # https://github.com/marketplace/actions/changed-files
+      - name: CheckSourceChanges
+        id: changed-files-src
+        uses: tj-actions/changed-files@v45
+        with:
+          files: src/**/*
+        # To compare changes between the current commit and the last pushed remote commit 
+        # set `since_last_remote_commit: true`. e.g
+          since_last_remote_commit: true 
+
+      # https://github.com/orgs/community/discussions/56849
+      - name: Run step if any file(s) in the docs folder change
+        id: src-changed
+        if: steps.changed-files-src.outputs.any_changed == 'true'
+        run: echo "SRC_CHANGED=True" >> $GITHUB_OUTPUT

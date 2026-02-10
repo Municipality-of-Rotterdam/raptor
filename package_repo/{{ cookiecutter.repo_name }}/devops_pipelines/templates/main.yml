@@ -27,7 +27,7 @@ resources:
       name: GemeenteRotterdam/raptor
       type: github
       ref: main
-      endpoint: ${{ variables.githubServiceConnection }}
+      endpoint: ${{ variables.github_service_connection }}
 
 stages:
 - stage: PreCommit
@@ -41,17 +41,19 @@ stages:
         poetry_version: ${{ variables.poetryVersion }}
         pat_username: $(PatUsername)
         pat: $(DevOpsPAT)
+
 - stage: UnitTest
   jobs:
   - job: ExecuteUnitTests
     displayName: 'Unit Tests Coverage'
     steps:
-    - template: /templates/devops/templates/test.yml
+    - template: /templates/devops/templates/test.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
         pat_username: $(PatUsername)
         pat: $(DevOpsPAT)
+
 - stage: Build
   dependsOn:
     - PreCommit
@@ -70,6 +72,7 @@ stages:
             [SourceHasChanged]
             src/**/*
             pyproject.toml
+
   - job: Build
     displayName: 'Build and store staging artifact'
     dependsOn: 
@@ -79,7 +82,7 @@ stages:
       build:  $[or(eq(variables['isDev'], true), eq(variables['isRelease'], true), eq(variables['isMain'], true))]
       prod:  $[or(eq(variables['toMain'], true), eq(variables['isMain'], true))]
     steps:
-    - template: /templates/devops//build.yml
+    - template: /templates/devops/build.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
@@ -89,6 +92,7 @@ stages:
         feed_view: $(feed_view)
         pat_username: $(PatUsername)
         pat: $(DevOpsPAT)
+
   - job: Register
     dependsOn: 
       - Build
@@ -96,13 +100,14 @@ stages:
     pool: ${{ variables.sh_agent_pool_name }}
     displayName: 'Register new environment in Azure ML'
     steps:
-    - template: /templates/devops/register.yml
+    - template: /templates/devops/register.yml@raptor
       parameters:
         service_connection: $(AmlServiceConnection)
         devops_organisation: ${{ variables.devops_organisation }}
         package_feed_view: ${{ variables.package_feed }}@$(feed_view)
         aml_environment: ${{ variables.aml_environment }}
         base_image: ${{ variables.base_image }}
+
 - stage: Documentation
   dependsOn:
     - PreCommit
@@ -112,18 +117,19 @@ stages:
   - job: BuildDocs
     displayName: "Generate Wiki Documentation"
     steps:
-      - template: /devops_pipelines/templates/generate_docs.yml
+      - template: /templates/devops/generate_docs.yml@raptor
         parameters:
           python_version: ${{ variables.pythonVersion }}
           poetry_version: ${{ variables.poetryVersion}}
           pat_username: $(PatUsername)
           pat: $(DevOpsPAT)
+
   - job: WikiUpdate
     displayName: "Sync Documentation to Devops"
     pool: ${{ variables.sh_agent_pool_name }}
     dependsOn: BuildDocs
     steps:
-      - template: /devops_pipelines/templates/update_wiki.yml
+      - template: /templates/devops/update_wiki.yml@raptor
         parameters:
           python_version: ${{ variables.pythonVersion }}
           poetry_version: ${{ variables.poetryVersion}}

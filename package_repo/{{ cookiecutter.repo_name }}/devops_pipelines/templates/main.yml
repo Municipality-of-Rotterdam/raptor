@@ -53,6 +53,7 @@ stages:
         poetry_version: ${{ variables.poetryVersion }}
         pat_username: $(PatUsername)
         pat: $(DevOpsPAT)
+        project_name: {% endraw %}{{cookiecutter.project_name}}{% raw %}
 
 - stage: Build
   dependsOn:

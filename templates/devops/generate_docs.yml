@@ -1,4 +1,3 @@
-{% raw %}
 parameters:
 - name: python_version
   type: string
@@ -33,4 +32,3 @@ steps:
 # Change to '$(Agent.BuildDirectory)/s/docs/build/html' in case we can build and publish static html to a webserver
   - publish: $(Agent.BuildDirectory)/s/docs/build/markdown
     artifact: documentation_dir
-{% endraw %}

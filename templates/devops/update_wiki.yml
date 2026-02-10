@@ -1,4 +1,3 @@
-{% raw %}
 parameters:
 - name: python_version
   type: string
@@ -51,4 +50,3 @@ steps:
       --tenant ${{ parameters.tenant }} ^
       --organisation ${{ parameters.organisation }}
   displayName: 'Create/Update Wiki'
-{% endraw %}

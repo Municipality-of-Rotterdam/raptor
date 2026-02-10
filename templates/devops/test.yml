@@ -8,6 +8,8 @@ parameters:
   type: string
 - name: pat
   type: string
+- name: project_name
+  type: string
 
 steps:
   - template: configure_python.yml
@@ -20,7 +22,7 @@ steps:
   - script: poetry install --without dev,precommit
     displayName: 'Install main and test dependencies with poetry'
 
-  - script: poetry run pytest ./tests --doctest-modules --junitxml=junit/test-results.xml --cov=src/test_central_templates_az --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal" 
+  - script: poetry run pytest ./tests --doctest-modules --junitxml=junit/test-results.xml --cov=src/${{ variables.project_name }} --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal" 
     displayName: 'Unit tests'
 
   - task: PublishTestResults@2
@@ -35,5 +37,5 @@ steps:
     inputs:
       failIfCoverageEmpty: true 
       summaryFileLocation: 'coverage.xml'
-      pathToSources: 'src/test_central_templates_az'
+      pathToSources: 'src/${{ variables.project_name }}'
     displayName: 'Publish Coverage Results'

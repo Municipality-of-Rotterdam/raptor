@@ -27,7 +27,7 @@ resources:
       name: GemeenteRotterdam/raptor
       type: github
       ref: main
-      endpoint: ${{ variables.github_service_connection }}
+      endpoint: {% endraw %}{{cookiecutter.github_service_connection}}{% raw %}
 
 stages:
 - stage: PreCommit
@@ -47,7 +47,7 @@ stages:
   - job: ExecuteUnitTests
     displayName: 'Unit Tests Coverage'
     steps:
-    - template: /templates/devops/templates/test.yml@raptor
+    - template: /templates/devops/test.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}

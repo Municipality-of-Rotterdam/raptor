@@ -8,7 +8,7 @@ parameters:
   type: string
 - name: pat
   type: string
-- name: project_name
+- name: package_name
   type: string
 
 steps:
@@ -22,7 +22,7 @@ steps:
   - script: poetry install --without dev,precommit
     displayName: 'Install main and test dependencies with poetry'
 
-  - script: poetry run pytest ./tests --doctest-modules --junitxml=junit/test-results.xml --cov=src/${{ variables.project_name }} --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal" 
+  - script: poetry run pytest ./tests --doctest-modules --junitxml=junit/test-results.xml --cov=src/${{ variables.package_name }} --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal" 
     displayName: 'Unit tests'
 
   - task: PublishTestResults@2

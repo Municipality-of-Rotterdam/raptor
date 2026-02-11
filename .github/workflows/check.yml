@@ -20,8 +20,8 @@ jobs:
         uses: tj-actions/changed-files@v45
         with:
           files: src/**/*
-        # To compare changes between the current commit and the last pushed remote commit 
-        # set `since_last_remote_commit: true`. e.g
+          # To compare changes between the current commit and the last pushed remote commit 
+          # set `since_last_remote_commit: true`. e.g
           since_last_remote_commit: true 
 
       # https://github.com/orgs/community/discussions/56849

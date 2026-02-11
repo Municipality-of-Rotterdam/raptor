@@ -1,15 +1,6 @@
 {% raw %}
 name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CICD
 
-env:
-  PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %} # set this to your project name
-  PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %} # set this to the Python version to use
-  PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %} # set this to the name of Github environment
-  AML_ENVIRONMENT: {% endraw %}{{cookiecutter.package_name}}{% raw %} # set this to the name of AML environment to create
-  RG_NAME: {% endraw %}{{cookiecutter.azure_resource_group}}{% raw %} # set this to your Azure resource group name
-  WS_NAME: {% endraw %}{{cookiecutter.azureml_workspace}}{% raw %} # set this to your Azure ML workspace name
-  PUBLISH_ON_PYPI: {% endraw %}{{cookiecutter.publish_package_on_public_pypi}}{% raw %}
-
 on:
   push:
     branches:
@@ -25,13 +16,13 @@ jobs:
   Precommit:
     uses: GemeenteRotterdam/raptor/templates/github/pre_commit.yml@main
     with: 
-      PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 
   UnitTest: 
     uses: GemeenteRotterdam/raptor/templates/github/unit_test.yml@main
     with: 
-      PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
-      PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}
 
   Check: 
     needs: [Precommit, UnitTest]
@@ -39,7 +30,7 @@ jobs:
 
   # https://stackoverflow.com/questions/59882715/use-environment-variable-in-github-action-if
   Build:
-    if: ${{ env.PUBLISH_ON_PYPI }} == 'True' && needs.Check.outputs.src_changed == 'True'
+    if: {% endraw %}{{cookiecutter.publish_package_on_public_pypi}}{% raw %} && needs.Check.outputs.src_changed == 'True'
     needs: [Check]
     uses: GemeenteRotterdam/raptor/templates/github/build.yml@main
 
@@ -48,14 +39,14 @@ jobs:
     needs: [Build]
     uses: GemeenteRotterdam/raptor/templates/github/register.yml@main
     with: 
-      AML_ENVIRONMENT: ${{ env.AML_ENVIRONMENT }}
-      RG_NAME: ${{ env.RG_NAME }}
-      WS_NAME: ${{ env.WS_NAME }}
+      AML_ENVIRONMENT: {% endraw %}{{cookiecutter.package_name}}{% raw %}
+      RG_NAME: {% endraw %}{{cookiecutter.azure_resource_group}}{% raw %}
+      WS_NAME: {% endraw %}{{cookiecutter.azureml_workspace}}{% raw %}
 
   Documentation: 
     if: success() && github.ref == 'refs/heads/main'
     uses: GemeenteRotterdam/raptor/templates/github/documentation.yml@main
     with: 
-      PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
   
 {% endraw %}

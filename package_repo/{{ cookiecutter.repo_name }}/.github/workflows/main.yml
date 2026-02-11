@@ -2,24 +2,13 @@
 name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CICD
 
 env:
-<<<<<<< HEAD
-  PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %}
-  PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %} 
-  PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %} 
-  AML_ENVIRONMENT: {% endraw %}{{cookiecutter.package_name}}{% raw %} 
-  RG_NAME: {% endraw %}{{cookiecutter.azure_resource_group}}{% raw %} 
-  WS_NAME: {% endraw %}{{cookiecutter.azureml_workspace}}{% raw %} 
-=======
   PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %} # set this to your project name
   PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %} # set this to the Python version to use
   PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %} # set this to the name of Github environment
-  AZURE_CLI_VERSION: 2.64.0 # set this to your Azure CLI version
   AML_ENVIRONMENT: {% endraw %}{{cookiecutter.package_name}}{% raw %} # set this to the name of AML environment to create
   RG_NAME: {% endraw %}{{cookiecutter.azure_resource_group}}{% raw %} # set this to your Azure resource group name
   WS_NAME: {% endraw %}{{cookiecutter.azureml_workspace}}{% raw %} # set this to your Azure ML workspace name
   PUBLISH_ON_PYPI: {% endraw %}{{cookiecutter.publish_package_on_public_pypi}}{% raw %}
-  REGISTER_AML_ENV: {% endraw %}{{cookiecutter.create_aml_environment_in_cicd}}{% raw %}
->>>>>>> develop
 
 on:
   push:
@@ -50,12 +39,12 @@ jobs:
 
   # https://stackoverflow.com/questions/59882715/use-environment-variable-in-github-action-if
   Build:
-    if: needs.Check.outputs.src_changed == 'True'
+    if: ${{ env.PUBLISH_ON_PYPI }} == 'True' && needs.Check.outputs.src_changed == 'True'
     needs: [Check]
     uses: GemeenteRotterdam/raptor/templates/github/build.yml@main
 
   Register: 
-    if: success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
+    if:  ${{ env.REGISTER_AML_ENV }} == 'True' && success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
     needs: [Build]
     uses: GemeenteRotterdam/raptor/templates/github/register.yml@main
     with: 

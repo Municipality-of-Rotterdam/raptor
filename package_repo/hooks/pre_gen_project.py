@@ -29,7 +29,6 @@
         {{ cookiecutter.update({"publish_package_on_public_pypi": prompt_user_yes_no("publish_package_on_public_pypi")}) }}
         {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("create_aml_environment_in_cicd")}) }}
         {{ cookiecutter.update({"organisation_name": "organisation_name"}) }}
-        {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("create_aml_environment_in_cicd", False)}) }}
         {{ cookiecutter.update({"github_service_connection": "github_service_connection"}) }}
         {{ cookiecutter.update({"package_feed": "package_feed"}) }}
         {{ cookiecutter.update({"private_agent_name": "private_agent_name"}) }}

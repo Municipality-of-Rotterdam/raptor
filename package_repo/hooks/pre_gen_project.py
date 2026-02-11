@@ -19,12 +19,15 @@
         {{ cookiecutter.update({"github_service_connection": prompt_user("github_service_connection")}) }}
         {{ cookiecutter.update({"azure_resource_group": "azure_resource_group"}) }}
         {{ cookiecutter.update({"azureml_workspace": "azureml_workspace"}) }}
+        {{ cookiecutter.update({"publish_package_on_public_pypi": "publish_package_on_public_pypi"}) }}
     {% endif %}
 
     {# GitHub-specific prompts #}
     {% if is_github %}
         {{ cookiecutter.update({"azure_resource_group": prompt_user("azure_resource_group")}) }}
         {{ cookiecutter.update({"azureml_workspace": prompt_user("azureml_workspace")}) }}
+        {{ cookiecutter.update({"publish_package_on_public_pypi": prompt_user_yes_no("publish_package_on_public_pypi")}) }}
+        {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("create_aml_environment_in_cicd")}) }}
         {{ cookiecutter.update({"organisation_name": "organisation_name"}) }}
         {{ cookiecutter.update({"create_aml_environment_in_cicd": prompt_user_yes_no("create_aml_environment_in_cicd", False)}) }}
         {{ cookiecutter.update({"github_service_connection": "github_service_connection"}) }}

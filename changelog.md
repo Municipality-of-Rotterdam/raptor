@@ -3,6 +3,12 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.2.0] - 2026-02-12
+Centralized template hosting.
+
+### **Changed**
+- CI/CD pipeline templates now imported from remote repository (Raptor)
+
 ## [0.3.1] - 2025-10-21
 Updated prompting for package publishing in case of Github.
 

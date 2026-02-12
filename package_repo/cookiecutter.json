@@ -15,6 +15,6 @@
         "author_name": "Author name",
         "author_email": "Author email"
     },
-    "__cookiecutter_template_version": "0.3.1",
+    "__cookiecutter_template_version": "1.2.0",
     "_extensions": ["local_extensions.AdditionalPrompts"]
 }

@@ -7,12 +7,6 @@ on:
         required: true
         type: string
 
-# Needed for publication on PyPI
-permissions:
-  contents: read # Permissions to read the repository code
-  id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
-  pages: write
-
 jobs:
   Documentation:    
       runs-on: ubuntu-latest

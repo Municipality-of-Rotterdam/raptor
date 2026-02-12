@@ -12,43 +12,49 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+# Needed for publication on PyPI
+permissions:
+  contents: read # Permissions to read the repository code
+  id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+  pages: write
+
 jobs:
   Precommit:
-    uses: municipality-of-rotterdam/raptor/.github/templates/pre_commit.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/workflows/pre_commit.yml@main
     with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 
   UnitTest: 
-    uses: municipality-of-rotterdam/raptor/.github/templates/unit_test.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/workflows/unit_test.yml@main
     with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
       PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}
 
   Check: 
     needs: [Precommit, UnitTest]
-    uses: municipality-of-rotterdam/raptor/.github/templates/unit_test.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/workflows/check.yml@main
 
-  {% endraw %}{%- if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
+  {% endraw %}{% if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
   Build:
     if: needs.Check.outputs.src_changed == 'True'
     needs: [Check]
-    uses: municipality-of-rotterdam/raptor/.github/templates/build.yml@main
-  {% endraw %}{%- endif %}{% raw %}
+    uses: municipality-of-rotterdam/raptor/.github/workflows/build.yml@main
+  {% endraw %}{% endif %}{% raw %}
 
-  {% endraw %}{%- if cookiecutter.create_aml_environment_in_cicd|lower in ["y", "yes", "true"] %}{% raw %}
+  {% endraw %}{% if cookiecutter.create_aml_environment_in_cicd|lower in ["y", "yes", "true"] %}{% raw %}
   Register:
     if: ${{ success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release')) }}
     needs: [Build]
-    uses: municipality-of-rotterdam/raptor/.github/templates/register.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/workflows/register.yml@main
     with:
       AML_ENVIRONMENT: {% endraw %}{{ cookiecutter.package_name }}{% raw %}
       RG_NAME: {% endraw %}{{ cookiecutter.azure_resource_group }}{% raw %}
       WS_NAME: {% endraw %}{{ cookiecutter.azureml_workspace }}{% raw %}
-  {% endraw %}{%- endif %}{% raw %}
+  {% endraw %}{% endif %}{% raw %}
 
   Documentation: 
     if: success() && github.ref == 'refs/heads/main'
-    uses: municipality-of-rotterdam/raptor/.github/templates/documentation.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/workflows/documentation.yml@main
     with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 {% endraw %}

@@ -1,7 +1,7 @@
 {% raw %}
 variables:
 # Extract variables from config.yml
-- template: /devops_pipelines/templates/config.yml
+- template: config.yml
 # check whether this is a PR to main, run checks for things we want to do when isMain (after PR is completed)
 # note: this variable is only available at runtime, not compile time, so using this variable can be complicated
 - name: toMain
@@ -30,7 +30,7 @@ stages:
   - job: ExecutePreCommit
     displayName: 'Perform pre-commit checks'
     steps:
-    - template: /templates/devops/pre_commit.yml@raptor
+    - template: .azuredevops/templates/pre_commit.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
@@ -42,7 +42,7 @@ stages:
   - job: ExecuteUnitTests
     displayName: 'Unit Tests Coverage'
     steps:
-    - template: /templates/devops/test.yml@raptor
+    - template: .azuredevops/templates/test.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
@@ -78,7 +78,7 @@ stages:
       build:  $[or(eq(variables['isDev'], true), eq(variables['isRelease'], true), eq(variables['isMain'], true))]
       prod:  $[or(eq(variables['toMain'], true), eq(variables['isMain'], true))]
     steps:
-    - template: /templates/devops/build.yml@raptor
+    - template: .azuredevops/templates/build.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
@@ -96,7 +96,7 @@ stages:
     pool: ${{ variables.sh_agent_pool_name }}
     displayName: 'Register new environment in Azure ML'
     steps:
-    - template: /templates/devops/register.yml@raptor
+    - template: .azuredevops/templates/register.yml@raptor
       parameters:
         service_connection: $(AmlServiceConnection)
         devops_organisation: ${{ variables.devops_organisation }}
@@ -113,7 +113,7 @@ stages:
   - job: BuildDocs
     displayName: "Generate Wiki Documentation"
     steps:
-      - template: /templates/devops/generate_docs.yml@raptor
+      - template: .azuredevops/templates/generate_docs.yml@raptor
         parameters:
           python_version: ${{ variables.pythonVersion }}
           poetry_version: ${{ variables.poetryVersion}}
@@ -125,7 +125,7 @@ stages:
     pool: ${{ variables.sh_agent_pool_name }}
     dependsOn: BuildDocs
     steps:
-      - template: /templates/devops/update_wiki.yml@raptor
+      - template: .azuredevops/templates/update_wiki.yml@raptor
         parameters:
           python_version: ${{ variables.pythonVersion }}
           poetry_version: ${{ variables.poetryVersion}}

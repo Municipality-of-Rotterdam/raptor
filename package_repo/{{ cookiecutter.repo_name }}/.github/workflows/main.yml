@@ -14,30 +14,30 @@ on:
 
 jobs:
   Precommit:
-    uses: GemeenteRotterdam/raptor/templates/github/pre_commit.yml@main
+    uses: GemeenteRotterdam/raptor/.github/templates/pre_commit.yml@main
     with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 
   UnitTest: 
-    uses: GemeenteRotterdam/raptor/templates/github/unit_test.yml@main
+    uses: GemeenteRotterdam/raptor/.github/templates/unit_test.yml@main
     with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
       PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}
 
   Check: 
     needs: [Precommit, UnitTest]
-    uses: GemeenteRotterdam/raptor/templates/github/unit_test.yml@main
+    uses: GemeenteRotterdam/raptor/.github/templates/unit_test.yml@main
 
   # https://stackoverflow.com/questions/59882715/use-environment-variable-in-github-action-if
   Build:
     if: {% endraw %}{{cookiecutter.publish_package_on_public_pypi}}{% raw %} && needs.Check.outputs.src_changed == 'True'
     needs: [Check]
-    uses: GemeenteRotterdam/raptor/templates/github/build.yml@main
+    uses: GemeenteRotterdam/raptor/.github/templates/build.yml@main
 
   Register: 
     if:  ${{ env.REGISTER_AML_ENV }} == 'True' && success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
     needs: [Build]
-    uses: GemeenteRotterdam/raptor/templates/github/register.yml@main
+    uses: GemeenteRotterdam/raptor/.github/templates/register.yml@main
     with: 
       AML_ENVIRONMENT: {% endraw %}{{cookiecutter.package_name}}{% raw %}
       RG_NAME: {% endraw %}{{cookiecutter.azure_resource_group}}{% raw %}
@@ -45,7 +45,7 @@ jobs:
 
   Documentation: 
     if: success() && github.ref == 'refs/heads/main'
-    uses: GemeenteRotterdam/raptor/templates/github/documentation.yml@main
+    uses: GemeenteRotterdam/raptor/.github/templates/documentation.yml@main
     with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
   

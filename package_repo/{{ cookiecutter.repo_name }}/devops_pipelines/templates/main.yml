@@ -19,7 +19,7 @@ variables:
 resources:
   repositories:
     - repository: raptor
-      name: GemeenteRotterdam/raptor
+      name: municipality-of-rotterdam/raptor
       type: github
       ref: main
       endpoint: {% endraw %}{{cookiecutter.github_service_connection}}{% raw %}

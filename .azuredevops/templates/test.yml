@@ -37,5 +37,5 @@ steps:
     inputs:
       failIfCoverageEmpty: true 
       summaryFileLocation: 'coverage.xml'
-      pathToSources: 'src/${{ parameters.project_name }}'
+      pathToSources: 'src/${{ parameters.package_name }}'
     displayName: 'Publish Coverage Results'

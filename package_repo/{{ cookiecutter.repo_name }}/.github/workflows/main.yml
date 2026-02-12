@@ -14,39 +14,41 @@ on:
 
 jobs:
   Precommit:
-    uses: GemeenteRotterdam/raptor/.github/templates/pre_commit.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/templates/pre_commit.yml@main
     with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 
   UnitTest: 
-    uses: GemeenteRotterdam/raptor/.github/templates/unit_test.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/templates/unit_test.yml@main
     with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
       PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}
 
   Check: 
     needs: [Precommit, UnitTest]
-    uses: GemeenteRotterdam/raptor/.github/templates/unit_test.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/templates/unit_test.yml@main
 
-  # https://stackoverflow.com/questions/59882715/use-environment-variable-in-github-action-if
+  {% endraw %}{%- if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
   Build:
-    if: {% endraw %}{{cookiecutter.publish_package_on_public_pypi}}{% raw %} && needs.Check.outputs.src_changed == 'True'
+    if: needs.Check.outputs.src_changed == 'True'
     needs: [Check]
-    uses: GemeenteRotterdam/raptor/.github/templates/build.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/templates/build.yml@main
+  {% endraw %}{%- endif %}{% raw %}
 
-  Register: 
-    if:  ${{ env.REGISTER_AML_ENV }} == 'True' && success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
+  {% endraw %}{%- if cookiecutter.create_aml_environment_in_cicd|lower in ["y", "yes", "true"] %}{% raw %}
+  Register:
+    if: ${{ success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release')) }}
     needs: [Build]
-    uses: GemeenteRotterdam/raptor/.github/templates/register.yml@main
-    with: 
-      AML_ENVIRONMENT: {% endraw %}{{cookiecutter.package_name}}{% raw %}
-      RG_NAME: {% endraw %}{{cookiecutter.azure_resource_group}}{% raw %}
-      WS_NAME: {% endraw %}{{cookiecutter.azureml_workspace}}{% raw %}
+    uses: municipality-of-rotterdam/raptor/.github/templates/register.yml@main
+    with:
+      AML_ENVIRONMENT: {% endraw %}{{ cookiecutter.package_name }}{% raw %}
+      RG_NAME: {% endraw %}{{ cookiecutter.azure_resource_group }}{% raw %}
+      WS_NAME: {% endraw %}{{ cookiecutter.azureml_workspace }}{% raw %}
+  {% endraw %}{%- endif %}{% raw %}
 
   Documentation: 
     if: success() && github.ref == 'refs/heads/main'
-    uses: GemeenteRotterdam/raptor/.github/templates/documentation.yml@main
+    uses: municipality-of-rotterdam/raptor/.github/templates/documentation.yml@main
     with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
-  
 {% endraw %}

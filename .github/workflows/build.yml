@@ -19,17 +19,17 @@ jobs:
 
     # # Dedicated environments with protections for publishing are strongly recommended.
     environment:
-      name: ${{ env.PACKAGE_NAME }}
-      url: https://pypi.org/p/${{ env.PROJECT_NAME }}
+      name: ${{ inputs.PACKAGE_NAME }}
+      url: https://pypi.org/p/${{ inputs.PROJECT_NAME }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
+      - name: Set up Python ${{ inputs.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ inputs.PYTHON_VERSION }}
 
       - name: Install Poetry
         run: curl -sSL https://install.python-poetry.org | python - -y

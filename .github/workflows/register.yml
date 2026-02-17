@@ -49,6 +49,6 @@ jobs:
             echo "Install successful!"
 
             echo "Create new AML environment"
-            az ml environment create --name ${{ env.AML_ENVIRONMENT }} --file aml_environment.yml \
-            --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
+            az ml environment create --name ${{ inputs.AML_ENVIRONMENT }} --file aml_environment.yml \
+            --resource-group ${{ inputs.RG_NAME }} --workspace-name ${{ inputs.WS_NAME }}
             echo "Creation successful!"

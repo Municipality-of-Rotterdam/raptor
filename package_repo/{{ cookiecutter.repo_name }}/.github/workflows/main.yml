@@ -39,6 +39,10 @@ jobs:
     if: needs.Check.outputs.src_changed == 'True'
     needs: [Check]
     uses: municipality-of-rotterdam/raptor/.github/workflows/build.yml@#{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with: 
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}  
+      PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %}
   {% endraw %}{% endif %}{% raw %}
 
   {% endraw %}{% if cookiecutter.create_aml_environment_in_cicd|lower in ["y", "yes", "true"] %}{% raw %}

@@ -1,4 +1,4 @@
-{% raw %}
+
 parameters:
 - name: python_version
   type: string
@@ -8,9 +8,11 @@ parameters:
   type: string
 - name: pat
   type: string
+- name: package_name
+  type: string
 
 steps:
-  - template: /devops_pipelines/templates/configure_python.yml
+  - template: configure_python.yml
     parameters:
       python_version: '${{ parameters.python_version }}'
       poetry_version: '${{ parameters.poetry_version }}'
@@ -20,7 +22,7 @@ steps:
   - script: poetry install --without dev,precommit
     displayName: 'Install main and test dependencies with poetry'
 
-  - script: {% endraw %}poetry run pytest ./tests --doctest-modules --junitxml=junit/test-results.xml --cov=src/{{ cookiecutter.package_name }} --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal" {% raw %}
+  - script: poetry run pytest ./tests --doctest-modules --junitxml=junit/test-results.xml --cov=src/${{ parameters.package_name }} --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal" 
     displayName: 'Unit tests'
 
   - task: PublishTestResults@2
@@ -35,6 +37,5 @@ steps:
     inputs:
       failIfCoverageEmpty: true 
       summaryFileLocation: 'coverage.xml'
-      pathToSources: {% endraw %}'src/{{ cookiecutter.package_name }}'{% raw %}
+      pathToSources: 'src/${{ parameters.package_name }}'
     displayName: 'Publish Coverage Results'
-{% endraw %}

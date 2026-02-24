@@ -1,17 +1,6 @@
 {% raw %}
 name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CICD
 
-env:
-  PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %} # set this to your project name
-  PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %} # set this to the Python version to use
-  PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %} # set this to the name of Github environment
-  AZURE_CLI_VERSION: 2.64.0 # set this to your Azure CLI version
-  AML_ENVIRONMENT: {% endraw %}{{cookiecutter.package_name}}{% raw %} # set this to the name of AML environment to create
-  RG_NAME: {% endraw %}{{cookiecutter.azure_resource_group}}{% raw %} # set this to your Azure resource group name
-  WS_NAME: {% endraw %}{{cookiecutter.azureml_workspace}}{% raw %} # set this to your Azure ML workspace name
-  PUBLISH_ON_PYPI: {% endraw %}{{cookiecutter.publish_package_on_public_pypi}}{% raw %}
-  REGISTER_AML_ENV: {% endraw %}{{cookiecutter.create_aml_environment_in_cicd}}{% raw %}
-
 on:
   push:
     branches:
@@ -31,215 +20,45 @@ permissions:
 
 jobs:
   Precommit:
-    name: Perform pre-commit checks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    uses: municipality-of-rotterdam/raptor/.github/workflows/pre_commit.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with: 
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+  UnitTest: 
+    uses: municipality-of-rotterdam/raptor/.github/workflows/unit_test.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with: 
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}
 
-      - name: Install dependencies with poetry
-        run: |        
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry install --only precommit
-      
-      - name: Run pre-commit
-        run: poetry run pre-commit run --all-files --show-diff-on-failure
-
-  UnitTest:
-    name: Unit Tests Coverage
-    # needs: []  # Runs in parallel with Precommit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies with poetry
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry install --only dev,test
-
-      - name: Unit tests
-        run: poetry run pytest --cov-report term-missing --cov=src/{% endraw %}{{cookiecutter.package_name}}{% raw %} tests/ -m "not onlylocal" 
-
-      - name: Upload test results
-        # Use always() to always run this step to publish test results when there are test failures
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-results
-          path: coverage.xml
-
-        # https://josh-ops.com/posts/github-code-coverage/
-      - name: Code Coverage Summary Report
-        uses: irongut/CodeCoverageSummary@v1.3.0
-        with:
-          filename: 'coverage.xml'
-          badge: true
-          format: 'markdown'
-          output: 'both'
-    
-      - name: Add Coverage PR Comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request'
-        with:
-          recreate: true
-          path: code-coverage-results.md
-  
-      - name: Write to Job Summary
-        run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
-
-  Check:
-    name: Check changed files in source folder
-    runs-on: ubuntu-latest
+  Check: 
     needs: [Precommit, UnitTest]
-    outputs:
-      src_changed: ${{ steps.src-changed.outputs.SRC_CHANGED }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-    
-      # https://github.com/marketplace/actions/changed-files
-      - name: CheckSourceChanges
-        id: changed-files-src
-        uses: tj-actions/changed-files@v45
-        with:
-          files: src/**/*
-        # To compare changes between the current commit and the last pushed remote commit 
-        # set `since_last_remote_commit: true`. e.g
-          since_last_remote_commit: true 
+    uses: municipality-of-rotterdam/raptor/.github/workflows/check.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
 
-      # https://github.com/orgs/community/discussions/56849
-      - name: Run step if any file(s) in the docs folder change
-        id: src-changed
-        if: steps.changed-files-src.outputs.any_changed == 'true'
-        run: echo "SRC_CHANGED=True" >> $GITHUB_OUTPUT
-
+  {% endraw %}{% if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
   Build:
-    # https://johnfraney.ca/blog/how-to-publish-a-python-package-with-poetry-and-github-actions/
-    name: Build and publish to PyPI
-    runs-on: ubuntu-latest
-    needs: Check
+    if: needs.Check.outputs.src_changed == 'True'
+    needs: [Check]
+    uses: municipality-of-rotterdam/raptor/.github/workflows/build.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with: 
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}  
+      PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %}
+  {% endraw %}{% endif %}{% raw %}
 
-    # # Dedicated environments with protections for publishing are strongly recommended.
-    environment:
-      name: ${{ env.PACKAGE_NAME }}
-      url: https://pypi.org/p/${{ env.PROJECT_NAME }}
-
-    # https://stackoverflow.com/questions/59882715/use-environment-variable-in-github-action-if
-    if: ${{ env.PUBLISH_ON_PYPI }} == 'True' && needs.Check.outputs.src_changed == 'True'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install Poetry
-        run: curl -sSL https://install.python-poetry.org | python - -y
-  
-      - name: Update PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
-  
-      - name: Update Poetry configuration
-        run: poetry config virtualenvs.create false
-
-      - name: Install dependencies
-        run: poetry install --sync --no-interaction
-
-      - name: Package project
-        run: poetry build
-
-      - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
+  {% endraw %}{% if cookiecutter.create_aml_environment_in_cicd|lower in ["y", "yes", "true"] %}{% raw %}
   Register:
-    name: Register new environment in Azure ML
-    runs-on: ubuntu-latest
-    needs: Build
-    if: ${{ env.REGISTER_AML_ENV }} == 'True' && success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release'))
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    if: ${{ success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release')) }}
+    needs: [Build]
+    uses: municipality-of-rotterdam/raptor/.github/workflows/register.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with:
+      AML_ENVIRONMENT: {% endraw %}{{ cookiecutter.package_name }}{% raw %}
+      RG_NAME: {% endraw %}{{ cookiecutter.azure_resource_group }}{% raw %}
+      WS_NAME: {% endraw %}{{ cookiecutter.azureml_workspace }}{% raw %}
+  {% endraw %}{% endif %}{% raw %}
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      # https://techcommunity.microsoft.com/t5/azure-tools-blog/azure-cli-docker-container-base-linux-image-is-now-azure-linux/ba-p/4236248
-      - name: Register and build new AML environment
-        uses: azure/cli@v2
-        with:
-          azcliversion: ${{ env.AZURE_CLI_VERSION }}
-          inlineScript: |
-            echo "Install awk"
-            tdnf install -y gawk
-            echo "Install successful!"
-
-            echo "Get current package version"
-            PACKAGE_VERSION=$(grep '^version *= *' pyproject.toml | sed -E 's/version *= *"(.*)"/\1/')
-            echo "Current package version is ${PACKAGE_VERSION}"
-
-            echo "Replace version in conda.yml"
-            sed -i -e "s/<PACKAGE_VERSION>/$PACKAGE_VERSION/g" conda.yml
-            echo "Replacement successful!"
-
-            echo "Install az ml extension"
-            az extension add -n ml -y
-            echo "Install successful!"
-
-            echo "Create new AML environment"
-            az ml environment create --name ${{ env.AML_ENVIRONMENT }} --file aml_environment.yml \
-            --resource-group ${{ env.RG_NAME }} --workspace-name ${{ env.WS_NAME }}
-            echo "Creation successful!"
-
-  Documentation:    
-    runs-on: ubuntu-latest
+  Documentation: 
     if: success() && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies with poetry
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry install --only dev,docs
-
-      - name: Build documentation modules
-        run: poetry run sphinx-apidoc -o docs/source src --tocfile module
-
-      - name: Build documentation
-        run: |
-          cd docs
-          poetry run make clean
-          poetry run make html
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './docs/build/html'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+    uses: municipality-of-rotterdam/raptor/.github/workflows/documentation.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with: 
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 {% endraw %}

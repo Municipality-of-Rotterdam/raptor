@@ -1,7 +1,7 @@
 {% raw %}
 variables:
 # Extract variables from config.yml
-- template: /devops_pipelines/templates/config.yml
+- template: config.yml
 # check whether this is a PR to main, run checks for things we want to do when isMain (after PR is completed)
 # note: this variable is only available at runtime, not compile time, so using this variable can be complicated
 - name: toMain
@@ -16,29 +16,40 @@ variables:
 - ${{ else }}:
   - group: AmlDevGroup 
 
+resources:
+  repositories:
+    - repository: raptor
+      name: municipality-of-rotterdam/raptor
+      type: github
+      ref: {% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+      endpoint: {% endraw %}{{cookiecutter.github_service_connection}}{% raw %}
+
 stages:
 - stage: PreCommit
   jobs:
   - job: ExecutePreCommit
     displayName: 'Perform pre-commit checks'
     steps:
-    - template: /devops_pipelines/templates/pre_commit.yml
+    - template: .azuredevops/templates/pre_commit.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
         pat_username: $(PatUsername)
         pat: $(DevOpsPAT)
+
 - stage: UnitTest
   jobs:
   - job: ExecuteUnitTests
     displayName: 'Unit Tests Coverage'
     steps:
-    - template: /devops_pipelines/templates/test.yml
+    - template: .azuredevops/templates/test.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
         pat_username: $(PatUsername)
         pat: $(DevOpsPAT)
+        package_name: {% endraw %}{{cookiecutter.package_name}}{% raw %}
+
 - stage: Build
   dependsOn:
     - PreCommit
@@ -57,6 +68,7 @@ stages:
             [SourceHasChanged]
             src/**/*
             pyproject.toml
+
   - job: Build
     displayName: 'Build and store staging artifact'
     dependsOn: 
@@ -66,7 +78,7 @@ stages:
       build:  $[or(eq(variables['isDev'], true), eq(variables['isRelease'], true), eq(variables['isMain'], true))]
       prod:  $[or(eq(variables['toMain'], true), eq(variables['isMain'], true))]
     steps:
-    - template: /devops_pipelines/templates/build.yml
+    - template: .azuredevops/templates/build.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
         poetry_version: ${{ variables.poetryVersion }}
@@ -76,6 +88,7 @@ stages:
         feed_view: $(feed_view)
         pat_username: $(PatUsername)
         pat: $(DevOpsPAT)
+
   - job: Register
     dependsOn: 
       - Build
@@ -83,13 +96,14 @@ stages:
     pool: ${{ variables.sh_agent_pool_name }}
     displayName: 'Register new environment in Azure ML'
     steps:
-    - template: /devops_pipelines/templates/register.yml
+    - template: .azuredevops/templates/register.yml@raptor
       parameters:
         service_connection: $(AmlServiceConnection)
         devops_organisation: ${{ variables.devops_organisation }}
         package_feed_view: ${{ variables.package_feed }}@$(feed_view)
         aml_environment: ${{ variables.aml_environment }}
         base_image: ${{ variables.base_image }}
+
 - stage: Documentation
   dependsOn:
     - PreCommit
@@ -99,18 +113,19 @@ stages:
   - job: BuildDocs
     displayName: "Generate Wiki Documentation"
     steps:
-      - template: /devops_pipelines/templates/generate_docs.yml
+      - template: .azuredevops/templates/generate_docs.yml@raptor
         parameters:
           python_version: ${{ variables.pythonVersion }}
           poetry_version: ${{ variables.poetryVersion}}
           pat_username: $(PatUsername)
           pat: $(DevOpsPAT)
+
   - job: WikiUpdate
     displayName: "Sync Documentation to Devops"
     pool: ${{ variables.sh_agent_pool_name }}
     dependsOn: BuildDocs
     steps:
-      - template: /devops_pipelines/templates/update_wiki.yml
+      - template: .azuredevops/templates/update_wiki.yml@raptor
         parameters:
           python_version: ${{ variables.pythonVersion }}
           poetry_version: ${{ variables.poetryVersion}}

@@ -1,4 +1,4 @@
-{% raw %}
+
 parameters:
 - name: python_version
   type: string
@@ -19,7 +19,7 @@ parameters:
 
 steps:
 
-  - template: /devops_pipelines/templates/configure_python.yml
+  - template: configure_python.yml
     parameters:
       python_version: '${{ parameters.python_version }}'
       poetry_version: '${{ parameters.poetry_version }}'
@@ -157,4 +157,3 @@ steps:
       curl -X 'PATCH' "https://pkgs.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/feeds/${{ parameters.package_feed }}/PyPI/packages/$(normalised_name)/versions/$(version_toml)?api-version=7.1-preview.1" -H 'Content-Type: application/json' -u :$(System.AccessToken) -d "{\"views\": {\"op\": \"add\", \"path\": \"/views/-\", \"value\": \"${{ parameters.feed_view }}\"}}"
     condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_view'], 'false'))
     displayName: "Promote package to view '${{ parameters.feed_view }}'"
-{% endraw %}

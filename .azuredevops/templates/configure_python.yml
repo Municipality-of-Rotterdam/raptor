@@ -1,4 +1,4 @@
-{% raw %}
+
 parameters:
 - name: python_version
   type: string
@@ -19,4 +19,3 @@ steps:
       poetry_version: '${{ parameters.poetry_version }}'
       username: '${{ parameters.pat_username }}'
       personalAccessToken: '${{ parameters.pat }}'
-{% endraw %}

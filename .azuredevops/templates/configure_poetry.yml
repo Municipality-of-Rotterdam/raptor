@@ -1,4 +1,4 @@
-{% raw %}
+
 parameters:
   - name: poetry_version
     type: string
@@ -23,4 +23,3 @@ steps:
         poetry config http-basic."$SOURCE" "${{ parameters.username }}" "${{ parameters.personalAccessToken }}"
       done <<< "$PRIVATE_SOURCES"
     displayName: 'Configure credentials for private sources'
-{% endraw %}

@@ -1,0 +1,39 @@
+{% raw %}
+name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CICD
+
+on:
+  push:
+    # Continuous deployment on any branch
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+
+  {% endraw %}{% if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
+  Build:
+    uses: municipality-of-rotterdam/raptor/.github/workflows/build.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with: 
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}  
+      PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %}
+  {% endraw %}{% endif %}{% raw %}
+
+  {% endraw %}{% if cookiecutter.create_aml_environment_in_cicd|lower in ["y", "yes", "true"] %}{% raw %}
+  Register:
+    if: ${{ success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release')) }}
+    needs: [Build]
+    uses: municipality-of-rotterdam/raptor/.github/workflows/register.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with:
+      AML_ENVIRONMENT: {% endraw %}{{ cookiecutter.package_name }}{% raw %}
+      RG_NAME: {% endraw %}{{ cookiecutter.azure_resource_group }}{% raw %}
+      WS_NAME: {% endraw %}{{ cookiecutter.azureml_workspace }}{% raw %}
+  {% endraw %}{% endif %}{% raw %}
+
+  Documentation: 
+    if: success() && github.ref == 'refs/heads/main'
+    uses: municipality-of-rotterdam/raptor/.github/workflows/documentation.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with: 
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+{% endraw %}

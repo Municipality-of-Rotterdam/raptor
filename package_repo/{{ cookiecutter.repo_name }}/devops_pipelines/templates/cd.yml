@@ -1,0 +1,101 @@
+{% raw %}
+trigger:
+  branches:
+    include:
+    - *
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+# Extract variables from config.yml
+- template: config.yml
+
+# use complicated ifelse to define feed_view, cannot use if at runtime, only at compile time (and toMain is only available at runtime)
+- name: feed_view
+  value: $[replace(replace(or(eq(variables['toMain'], true), eq(variables['isMain'], true)), True, 'prod'), False, 'dvlm')]
+
+# If main, create aml environment in production aml workspace
+- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+  - group: AmlProdGroup
+# otherwise fallback on development settings
+- ${{ else }}:
+  - group: AmlDevGroup 
+
+resources:
+  repositories:
+    - repository: raptor
+      name: municipality-of-rotterdam/raptor
+      type: github
+      ref: {% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+      endpoint: {% endraw %}{{cookiecutter.github_service_connection}}{% raw %}
+
+
+stages:
+- stage: Build
+  jobs:
+
+  - job: Build
+    displayName: 'Build and store staging artifact'
+    dependsOn: 
+      - Check
+    condition: eq(dependencies.Check.outputs['CheckSourceChanges.SourceHasChanged'], 'true')
+    variables:
+      build: true
+      prod: eq(variables['isMain'], true
+    steps:
+    - template: .azuredevops/templates/build.yml@raptor
+      parameters:
+        python_version: ${{ variables.pythonVersion }}
+        poetry_version: ${{ variables.poetryVersion }}
+        organisation_name: ${{ variables.devops_organisation }}
+        devops_project: ${{ variables.devops_project }}
+        package_feed: ${{ variables.package_feed }}
+        feed_view: $(feed_view)
+        pat_username: $(PatUsername)
+        pat: $(DevOpsPAT)
+
+  - job: Register
+    dependsOn: 
+      - Build
+    condition: and(eq(dependencies.Build.result, 'Succeeded'), eq(variables.RegisterAmlEnv, true))
+    pool: ${{ variables.sh_agent_pool_name }}
+    displayName: 'Register new environment in Azure ML'
+    steps:
+    - template: .azuredevops/templates/register.yml@raptor
+      parameters:
+        service_connection: $(AmlServiceConnection)
+        devops_organisation: ${{ variables.devops_organisation }}
+        package_feed_view: ${{ variables.package_feed }}@$(feed_view)
+        aml_environment: ${{ variables.aml_environment }}
+        base_image: ${{ variables.base_image }}
+
+- stage: Documentation
+  jobs:
+  - job: BuildDocs
+    displayName: "Generate Wiki Documentation"
+    steps:
+      - template: .azuredevops/templates/generate_docs.yml@raptor
+        parameters:
+          python_version: ${{ variables.pythonVersion }}
+          poetry_version: ${{ variables.poetryVersion}}
+          pat_username: $(PatUsername)
+          pat: $(DevOpsPAT)
+
+  - job: WikiUpdate
+    displayName: "Sync Documentation to Devops"
+    pool: ${{ variables.sh_agent_pool_name }}
+    dependsOn: BuildDocs
+    steps:
+      - template: .azuredevops/templates/update_wiki.yml@raptor
+        parameters:
+          python_version: ${{ variables.pythonVersion }}
+          poetry_version: ${{ variables.poetryVersion}}
+          branchName: ${{ variables.docsBranch }}
+          organisation:  ${{ variables.devops_organisation }}
+          pat_username: $(PatUsername)
+          pat: $(DevOpsPAT)
+          clientsecret: $(WikiSecret)
+          clientid: $(WikiId)
+          tenant: $(TenantName)
+{% endraw %}

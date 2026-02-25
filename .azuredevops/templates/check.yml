@@ -40,9 +40,8 @@ steps:
       echo "Package name in pyproject.toml (normalised): $normalised_name"
       echo "##vso[task.setvariable variable=normalised_name]$normalised_name"
 
-      package_id=$(curl -s -u :$(System.AccessToken) \
-        "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1" \
-        | jq -r ".value[] | select(.name == \"$normalised_name\") | .id")
+      package_id=$(curl -s -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1" | jq -r ".value[] | select(.name == \"$normalised_name\") | .id")
+      package_id=${package_id//\"/}
 
       echo "##vso[task.setvariable variable=package_id]$package_id"
     displayName: "Get version number, package name, package id"

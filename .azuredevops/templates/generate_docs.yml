@@ -1,32 +1,33 @@
 parameters:
 - name: python_version
   type: string
-- name: poetry_version
+- name: uv_version
   type: string
-- name: pat_username
+- name: uv_index_name
   type: string
-- name: pat
-  type: string
+  default: ''
 
 steps:
   - template: configure_python.yml
     parameters:
       python_version: '${{ parameters.python_version }}'
-      poetry_version: '${{ parameters.poetry_version }}'
-      pat_username: '${{ parameters.pat_username }}'
-      pat: '${{ parameters.pat }}'
+      uv_version: '${{ parameters.uv_version }}'
 
-  - script: poetry install --only docs
-    displayName: 'Install docs dependencies with poetry'
-    
-  - script: poetry run sphinx-apidoc -o docs/source src --tocfile module
+  - script: uv sync --only-group docs
+    displayName: 'Install docs dependencies with uv'
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
+
+  - script: uv run sphinx-apidoc -o docs/source src --tocfile module
     displayName: 'Update documentation modules'
 
-  # Change to 'poetry run make html' in case we can build and publish static html to a webserver
+  # Change to 'uv run make html' in case we can build and publish static html to a webserver
   - script: |
       cd docs
-      poetry run make clean
-      poetry run make markdown
+      uv run make clean
+      uv run make markdown
     displayName: 'Build the documentation'
 
 # Change to '$(Agent.BuildDirectory)/s/docs/build/html' in case we can build and publish static html to a webserver

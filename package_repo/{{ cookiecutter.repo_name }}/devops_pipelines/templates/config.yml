@@ -1,12 +1,14 @@
 {% raw %}
 variables:
   pythonVersion: {% endraw %}{{cookiecutter.python_version}}{% raw %}
-  poetryVersion: {% endraw %}{{cookiecutter.poetry_version}}{% raw %}
+  uvVersion: {% endraw %}{{cookiecutter.uv_version}}{% raw %}
   devops_organisation: {% endraw %}{{cookiecutter.organisation_name}}{% raw %}
   devops_project: {% endraw %}{{cookiecutter.project_name}}{% raw %}
   
   # Name of artifacts feed
   package_feed:  {% endraw %}{{cookiecutter.package_feed}}{% raw %}
+  # UV index name for env var auth (uppercased, hyphens to underscores)
+  uvIndexName: {% endraw %}{{ cookiecutter.package_feed | upper | replace('-', '_') }}{% raw %}
   
   # Whether to register environment in Azure Machine Learning based on package
   RegisterAmlEnv: {% endraw %}{{cookiecutter.create_aml_environment_in_cicd}}{% raw %}

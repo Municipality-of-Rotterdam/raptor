@@ -1,5 +1,5 @@
 # mypy: ignore-errors
-"""Module for retrieving and handling the version information of the Poetry package."""
+"""Module for retrieving and handling the version information of the package."""
 
 from __future__ import annotations
 

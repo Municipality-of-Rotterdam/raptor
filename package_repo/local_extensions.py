@@ -60,7 +60,7 @@ DEFAULT_VALUES = {
     "author_email": "your@email.com",
     "description": "A short description of the package.",
     "python_version": "3.11",
-    "poetry_version": "2.1.3",
+    "uv_version": "0.10.6",
     "precommit_version": "3.4.0",
 }
 
@@ -74,7 +74,7 @@ ADDITIONAL_PROMPTS = {
     "author_email": "Author email",
     "description": "Description",
     "python_version": "Python version",
-    "poetry_version": "Poetry version",
+    "uv_version": "uv version",
     "precommit_version": "Pre-commit version",
 }
 

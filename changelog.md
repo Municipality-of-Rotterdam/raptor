@@ -3,6 +3,24 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.3.0] - 2026-02-25
+Migrated from Poetry to uv.
+
+### **Changed**
+- Replaced Poetry with uv for dependency management, building, and running commands
+- Converted `[tool.poetry.group.*]` dependency groups to PEP 735 `[dependency-groups]`
+- Switched build backend from poetry-core to hatchling (package_repo template)
+- Non-package projects now use `[tool.uv] package = false`
+- Private index authentication via `UV_INDEX_*` environment variables and System.AccessToken
+- GitHub workflows now use `astral-sh/setup-uv@v5`
+- Cookiecutter variable `poetry_version` renamed to `uv_version`
+- Pre-commit poetry-check/poetry-lock hooks replaced with `uv lock --check`
+- Moved test dependencies from `tests/test_requirements.txt` to `[dependency-groups]` in pyproject.toml
+
+### **Removed**
+- `poetry-plugin-export` dependency from package_repo template
+- `tests/test_requirements.txt` (consolidated into pyproject.toml)
+
 ## [1.2.0] - 2026-02-12
 Centralized template hosting.
 

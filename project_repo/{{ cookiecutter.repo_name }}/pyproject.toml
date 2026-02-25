@@ -1,5 +1,11 @@
-[tool.poetry]
-package-mode = false
+[project]
+name = "{{cookiecutter.repo_name}}"
+version = "0.0.1"
+requires-python = ">={{cookiecutter.python_version}}"
+dependencies = []
+
+[tool.uv]
+package = false
 
 [tool.mypy]
 python_version = "{{cookiecutter.python_version}}"

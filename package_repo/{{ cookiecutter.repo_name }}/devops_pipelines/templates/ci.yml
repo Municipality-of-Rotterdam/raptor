@@ -36,9 +36,8 @@ stages:
     - template: .azuredevops/templates/pre_commit.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
-        poetry_version: ${{ variables.poetryVersion }}
-        pat_username: $(PatUsername)
-        pat: $(DevOpsPAT)
+        uv_version: ${{ variables.uvVersion }}
+        uv_index_name: ${{ variables.uvIndexName }}
 
 - stage: UnitTest
   jobs:
@@ -48,13 +47,12 @@ stages:
     - template: .azuredevops/templates/test.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
-        poetry_version: ${{ variables.poetryVersion }}
-        pat_username: $(PatUsername)
-        pat: $(DevOpsPAT)
+        uv_version: ${{ variables.uvVersion }}
+        uv_index_name: ${{ variables.uvIndexName }}
         package_name: {% endraw %}{{cookiecutter.package_name}}{% raw %}
 
 - stage: Build
-  jobs: 
+  jobs:
   - job: Build
     displayName: 'Build and store staging artifact'
     variables:
@@ -64,11 +62,10 @@ stages:
     - template: .azuredevops/templates/build.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
-        poetry_version: ${{ variables.poetryVersion }}
+        uv_version: ${{ variables.uvVersion }}
+        uv_index_name: ${{ variables.uvIndexName }}
         organisation_name: ${{ variables.devops_organisation }}
         devops_project: ${{ variables.devops_project }}
         package_feed: ${{ variables.package_feed }}
         feed_view: $(feed_view)
-        pat_username: $(PatUsername)
-        pat: $(DevOpsPAT)
 {% endraw %}

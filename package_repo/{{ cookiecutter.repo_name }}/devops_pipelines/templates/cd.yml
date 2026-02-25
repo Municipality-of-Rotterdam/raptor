@@ -23,7 +23,7 @@ variables:
   - group: AmlProdGroup
 # otherwise fallback on development settings
 - ${{ else }}:
-  - group: AmlDevGroup 
+  - group: AmlDevGroup
 
 resources:
   repositories:
@@ -46,13 +46,12 @@ stages:
     - template: .azuredevops/templates/build.yml@raptor
       parameters:
         python_version: ${{ variables.pythonVersion }}
-        poetry_version: ${{ variables.poetryVersion }}
+        uv_version: ${{ variables.uvVersion }}
+        uv_index_name: ${{ variables.uvIndexName }}
         organisation_name: ${{ variables.devops_organisation }}
         devops_project: ${{ variables.devops_project }}
         package_feed: ${{ variables.package_feed }}
         feed_view: $(feed_view)
-        pat_username: $(PatUsername)
-        pat: $(DevOpsPAT)
 
 - stage: Register
   jobs:
@@ -79,9 +78,8 @@ stages:
       - template: .azuredevops/templates/generate_docs.yml@raptor
         parameters:
           python_version: ${{ variables.pythonVersion }}
-          poetry_version: ${{ variables.poetryVersion }}
-          pat_username: $(PatUsername)
-          pat: $(DevOpsPAT)
+          uv_version: ${{ variables.uvVersion }}
+          uv_index_name: ${{ variables.uvIndexName }}
 
   - job: WikiUpdate
     displayName: "Sync Documentation to Devops"
@@ -92,11 +90,10 @@ stages:
       - template: .azuredevops/templates/update_wiki.yml@raptor
         parameters:
           python_version: ${{ variables.pythonVersion }}
-          poetry_version: ${{ variables.poetryVersion }}
+          uv_version: ${{ variables.uvVersion }}
+          uv_index_name: ${{ variables.uvIndexName }}
           branchName: ${{ variables.docsBranch }}
           organisation: ${{ variables.devops_organisation }}
-          pat_username: $(PatUsername)
-          pat: $(DevOpsPAT)
           clientsecret: $(WikiSecret)
           clientid: $(WikiId)
           tenant: $(TenantName)

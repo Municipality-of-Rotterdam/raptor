@@ -6,59 +6,54 @@ readme = "README.md"
 authors = [{name = "{{ cookiecutter.author_name }}", email = "{{ cookiecutter.author_email }}"}]
 requires-python = ">={{cookiecutter.python_version}},<4.0"
 dependencies = [
-    "poetry-plugin-export (>=1.6.0,<2.0.0)",
-    "python-dotenv (>=0.21.1,<0.22.0)",
-    "azure-monitor-opentelemetry (>=1.6.4,<2.0.0)"
+    "python-dotenv>=0.21.1,<0.22.0",
+    "azure-monitor-opentelemetry>=1.6.4,<2.0.0"
 ]
 
-[tool.poetry]
-packages = [{ include = "{{cookiecutter.package_name}}", from = "src" }]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry.group.dev.dependencies]
-ipykernel = "6.21.0"
-pylint = "2.13.8"
-pyyaml = "^6.0"
-pydocstyle = "^6.3.0"
-tomli = "^2.0.1"
+[tool.hatch.build.targets.wheel]
+packages = ["src/{{cookiecutter.package_name}}"]
 
-[tool.poetry.group.precommit.dependencies]
-pre-commit = "{{ cookiecutter.precommit_version }}"
-
-[tool.poetry.group.test.dependencies]
-codecov = "^2.1.13"
-mock = "^5.1.0"
-pyodbc = "^5.1.0"
-pytest = "7.1.2"
-pytest-cov = "^4.0.0"
-pytest-azurepipelines = "^1.0.4"
-pytest-mock = "^3.15.1"
-
-[tool.poetry.group.build]
-optional = true
-
-[tool.poetry.group.build.dependencies]
-tomlq = "^0.1.0"
-twine = "^6.1.0"
-wheel = "^0.38.4"
-
-[tool.poetry.group.docs]
-optional = true
-
-[tool.poetry.group.docs.dependencies]
-sphinx = "^7.2.6"
-sphinx-markdown-builder = "0.6.6"
-msal = "^1.32.3"
-azure-devops = "7.1.0b4"
-
-[[tool.poetry.source]]
-name = "PyPI"
-priority = "primary"
+[dependency-groups]
+dev = [
+    "ipykernel==6.21.0",
+    "pylint==2.13.8",
+    "pyyaml>=6.0",
+    "pydocstyle>=6.3.0",
+    "tomli>=2.0.1",
+]
+precommit = [
+    "pre-commit=={{ cookiecutter.precommit_version }}",
+]
+test = [
+    "codecov>=2.1.13",
+    "mock>=5.1.0",
+    "pyodbc>=5.1.0",
+    "pytest==7.1.2",
+    "pytest-cov>=4.0.0",
+    "pytest-azurepipelines>=1.0.4",
+    "pytest-mock>=3.15.1",
+]
+build = [
+    "tomlq>=0.1.0",
+    "twine>=6.1.0",
+    "wheel>=0.38.4",
+]
+docs = [
+    "sphinx>=7.2.6",
+    "sphinx-markdown-builder==0.6.6",
+    "msal>=1.32.3",
+    "azure-devops==7.1.0b4",
+]
 
 {% if cookiecutter.additional_prompts.lower() == "devops" %}
-[[tool.poetry.source]]
-name = "private_devops"
+[[tool.uv.index]]
+name = "{{cookiecutter.package_feed}}"
 url = "https://pkgs.dev.azure.com/{{cookiecutter.organisation_name}}/{{cookiecutter.project_name}}/_packaging/{{cookiecutter.package_feed}}/pypi/simple/"
-priority = "explicit"
+explicit = true
 {% endif %}
 
 [tool.mypy]

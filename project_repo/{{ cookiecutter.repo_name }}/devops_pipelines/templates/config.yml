@@ -1,7 +1,7 @@
 {% raw %}
 variables:
   pythonVersion: {% endraw %}{{cookiecutter.python_version}}{% raw %}
-  poetryVersion: {% endraw %}{{cookiecutter.poetry_version}}{% raw %}
+  uvVersion: {% endraw %}{{cookiecutter.uv_version}}{% raw %}
   pre_commit_version: 2.19.0
   devops_organisation: {% endraw %}{{cookiecutter.organisation_name}}{% raw %}
   devops_project: {% endraw %}{{cookiecutter.project_name}}{% raw %}

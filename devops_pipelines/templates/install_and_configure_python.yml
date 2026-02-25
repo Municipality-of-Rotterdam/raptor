@@ -6,8 +6,7 @@ steps:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
   - script: |
-      pipx install poetry==$(poetryVersion) --python $(which python)
-      poetry config virtualenvs.create false
-      poetry install
-      poetry config virtualenvs.create true
+      python -m pip install --upgrade pip
+      python -m pip install uv==$(uvVersion)
+      uv sync
     displayName: 'Install dependencies'

@@ -53,7 +53,7 @@ DEFAULT_VALUES = {
     "project_name": "default_project",
     "repo_name": "default_repo",
     "python_version": "3.11",
-    "poetry_version": "2.1.3",
+    "uv_version": "0.10.6",
     "precommit_version": "3.4.0",
     "type_deployment": "none",
 }
@@ -64,7 +64,7 @@ ADDITIONAL_PROMPTS = {
     "project_name": "The project name",
     "repo_name": "Enter a repository name",
     "python_version": "Python version",
-    "poetry_version": "Poetry version",
+    "uv_version": "uv version",
     "precommit_version": "Pre-commit version",
     "type_deployment": "Select the type of deployment",
 }

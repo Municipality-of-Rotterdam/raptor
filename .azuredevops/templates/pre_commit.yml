@@ -2,23 +2,24 @@
 parameters:
 - name: python_version
   type: string
-- name: poetry_version
+- name: uv_version
   type: string
-- name: pat_username
+- name: uv_index_name
   type: string
-- name: pat
-  type: string
+  default: ''
 
 steps:
   - template: configure_python.yml
     parameters:
       python_version: '${{ parameters.python_version }}'
-      poetry_version: '${{ parameters.poetry_version }}'
-      pat_username: '${{ parameters.pat_username }}'
-      pat: '${{ parameters.pat }}'
+      uv_version: '${{ parameters.uv_version }}'
 
-  - script: poetry install --only precommit
-    displayName: 'Install precommit dependencies with poetry'
+  - script: uv sync --only-group precommit
+    displayName: 'Install precommit dependencies with uv'
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
 
-  - script: poetry run pre-commit run --all-files --show-diff-on-failure
+  - script: uv run pre-commit run --all-files --show-diff-on-failure
     displayName: 'Run pre-commit'

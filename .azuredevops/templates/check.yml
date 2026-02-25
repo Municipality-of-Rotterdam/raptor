@@ -1,0 +1,101 @@
+parameters:
+- name: python_version
+  type: string
+- name: poetry_version
+  type: string
+- name: organisation_name
+  type: string
+- name: devops_project
+  type: string
+- name: package_feed
+  type: string
+- name: feed_view
+  type: string
+- name: pat_username
+  type: string
+- name: pat
+  type: string
+
+steps:
+
+  - template: configure_python.yml
+    parameters:
+      python_version: '${{ parameters.python_version }}'
+      poetry_version: '${{ parameters.poetry_version }}'
+      pat_username: '${{ parameters.pat_username }}'
+      pat: '${{ parameters.pat }}'
+
+  - script: poetry install --only build
+    displayName: 'Install build dependencies with poetry'
+
+  - script: |
+      set -e
+
+      version_toml=$(poetry run tomlq -r '.project.version' pyproject.toml)
+      echo "Version number in pyproject.toml: $version_toml"
+      echo "##vso[task.setvariable variable=version_toml]$version_toml"
+
+      name_toml=$(poetry run tomlq -r '.project.name' pyproject.toml)
+      normalised_name=$(echo "$name_toml" | tr '[:upper:]' '[:lower:]' | sed 's/[^[:alnum:]]/-/g')
+      echo "Package name in pyproject.toml (normalised): $normalised_name"
+      echo "##vso[task.setvariable variable=normalised_name]$normalised_name"
+
+      package_id=$(curl -s -u :$(System.AccessToken) \
+        "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1" \
+        | jq -r ".value[] | select(.name == \"$normalised_name\") | .id")
+
+      echo "##vso[task.setvariable variable=package_id]$package_id"
+    displayName: "Get version number, package name, package id"
+
+  - script: |
+      set -e
+      if [[ ! "$version_toml" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "##vso[task.logissue type=error]Error: Version number in pyproject.toml is not in number.number.number format"
+        exit 1
+      fi
+    displayName: "Check version number format in pyproject.toml"
+
+  - script: |
+      set -e
+      response=$(curl -s -o /dev/null -w "%{http_code}" -u :$(System.AccessToken) \
+        "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}?api-version=7.1-preview.1")
+
+      if [[ "$response" -ne 200 ]]; then
+        echo "##vso[task.logissue type=error]Could not reach provided artifact feed, please make sure it exists."
+        exit 1
+      fi
+    displayName: "Check if Artifacts feed exists"
+
+  - script: |
+      set -e
+      versions_info_feed=$(curl -s -u :$(System.AccessToken) \
+        "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$package_id/versions?api-version=7.1-preview.1")
+
+      versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version? // empty'))
+
+      echo "Existing versions in feed: ${versions_feed[@]}"
+
+      for version in "${versions_feed[@]}"; do
+        if [[ "$version" == "$version_toml" ]]; then
+          echo "##vso[task.logissue type=error]Version number already exists in feed, not allowing new deployment."
+          exit 1
+        fi
+      done
+    displayName: "Check if version number exists in Artifacts feed"
+
+  - script: |
+      set -e
+      versions_info_view=$(curl -s -u :$(System.AccessToken) \
+        "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$package_id/versions?api-version=7.1-preview.1")
+
+      versions_view=($(echo "$versions_info_view" | jq -r '.value[].protocolMetadata.data.version? // empty'))
+
+      echo "Existing versions in view: ${versions_view[@]}"
+
+      for version in "${versions_view[@]}"; do
+        if [[ "$version" == "$version_toml" ]]; then
+          echo "##vso[task.logissue type=error]Version number already exists in view, not allowing new deployment."
+          exit 1
+        fi
+      done
+    displayName: "Check if version number exists in Artifacts feed view"

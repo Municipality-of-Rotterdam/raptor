@@ -12,13 +12,6 @@ parameters:
   - name: package_feed
     type: string
 
-trigger: none
-
-pr:
-  branches:
-    include:
-      - "*"
-
 variables:
   # PR target checks
   - name: toMain

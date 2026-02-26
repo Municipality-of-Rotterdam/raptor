@@ -25,32 +25,90 @@ steps:
       pat_username: '${{ parameters.pat_username }}'
       pat: '${{ parameters.pat }}'
 
-  - script: poetry install --only build
+  - script: |
+      set -e
+      echo "=== INSTALL BUILD DEPENDENCIES ==="
+      echo "Python version:"
+      python --version
+      echo "Poetry version:"
+      poetry --version
+
+      echo "Installing build dependencies..."
+      poetry install --only build
+
+      echo "Build dependencies installed successfully."
     displayName: 'Install build dependencies with poetry'
 
   - script: |
       set -e
+      echo "=== EXTRACT METADATA AND RESOLVE PACKAGE ID ==="
+
+      if [ ! -f pyproject.toml ]; then
+        echo "##vso[task.logissue type=error]pyproject.toml not found."
+        exit 1
+      fi
 
       version_toml=$(poetry run tomlq -r '.project.version' pyproject.toml)
-      echo "Version number in pyproject.toml: $version_toml"
-      echo "##vso[task.setvariable variable=version_toml]$version_toml"
-
       name_toml=$(poetry run tomlq -r '.project.name' pyproject.toml)
+
+      if [[ -z "$version_toml" || "$version_toml" == "null" ]]; then
+        echo "##vso[task.logissue type=error]Version not found in pyproject.toml."
+        exit 1
+      fi
+
+      if [[ ! "$version_toml" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "##vso[task.logissue type=error]Version must follow number.number.number format."
+        exit 1
+      fi
+
+      if [[ -z "$name_toml" || "$name_toml" == "null" ]]; then
+        echo "##vso[task.logissue type=error]Project name not found in pyproject.toml."
+        exit 1
+      fi
+
       normalised_name=$(echo "$name_toml" | tr '[:upper:]' '[:lower:]' | sed 's/[^[:alnum:]]/-/g')
-      echo "Package name in pyproject.toml (normalised): $normalised_name"
+
+      echo "Detected version: $version_toml"
+      echo "Normalized package name: $normalised_name"
+
+      echo "##vso[task.setvariable variable=version_toml]$version_toml"
       echo "##vso[task.setvariable variable=normalised_name]$normalised_name"
 
-      package_id=$(curl -s -u :$(System.AccessToken) \
-        "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1" \
-        | jq -r ".value[] | select(.name == \"$normalised_name\") | .id")
+      echo "Querying Azure Artifacts for existing package..."
 
-      echo "Package ID: $package_id"
-      echo "##vso[task.setvariable variable=package_id]$package_id"
+      response=$(curl -sS \
+        -u :$(System.AccessToken) \
+        "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1")
+
+      if [[ -z "$response" ]]; then
+        echo "##vso[task.logissue type=error]Empty response from Azure Artifacts."
+        exit 1
+      fi
+
+      total_packages=$(echo "$response" | jq '.value | length')
+      echo "Total packages in feed: $total_packages"
+
+      package_id=$(echo "$response" | jq -r ".value[] | select(.name == \"$normalised_name\") | .id")
+
+      if [[ -z "$package_id" ]]; then
+        echo "Package does not exist in feed."
+        echo "##vso[task.setvariable variable=package_id]\"\""
+      else
+        echo "Package exists in feed."
+        echo "##vso[task.setvariable variable=package_id]$package_id"
+      fi
     displayName: "Get version number, package name, package id"
 
   - script: |
       set -e
+      echo "=== BUILD DISTRIBUTION ==="
+
       poetry build
+
+      echo "Build artifacts created:"
+      ls -lh dist/
+
+      echo "Distribution build completed successfully."
     displayName: 'Build distribution'
 
   - task: TwineAuthenticate@1
@@ -60,23 +118,61 @@ steps:
 
   - script: |
       set -e
+      echo "=== PUBLISH PACKAGE TO AZURE ARTIFACTS ==="
 
-      if [[ -z "$package_id" ]]; then
-        echo "##vso[task.logissue type=warning]Package does not exist in feed. Uploading new package."
+      if [[ -z "$(package_id)" ]]; then
+        echo "Package does not exist in feed → uploading as new package."
       else
-        echo "Package exists in feed with ID: $package_id"
+        echo "Package already exists in feed."
       fi
 
-      echo "Uploading wheel to Azure Artifacts feed..."
+      if compgen -G "dist/*.whl" > /dev/null; then
+        echo "Wheel file detected."
+      else
+        echo "##vso[task.logissue type=error]No wheel file found in dist/."
+        exit 1
+      fi
+
+      echo "Uploading wheel to feed '${{ parameters.package_feed }}'..."
+
       poetry run twine upload \
         -r "${{ parameters.package_feed }}" \
         --config-file "$(PYPIRC_PATH)" \
         dist/*.whl \
         --verbose
+
+      echo "Upload completed successfully."
     displayName: "Publish package to Artifacts feed"
 
 
   # promote when version does not exist in specified view yet
   - script: |
-      curl -X 'PATCH' "https://pkgs.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/feeds/${{ parameters.package_feed }}/PyPI/packages/$(normalised_name)/versions/$(version_toml)?api-version=7.1-preview.1" -H 'Content-Type: application/json' -u :$(System.AccessToken) -d "{\"views\": {\"op\": \"add\", \"path\": \"/views/-\", \"value\": \"${{ parameters.feed_view }}\"}}"
+      set -e
+      echo "=== PROMOTE PACKAGE TO VIEW ==="
+
+      if [[ -z "$(version_toml)" || -z "$(normalised_name)" ]]; then
+        echo "##vso[task.logissue type=error]Required variables missing for promotion."
+        exit 1
+      fi
+
+      echo "Promoting package:"
+      echo "  Package: $(normalised_name)"
+      echo "  Version: $(version_toml)"
+      echo "  Target view: ${{ parameters.feed_view }}"
+
+      http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -X PATCH \
+        "https://pkgs.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/feeds/${{ parameters.package_feed }}/PyPI/packages/$(normalised_name)/versions/$(version_toml)?api-version=7.1-preview.1" \
+        -H "Content-Type: application/json" \
+        -u :$(System.AccessToken) \
+        -d "{\"views\": {\"op\": \"add\", \"path\": \"/views/-\", \"value\": \"${{ parameters.feed_view }}\"}}")
+
+      echo "HTTP status code from promotion request: $http_code"
+
+      if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]]; then
+        echo "##vso[task.logissue type=error]Promotion to view failed."
+        exit 1
+      fi
+
+      echo "Package promoted successfully."
     displayName: "Promote package to view '${{ parameters.feed_view }}'"

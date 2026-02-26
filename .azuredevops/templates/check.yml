@@ -25,7 +25,16 @@ steps:
       pat_username: '${{ parameters.pat_username }}'
       pat: '${{ parameters.pat }}'
 
-  - script: poetry install --only build
+  - script: |
+      set -e
+      echo "=== INSTALL BUILD DEPENDENCIES ==="
+      echo "Python version:"
+      python --version
+      echo "Poetry version:"
+      poetry --version
+      echo "Installing build dependencies (poetry install --only build)..."
+      poetry install --only build
+      echo "Build dependencies installed successfully."
     displayName: 'Install build dependencies with poetry'
 
   ###########################################################################
@@ -33,15 +42,29 @@ steps:
   ###########################################################################
   - script: |
       set -e
+      echo "=== EXTRACT PROJECT VERSION ==="
 
-      version_toml=$(poetry run tomlq -r '.project.version' pyproject.toml)
-      echo "Version number in pyproject.toml: $version_toml"
-      echo "##vso[task.setvariable variable=version_toml]$version_toml"
-      
-      if [[ ! "$version_toml" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "##vso[task.logissue type=error]Error: Version number in pyproject.toml is not in number.number.number format"
+      if [ ! -f pyproject.toml ]; then
+        echo "##vso[task.logissue type=error]pyproject.toml not found."
         exit 1
       fi
+
+      version_toml=$(poetry run tomlq -r '.project.version' pyproject.toml)
+
+      if [[ -z "$version_toml" || "$version_toml" == "null" ]]; then
+        echo "##vso[task.logissue type=error]Version not found in pyproject.toml."
+        exit 1
+      fi
+
+      echo "Version detected: $version_toml"
+
+      if [[ ! "$version_toml" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "##vso[task.logissue type=error]Version must follow number.number.number format."
+        exit 1
+      fi
+
+      echo "Version format validated."
+      echo "##vso[task.setvariable variable=version_toml]$version_toml"
     displayName: 'Get project version from pyproject.toml'
 
   ###########################################################################
@@ -49,11 +72,20 @@ steps:
   ###########################################################################
   - script: |
       set -e
-            
+      echo "=== EXTRACT PROJECT NAME ==="
+
       name_toml=$(poetry run tomlq -r '.project.name' pyproject.toml)
+
+      if [[ -z "$name_toml" || "$name_toml" == "null" ]]; then
+        echo "##vso[task.logissue type=error]Project name not found in pyproject.toml."
+        exit 1
+      fi
+
       normalised_name=$(echo "$name_toml" | tr '[:upper:]' '[:lower:]' | sed 's/[^[:alnum:]]/-/g')
-      
-      echo "Package name in pyproject.toml (normalised): $normalised_name"
+
+      echo "Original project name: $name_toml"
+      echo "Normalized package name: $normalised_name"
+
       echo "##vso[task.setvariable variable=normalised_name]$normalised_name"
     displayName: 'Get normalized project name from pyproject.toml'
 
@@ -62,53 +94,50 @@ steps:
   ###########################################################################
   - script: |
       set -e
+      echo "=== CHECK ARTIFACTS FEED EXISTENCE ==="
 
       FEED_URL="https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}?api-version=7.1-preview.1"
 
-      echo "=== DEBUG: Checking feed existence ==="
-      echo "URL:"
-      echo "$FEED_URL"
-      echo ""
+      echo "Organisation: ${{ parameters.organisation_name }}"
+      echo "Project: ${{ parameters.devops_project }}"
+      echo "Feed: ${{ parameters.package_feed }}"
+      echo "Checking feed availability..."
 
-      echo "=== DEBUG: Performing curl request ==="
-      http_code=$(curl -s -o feed_response.txt -w "%{http_code}" \
+      http_code=$(curl -s -o /dev/null -w "%{http_code}" \
         -H "Authorization: Bearer $(System.AccessToken)" \
-        "$FEED_URL"
-      )
+        "$FEED_URL")
 
       echo "HTTP status code: $http_code"
-      echo ""
 
       if [[ "$http_code" -ne 200 ]]; then
-        echo "=== DEBUG: Response body ==="
-        cat feed_response.txt
-        echo ""
-        echo "##vso[task.logissue type=error]Could not reach provided artifact feed, please make sure it exists."
+        echo "##vso[task.logissue type=error]Artifacts feed not reachable or does not exist."
         exit 1
       fi
 
-      echo "Feed exists and is reachable."
-    displayName: "Check if Artifacts feed exists (with logging)"
+      echo "Feed exists and is accessible."
+    displayName: "Check if Artifacts feed exists"
 
   ###########################################################################
   # Fetch package list and determine if package exists
   ###########################################################################
   - script: |
       set -e
-
-      echo "Fetching package list from Azure Artifacts…"
+      echo "=== CHECK IF PACKAGE EXISTS IN FEED ==="
 
       response=$(curl -sS \
         -H "Authorization: Bearer $(System.AccessToken)" \
-        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1'
-      )
+        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1')
 
-      echo "Raw response from Azure Artifacts:"
-      echo "$response"
+      if [[ -z "$response" ]]; then
+        echo "##vso[task.logissue type=error]Empty response from Azure Artifacts."
+        exit 1
+      fi
 
-      # If response contains "The resource cannot be found." → feed exists but no packages
-      if echo "$response" | grep -q "The resource cannot be found"; then
-        echo "No packages found in feed. Package does not exist yet → clean exit."
+      total_packages=$(echo "$response" | jq '.value | length')
+      echo "Total packages found in feed: $total_packages"
+
+      if [[ "$total_packages" -eq 0 ]]; then
+        echo "No packages currently exist in this feed."
         echo "##vso[task.setvariable variable=package_id]\"\""
         exit 0
       fi
@@ -116,41 +145,44 @@ steps:
       package_id=$(echo "$response" | jq -r ".value[] | select(.name == \"$(normalised_name)\") | .id")
 
       if [[ -z "$package_id" ]]; then
-        echo "Package '$(normalised_name)' does not exist in feed → clean exit."
+        echo "Package '$(normalised_name)' not found in feed."
         echo "##vso[task.setvariable variable=package_id]\"\""
         exit 0
       fi
 
-      echo "Resolved package_id: $package_id"
+      echo "Package found. Package ID resolved."
       echo "##vso[task.setvariable variable=package_id]$package_id"
-    displayName: "Get package id by reading from artifacts feed"
+    displayName: "Resolve package id from artifacts feed"
 
   ###########################################################################
   # Check if version exists in feed
   ###########################################################################
   - script: |
       set -e
+      echo "=== CHECK VERSION IN FEED ==="
 
       if [[ -z "$(package_id)" ]]; then
-        echo "Package does not exist → skipping version check."
+        echo "Package does not exist → skipping version validation."
         exit 0
       fi
 
       versions_info_feed=$(curl -sS \
         -H "Authorization: Bearer $(System.AccessToken)" \
-        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$(package_id)/versions?api-version=7.1-preview.1'
-      )
+        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$(package_id)/versions?api-version=7.1-preview.1')
+
+      version_count=$(echo "$versions_info_feed" | jq '.value | length')
+      echo "Number of versions in feed: $version_count"
 
       versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version? // empty'))
 
-      echo "Existing versions in feed: ${versions_feed[@]}"
-
       for version in "${versions_feed[@]}"; do
         if [[ "$version" == "$(version_toml)" ]]; then
-          echo "##vso[task.logissue type=error]Version number already exists in feed, not allowing new deployment."
+          echo "##vso[task.logissue type=error]Version already exists in feed."
           exit 1
         fi
       done
+
+      echo "Version does not exist in feed. Safe to proceed."
     displayName: "Check if version number exists in Artifacts feed"
 
   ###########################################################################
@@ -158,25 +190,28 @@ steps:
   ###########################################################################
   - script: |
       set -e
+      echo "=== CHECK VERSION IN FEED VIEW ==="
 
       if [[ -z "$(package_id)" ]]; then
-        echo "Package does not exist → skipping view version check."
+        echo "Package does not exist → skipping view validation."
         exit 0
       fi
 
       versions_info_view=$(curl -sS \
         -H "Authorization: Bearer $(System.AccessToken)" \
-        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$(package_id)/versions?api-version=7.1-preview.1'
-      )
+        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$(package_id)/versions?api-version=7.1-preview.1')
+
+      version_count=$(echo "$versions_info_view" | jq '.value | length')
+      echo "Number of versions in view: $version_count"
 
       versions_view=($(echo "$versions_info_view" | jq -r '.value[].protocolMetadata.data.version? // empty'))
 
-      echo "Existing versions in view: ${versions_view[@]}"
-
       for version in "${versions_view[@]}"; do
         if [[ "$version" == "$(version_toml)" ]]; then
-          echo "##vso[task.logissue type=error]Version number already exists in view, not allowing new deployment."
+          echo "##vso[task.logissue type=error]Version already exists in feed view."
           exit 1
         fi
       done
+
+      echo "Version does not exist in feed view. Safe to proceed."
     displayName: "Check if version number exists in Artifacts feed view"

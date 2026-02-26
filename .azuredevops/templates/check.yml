@@ -40,9 +40,19 @@ steps:
       echo "Package name in pyproject.toml (normalised): $normalised_name"
       echo "##vso[task.setvariable variable=normalised_name]$normalised_name"
 
-      package_id=$(curl -u :$(System.AccessToken) 'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1' | jq '.value[] | select(.name == "'"$normalised_name"'" ) | .id')
-      package_id=${package_id//\"/}
+      echo "Fetching package list from Azure Artifacts…"
 
+      response=$(curl -sS \
+        -H "Authorization: Bearer $(System.AccessToken)" \
+        "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1"
+      )
+
+      echo "Raw response from Azure Artifacts:"
+      echo "$response"
+
+      package_id=$(echo "$response" | jq -r ".value[] | select(.name == \"$normalised_name\") | .id")
+
+      echo "Resolved package_id: $package_id"
       echo "##vso[task.setvariable variable=package_id]$package_id"
     displayName: "Get version number, package name, package id"
 
@@ -56,7 +66,7 @@ steps:
 
   - script: |
       set -e
-      response=$(curl -s -o /dev/null -w "%{http_code}" -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}?api-version=7.1-preview.1")
+      response=$(curl -u :$(System.AccessToken) -o /dev/null -w "%{http_code}" 'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1')
 
       if [[ "$response" -ne 200 ]]; then
         echo "##vso[task.logissue type=error]Could not reach provided artifact feed, please make sure it exists."
@@ -66,7 +76,7 @@ steps:
 
   - script: |
       set -e
-      versions_info_feed=$(curl -s -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$package_id/versions?api-version=7.1-preview.1")
+      versions_info_feed=$(curl -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$(package_id)/versions?%22api-version=7.1-preview.1%22")
 
       versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version? // empty'))
 
@@ -82,7 +92,7 @@ steps:
 
   - script: |
       set -e
-      versions_info_view=$(curl -s -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$package_id/versions?api-version=7.1-preview.1")
+      versions_info_view=$(curl -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$(package_id)/versions?%22api-version=7.1-preview.1%22")
 
       versions_view=($(echo "$versions_info_view" | jq -r '.value[].protocolMetadata.data.version? // empty'))
 

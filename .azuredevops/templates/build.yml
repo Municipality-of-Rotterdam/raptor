@@ -218,13 +218,13 @@ steps:
     displayName: "Check if version number exists in Artifacts feed view"
 
   - script: |
-    echo "Checks complete."
-    echo "Package name: $(normalised_name)"
-    echo "Package version: $(version_toml)"
-    echo "Package id: $(packge_id)"
-    echo "Build flag: $(build)"
-    echo "Version exists in feed: $(version_exists_feed)"
-    echo "Version exists in view: $(versions_info_view)"
+      echo "Checks complete."
+      echo "Package name: $(normalised_name)"
+      echo "Package version: $(version_toml)"
+      echo "Package id: $(packge_id)"
+      echo "Build flag: $(build)"
+      echo "Version exists in feed: $(version_exists_feed)"
+      echo "Version exists in view: $(versions_info_view)"
   displayName: "Debug display on completed checks"
 
   ###########################################################################

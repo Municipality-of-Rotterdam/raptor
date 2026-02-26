@@ -221,7 +221,7 @@ steps:
       echo "Checks complete."
       echo "Package name: $(normalised_name)"
       echo "Package version: $(version_toml)"
-      echo "Package id: $(packge_id)"
+      echo "Package id: $(package_id)"
       echo "Build flag: $(build)"
       echo "Version exists in feed: $(version_exists_feed)"
     displayName: "Debug display on completed checks"

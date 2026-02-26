@@ -63,16 +63,35 @@ steps:
   - script: |
       set -e
 
-      http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      FEED_URL="https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}?api-version=7.1-preview.1"
+
+      echo "=== DEBUG: Checking feed existence ==="
+      echo "URL:"
+      echo "$FEED_URL"
+      echo ""
+      echo "Authorization header (masked):"
+      echo "Bearer *****"
+      echo ""
+
+      echo "=== DEBUG: Performing curl request ==="
+      http_code=$(curl -s -o feed_response.txt -w "%{http_code}" \
         -H "Authorization: Bearer $(System.AccessToken)" \
-        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}?api-version=7.1-preview.1'
+        "$FEED_URL"
       )
 
+      echo "HTTP status code: $http_code"
+      echo ""
+
       if [[ "$http_code" -ne 200 ]]; then
+        echo "=== DEBUG: Response body ==="
+        cat feed_response.txt
+        echo ""
         echo "##vso[task.logissue type=error]Could not reach provided artifact feed, please make sure it exists."
         exit 1
       fi
-    displayName: "Check if Artifacts feed exists"
+
+      echo "Feed exists and is reachable."
+    displayName: "Check if Artifacts feed exists (with logging)"
 
   ###########################################################################
   # Fetch package list and determine if package exists

@@ -113,10 +113,10 @@ steps:
         exit 0
       fi
 
-      package_id=$(echo "$response" | jq -r ".value[] | select(.name == \"$normalised_name\") | .id")
+      package_id=$(echo "$response" | jq -r ".value[] | select(.name == \"$(normalised_name)\") | .id")
 
       if [[ -z "$package_id" ]]; then
-        echo "Package '$normalised_name' does not exist in feed → clean exit."
+        echo "Package '$(normalised_name)' does not exist in feed → clean exit."
         echo "##vso[task.setvariable variable=package_id]\"\""
         exit 0
       fi
@@ -146,7 +146,7 @@ steps:
       echo "Existing versions in feed: ${versions_feed[@]}"
 
       for version in "${versions_feed[@]}"; do
-        if [[ "$version" == "$version_toml" ]]; then
+        if [[ "$version" == "$(version_toml)" ]]; then
           echo "##vso[task.logissue type=error]Version number already exists in feed, not allowing new deployment."
           exit 1
         fi
@@ -174,7 +174,7 @@ steps:
       echo "Existing versions in view: ${versions_view[@]}"
 
       for version in "${versions_view[@]}"; do
-        if [[ "$version" == "$version_toml" ]]; then
+        if [[ "$version" == "$(version_toml)" ]]; then
           echo "##vso[task.logissue type=error]Version number already exists in view, not allowing new deployment."
           exit 1
         fi

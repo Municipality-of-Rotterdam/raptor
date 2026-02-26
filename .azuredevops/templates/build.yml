@@ -219,7 +219,6 @@ steps:
 
   - script: |
     echo "Checks complete."
-    echo "What we have so far:"
     echo "Package name: $(normalised_name)"
     echo "Package version: $(version_toml)"
     echo "Package id: $(packge_id)"

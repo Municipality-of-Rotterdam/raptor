@@ -176,11 +176,11 @@ steps:
 
       versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version? // empty'))
 
-      version_exists_feed=false
+      echo "##vso[task.setvariable variable=version_exists_feed]false"
       for version in "${versions_feed[@]}"; do
         if [[ "$version" == "$(version_toml)" ]]; then
           echo "Found matching version in feed, will not build, only promote."
-          version_exists_feed=true
+          echo "##vso[task.setvariable variable=version_exists_feed]true"
         fi
       done
     displayName: "Check if version number exists in Artifacts feed"
@@ -224,7 +224,6 @@ steps:
       echo "Package id: $(packge_id)"
       echo "Build flag: $(build)"
       echo "Version exists in feed: $(version_exists_feed)"
-      echo "Version exists in view: $(versions_info_view)"
     displayName: "Debug display on completed checks"
 
   ###########################################################################

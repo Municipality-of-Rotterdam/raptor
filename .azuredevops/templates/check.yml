@@ -131,14 +131,14 @@ steps:
   - script: |
       set -e
 
-      if [[ -z "$package_id" ]]; then
+      if [[ -z "$(package_id)" ]]; then
         echo "Package does not exist → skipping version check."
         exit 0
       fi
 
       versions_info_feed=$(curl -sS \
         -H "Authorization: Bearer $(System.AccessToken)" \
-        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$package_id/versions?api-version=7.1-preview.1'
+        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$(package_id)/versions?api-version=7.1-preview.1'
       )
 
       versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version? // empty'))
@@ -159,14 +159,14 @@ steps:
   - script: |
       set -e
 
-      if [[ -z "$package_id" ]]; then
+      if [[ -z "$(package_id)" ]]; then
         echo "Package does not exist → skipping view version check."
         exit 0
       fi
 
       versions_info_view=$(curl -sS \
         -H "Authorization: Bearer $(System.AccessToken)" \
-        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$package_id/versions?api-version=7.1-preview.1'
+        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$(package_id)/versions?api-version=7.1-preview.1'
       )
 
       versions_view=($(echo "$versions_info_view" | jq -r '.value[].protocolMetadata.data.version? // empty'))

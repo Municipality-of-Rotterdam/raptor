@@ -35,9 +35,12 @@ stages:
 
 - stage: Build
   displayName: Build package
+  dependsOn: []
   jobs:
     - job: Build
       displayName: 'Build and store staging artifact'
+      variables:
+        build: true
       steps:
         - template: .azuredevops/templates/build.yml@raptor
           parameters:
@@ -46,7 +49,7 @@ stages:
             organisation_name: ${{ variables.devops_organisation }}
             devops_project: ${{ variables.devops_project }}
             package_feed: ${{ variables.package_feed }}
-            feed_view: ${{ variables.feed_view }}
+            feed_view: $(feed_view)
             pat_username: $(PatUsername)
             pat: $(DevOpsPAT)
 

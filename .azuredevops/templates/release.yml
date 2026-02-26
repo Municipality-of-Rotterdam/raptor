@@ -1,0 +1,53 @@
+parameters:
+  - name: python_version
+    type: string
+  - name: poetry_version
+    type: string
+  - name: docs_branch
+    type: string
+  - name: devops_organisation
+    type: string
+  - name: sh_agent_pool_name
+    type: string
+
+trigger:
+  tags:
+    include:
+      - '*'
+
+variables:
+  - group: AmlProdGroup
+
+stages:
+
+- stage: Documentation
+  displayName: "Generate and Publish Documentation"
+  jobs:
+
+    - job: BuildDocs
+      displayName: "Generate Wiki Documentation"
+      dependsOn: []
+      steps:
+        - template: generate_docs.yml
+          parameters:
+            python_version: ${{ parameters.python_version }}
+            poetry_version: ${{ parameters.poetry_version }}
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
+
+    - job: WikiUpdate
+      displayName: "Sync Documentation to DevOps Wiki"
+      dependsOn: BuildDocs
+      pool: ${{ parameters.sh_agent_pool_name }}
+      steps:
+        - template: update_wiki.yml
+          parameters:
+            python_version: ${{ parameters.python_version }}
+            poetry_version: ${{ parameters.poetry_version }}
+            branchName: ${{ parameters.docs_branch }}
+            organisation: ${{ parameters.devops_organisation }}
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
+            clientsecret: $(WikiSecret)
+            clientid: $(WikiId)
+            tenant: $(TenantName)

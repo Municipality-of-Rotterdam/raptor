@@ -33,6 +33,7 @@ stages:
 
 - stage: PreCommit
   displayName: Pre-commit checks
+  dependsOn: [] 
   jobs:
     - job: ExecutePreCommit
       steps:
@@ -45,7 +46,7 @@ stages:
 
 - stage: UnitTest
   displayName: Unit tests
-  dependsOn: PreCommit
+  dependsOn: [] 
   jobs:
     - job: ExecuteUnitTests
       steps:
@@ -58,20 +59,22 @@ stages:
             package_name: {% endraw %}{{ cookiecutter.package_name }}{% raw %}
 
 - stage: Check
-  displayName: Build and staging checks
-  dependsOn: UnitTest
+  displayName: Staging checks
+  dependsOn: [] 
   condition: or(eq(variables.toMain, true), eq(variables.toDev, true))
   jobs:
     - job: Check
+      variables:
+        build: false
       steps:
-        - template: .azuredevops/templates/check.yml@raptor
+        - template: .azuredevops/templates/build.yml@raptor
           parameters:
             python_version: ${{ variables.pythonVersion }}
             poetry_version: ${{ variables.poetryVersion }}
             organisation_name: ${{ variables.devops_organisation }}
             devops_project: ${{ variables.devops_project }}
             package_feed: ${{ variables.package_feed }}
-            feed_view: ${{ variables.feed_view }}
+            feed_view: $(feed_view)
             pat_username: $(PatUsername)
             pat: $(DevOpsPAT)
 {% endraw %}

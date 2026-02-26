@@ -69,9 +69,6 @@ steps:
       echo "URL:"
       echo "$FEED_URL"
       echo ""
-      echo "Authorization header (masked):"
-      echo "Bearer *****"
-      echo ""
 
       echo "=== DEBUG: Performing curl request ==="
       http_code=$(curl -s -o feed_response.txt -w "%{http_code}" \

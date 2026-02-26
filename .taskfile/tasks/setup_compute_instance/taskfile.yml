@@ -1,0 +1,124 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  UV_INSTALL_DIR: '{{default "/home/azureuser/.local/bin" .UV_INSTALL_DIR}}'
+
+tasks:
+  install_vscode:
+    cmds:
+      - sudo snap install code --classic
+    status:
+      - test -f /snap/bin/code
+
+  enable_code_tunnel_service:
+    prompt: This will set up code tunnel service, starting the tunnel upon starting the compute instance. You need a github account, create one if necessary. Ready?
+    cmds:
+      - sudo loginctl enable-linger azureuser
+      - /snap/code/current/usr/share/code/bin/code tunnel service install
+      - cmd: echo "This was the last step in the setup!"
+        silent: true
+      - cmd: echo "We will now check whether authorization was succesful. Follow instructions if you get a failure."
+        silent: true
+      - cmd: echo "Then you are able to connect to your compute instance and setup repos with other tasks (see readme)."
+        silent: true
+      - task: reinstall_code_tunnel_service
+  
+  set_xdg:
+    cmds:
+      - echo "export XDG_RUNTIME_DIR=/run/user/$(id -u)"
+      - cmd: echo "Done, you probably want to rerun 'setup_compute_instance:reinstall_code_tunnel_service' again."
+        silent: true
+  
+  # status check before reinstall_code_tunnel_service, in separate task so precondition only runs when status fails
+  reinstall_code_tunnel_service:
+    # check log of code tunnel service, check last 5 lines, give error if it contains the given string
+    status:
+      - '{ timeout 1s /snap/code/current/usr/share/code/bin/code tunnel service log; } | tail -n 5 | grep -qv "The authorization request is still pending"'
+    cmds:
+      - task: _reinstall_code_tunnel_service
+
+  _reinstall_code_tunnel_service:
+    internal: true
+    cmds:
+      - systemctl restart --user code-tunnel
+      - cmd: sleep 1
+        silent: true
+      - cmd: echo "Follow login instructions below, then stop status log with ctrl+c"
+        silent: true
+      - systemctl status --user code-tunnel
+    preconditions:
+      - sh: '[ -n "${XDG_RUNTIME_DIR}" ]'
+        msg: XDG_RUNTIME_DIR is not set, please run 'eval $(task --taskfile https://github.com/JoeriA/aa_taskfile.git//taskfile.yml?ref=main set_xdg)' first!
+
+  setup_ssh_create_key:
+    cmds:
+      - cmd: echo "Follow the instructions to create a public-private key pair (use default location!). You can strengthen it with a password (but this might become annoying after a while)."
+        silent: true
+      - ssh-keygen
+    status:
+      - test -f /home/azureuser/.ssh/id_rsa.pub
+  
+  setup_ssh_print_key:
+    cmds:
+      - cmd: echo "We will now print your public key"
+        silent: true
+      - cat /home/azureuser/.ssh/id_rsa.pub
+
+  setup_ssh:
+    vars:
+      GIT_PUBLIC_KEY_URL: '{{.GIT_PUBLIC_KEY_URL | default "your git hosting service (github/devops)"}}'
+    prompt: Go to {{.GIT_PUBLIC_KEY_URL}}, add a new key and use the public key from above. Done?
+
+  set_git_default_branch:
+    cmds:
+      - git config --global init.defaultBranch main
+
+  install_cookiecutter:
+    cmds:
+      - pip install cookiecutter
+    status:
+      - cookiecutter --version
+  
+  setup_cookiecutter_config:
+    cmds:
+      - task: create_cookiecutter_config
+      - echo 'export COOKIECUTTER_CONFIG=~/raptor_config.yml' >> ~/.bashrc
+    status:
+      - '[ -n "${COOKIECUTTER_CONFIG}" ]'
+  
+  create_cookiecutter_config:
+    vars:
+      COOKIECUTTER_CONFIG: '{{.COOKIECUTTER_CONFIG | default "https://github.com/Municipality-of-Rotterdam/raptor?tab=readme-ov-file#32-create-the-repo-using-the-raptors-url-its-recommended-to-use-ssh"}}'
+    prompt: For simplicity, first setup a cookiecutter config.yml, see {{.COOKIECUTTER_CONFIG}}. Copy the default_context block, paste it in the next window and save with ctrl+x, Y, enter. Did you copy the default_context?
+    cmds:
+      - nano ~/raptor_config.yml
+    status:
+      - test -f ~/raptor_config.yml
+
+  conda_init:
+    cmds:
+      - conda init
+
+  # install poetry
+  install_poetry:
+    cmds:
+      # default installation dir didn't work, install it somewhere where it will be picked up by $PATH (or add it)
+      - curl -sSL https://install.python-poetry.org | python3 -
+      - echo "export PATH="/home/azureuser/.local/bin:$PATH"" >> /home/azureuser/.bashrc
+    status:
+      - poetry --version
+
+  # install uv
+  install_uv:
+    cmds:
+      # default installation dir didn't work, install it somewhere where it will be picked up by $PATH (or add it)
+      - curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="{{.UV_INSTALL_DIR}}" sh
+    status:
+      - uv --version
+
+  setup_git_maintenance:
+    cmds:
+      - sudo git maintenance start
+      - git config --global maintenance.strategy incremental

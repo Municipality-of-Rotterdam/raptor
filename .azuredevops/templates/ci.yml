@@ -50,7 +50,7 @@ stages:
   condition: and(eq(variables['Build.Reason'], 'PullRequest'), or(eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main'), eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/develop')))
   variables:
     - name: feed_view
-      value: $[if(eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main'), prod', 'dvlm')]
+      value: $[replace(replace(eq(variables['toMain'], true), True, 'prod'), False, 'dvlm')]
   
   jobs:
     - job: Check

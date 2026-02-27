@@ -18,36 +18,63 @@ variables:
     value: $[eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/develop')]
 
   # Determine feed view at runtime (prod for main, dvlm otherwise)
-  - name: feedView
+  - name: feed_view
     value: $[replace(replace(eq(variables['toMain'], true), True, 'prod'), False, 'dvlm')]
-
-  # Environment-specific variable groups
-  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
-    - group: AmlProdGroup
-  - ${{ else }}:
-    - group: AmlDevGroup
 
 resources:
   repositories:
     - repository: raptor
       name: municipality-of-rotterdam/raptor
       type: github
-      ref: refs/tags/{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+      ref: tags/{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
       endpoint: {% endraw %}{{ cookiecutter.github_service_connection }}{% raw %}
 
-extends:
-  template: .azuredevops/templates/ci.yml@raptor
-  parameters:
-    package_name: ${{ variables.package_name }}
-    python_version: ${{ variables.pythonVersion }}
-    poetry_version: ${{ variables.poetryVersion }}
-    organisation_name: ${{ variables.organisation_name }}
-    devops_project: ${{ variables.devops_project }}
-    package_feed: ${{ variables.package_feed }}
-    feed_view: $(feedView)
-    pat_username: $(PatUsername)
-    pat: $(DevOpsPAT)
-    toMain: $(toMain)
-    toDev: $(toDev)
+stages:
 
+- stage: PreCommit
+  displayName: Pre-commit checks
+  dependsOn: [] 
+  jobs:
+    - job: ExecutePreCommit
+      steps:
+        - template: .azuredevops/templates/pre_commit.yml@raptor
+          parameters:
+            python_version: ${{ variables.pythonVersion }}
+            poetry_version: ${{ variables.poetryVersion }}
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
+
+- stage: UnitTest
+  displayName: Unit tests
+  dependsOn: [] 
+  jobs:
+    - job: ExecuteUnitTests
+      steps:
+        - template: .azuredevops/templates/test.yml@raptor
+          parameters:
+            python_version: ${{ variables.pythonVersion }}
+            poetry_version: ${{ variables.poetryVersion }}
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
+            package_name: {% endraw %}{{ cookiecutter.package_name }}{% raw %}
+
+- stage: Check
+  displayName: Staging checks
+  dependsOn: [] 
+  condition: or(eq(variables.toMain, true), eq(variables.toDev, true))
+  jobs:
+    - job: Check
+      variables:
+        build: false
+      steps:
+        - template: .azuredevops/templates/build.yml@raptor
+          parameters:
+            python_version: ${{ variables.pythonVersion }}
+            poetry_version: ${{ variables.poetryVersion }}
+            organisation_name: ${{ variables.devops_organisation }}
+            devops_project: ${{ variables.devops_project }}
+            package_feed: ${{ variables.package_feed }}
+            feed_view: $(feed_view)
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
 {% endraw %}

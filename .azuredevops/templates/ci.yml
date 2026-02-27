@@ -54,7 +54,7 @@ stages:
 - stage: Check
   displayName: Staging checks
   dependsOn: [] 
-  condition: or(eq(parameters.toMain, true), eq(parameters.toDev, true))
+  condition: ${{ or(eq(parameters.toMain, true), eq(parameters.toDev, true)) }}
   jobs:
     - job: Check
       variables:

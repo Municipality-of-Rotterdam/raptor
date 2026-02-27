@@ -40,8 +40,6 @@ stages:
 - stage: UnitTest
   displayName: Unit tests
   dependsOn: [] 
-  variables: 
-    - group: ${{ parameters.variable_group }} 
   jobs:
     - job: ExecuteUnitTests
       steps:
@@ -56,8 +54,6 @@ stages:
 - stage: Check
   displayName: Staging checks
   dependsOn: [] 
-  variables: 
-    - group: ${{ parameters.variable_group }} 
   condition: or(eq(parameters.toMain, true), eq(parameters.toDev, true))
   jobs:
     - job: Check

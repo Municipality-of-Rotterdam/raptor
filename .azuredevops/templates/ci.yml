@@ -17,11 +17,6 @@ parameters:
     type: string
   - name: DevOpsPAT
     type: string
-  - name: toMain
-    type: boolean
-  - name: toDev
-    type: boolean
-
 stages:
 
 - stage: PreCommit
@@ -54,7 +49,7 @@ stages:
 - stage: Check
   displayName: Staging checks
   dependsOn: [] 
-  condition: ${{ or(parameters.toMain, parameters.toDev) }}
+  condition: $[or(   eq(variables['isDev'], true),   eq(variables['isMain'], true)    )]
   jobs:
     - job: Check
       variables:

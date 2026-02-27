@@ -11,10 +11,6 @@ parameters:
     type: string
   - name: package_feed
     type: string
-  - name: PatUsername
-    type: string
-  - name: DevOpsPAT
-    type: string
 stages:
 
 - stage: PreCommit
@@ -27,8 +23,8 @@ stages:
           parameters:
             python_version: ${{ parameters.pythonVersion }}
             poetry_version: ${{ parameters.poetryVersion }}
-            pat_username: ${{ parameters.PatUsername }}
-            pat: ${{ parameters.DevOpsPAT }}
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
 
 - stage: UnitTest
   displayName: Unit tests
@@ -41,8 +37,8 @@ stages:
             python_version: ${{ parameters.pythonVersion }}
             poetry_version: ${{ parameters.poetryVersion }}
             package_name: ${{ parameters.package_name }}
-            pat_username: ${{ parameters.PatUsername }}
-            pat: ${{ parameters.DevOpsPAT }}
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
 
 - stage: Check
   displayName: Staging checks
@@ -55,7 +51,7 @@ stages:
   jobs:
     - job: Check
       variables:
-          build: false
+        build: false
       steps:
         - template: build.yml
           parameters:
@@ -65,5 +61,5 @@ stages:
             devops_project: ${{ parameters.devops_project }}
             package_feed: ${{ parameters.package_feed }}
             feed_view: $(feed_view)
-            pat_username: ${{ parameters.PatUsername }}
-            pat: ${{ parameters.DevOpsPAT }}
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)

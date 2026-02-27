@@ -64,7 +64,7 @@ stages:
           parameters:
             python_version: ${{ parameters.python_version }}
             poetry_version: ${{ parameters.poetry_version }}
-            organisation_name: ${{ parameters.devops_organisation }}
+            organisation_name: ${{ parameters.organisation_name }}
             devops_project: ${{ parameters.devops_project }}
             package_feed: ${{ parameters.package_feed }}
             feed_view: ${{ parameters.feed_view }}

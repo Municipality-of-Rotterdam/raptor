@@ -30,7 +30,7 @@ stages:
   jobs:
     - job: ExecutePreCommit
       steps:
-        - template: .azuredevops/templates/pre_commit.yml@raptor
+        - template: pre_commit.yml
           parameters:
             python_version: ${{ parameters.pythonVersion }}
             poetry_version: ${{ parameters.poetryVersion }}
@@ -43,7 +43,7 @@ stages:
   jobs:
     - job: ExecuteUnitTests
       steps:
-        - template: .azuredevops/templates/test.yml@raptor
+        - template: test.yml
           parameters:
             python_version: ${{ parameters.pythonVersion }}
             poetry_version: ${{ parameters.poetryVersion }}
@@ -60,7 +60,7 @@ stages:
       variables:
           build: false
       steps:
-        - template: .azuredevops/templates/build.yml@raptor
+        - template: build.yml
           parameters:
             python_version: ${{ parameters.pythonVersion }}
             poetry_version: ${{ parameters.poetryVersion }}

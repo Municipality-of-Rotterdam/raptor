@@ -1,19 +1,21 @@
-{% raw %}
+
 variables:
-  pythonVersion: {% endraw %}{{cookiecutter.python_version}}{% raw %}
-  poetryVersion: {% endraw %}{{cookiecutter.poetry_version}}{% raw %}
-  devops_organisation: {% endraw %}{{cookiecutter.organisation_name}}{% raw %}
-  devops_project: {% endraw %}{{cookiecutter.project_name}}{% raw %}
-  
-  # Name of artifacts feed
-  package_feed:  {% endraw %}{{cookiecutter.package_feed}}{% raw %}
+  package_name: {{cookiecutter.package_name}}
+
+  # Python and poetry versions
+  pythonVersion: {{cookiecutter.python_version}}
+  poetryVersion: {{cookiecutter.poetry_version}}
+
+  # Devops configuration
+  devops_organisation: {{cookiecutter.organisation_name}}
+  devops_project: {{cookiecutter.project_name}}
+  package_feed:  {{cookiecutter.package_feed}}
   
   # Whether to register environment in Azure Machine Learning based on package
-  RegisterAmlEnv: {% endraw %}{{cookiecutter.create_aml_environment_in_cicd}}{% raw %}
-  aml_environment: {% endraw %}{{cookiecutter.package_name}}{% raw %}
-  sh_agent_pool_name: {% endraw %}{{cookiecutter.private_agent_name}}{% raw %}
+  RegisterAmlEnv: {{cookiecutter.create_aml_environment_in_cicd}}
+  aml_environment: {{cookiecutter.package_name}}
+  sh_agent_pool_name: {{cookiecutter.private_agent_name}}
   base_image: mcr.microsoft.com/azureml/openmpi5.0-ubuntu24.04
 
   # branch to read the documentation files from
   docsBranch: 'refs/head/generated/docs'
-{% endraw %}

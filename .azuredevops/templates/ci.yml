@@ -1,0 +1,76 @@
+parameters:
+- name: package_name
+  type: string
+- name: python_version
+  type: string
+- name: poetry_version
+  type: string
+- name: organisation_name
+  type: string
+- name: devops_project
+  type: string
+- name: package_feed
+  type: string
+- name: feed_view
+  type: string
+- name: pat_username
+  type: string
+- name: pat
+  type: string
+- name: toMain
+  type: boolean
+- name: toDev
+  type: boolean
+
+stages:
+
+- stage: PreCommit
+  displayName: Pre-commit checks
+  dependsOn: [] 
+  jobs:
+    - job: ExecutePreCommit
+      steps:
+        - template: .azuredevops/templates/pre_commit.yml@raptor
+          parameters:
+            python_version: ${{ parameters.pythonVersion }}
+            poetry_version: ${{ parameters.poetryVersion }}
+            pat_username: ${{ parameters.pat_username }}
+            pat: ${{ parameters.pat }}
+
+- stage: UnitTest
+  displayName: Unit tests
+  dependsOn: [] 
+  variables: 
+    - group: ${{ parameters.variable_group }} 
+  jobs:
+    - job: ExecuteUnitTests
+      steps:
+        - template: .azuredevops/templates/test.yml@raptor
+          parameters:
+            package_name: ${{ parameters.package_name }}
+            python_version: ${{ parameters.pythonVersion }}
+            poetry_version: ${{ parameters.poetryVersion }}
+            pat_username: ${{ parameters.pat_username }}
+            pat: ${{ parameters.pat }}
+
+- stage: Check
+  displayName: Staging checks
+  dependsOn: [] 
+  variables: 
+    - group: ${{ parameters.variable_group }} 
+  condition: or(eq(parameters.toMain, true), eq(parameters.toDev, true))
+  jobs:
+    - job: Check
+      variables:
+        build: false
+      steps:
+        - template: .azuredevops/templates/build.yml@raptor
+          parameters:
+            python_version: ${{ parameters.pythonVersion }}
+            poetry_version: ${{ parameters.poetryVersion }}
+            organisation_name: ${{ parameters.devops_organisation }}
+            devops_project: ${{ parameters.devops_project }}
+            package_feed: ${{ parameters.package_feed }}
+            feed_view: ${{ parameters.feed_view }}
+            pat_username: ${{ parameters.pat_username }}
+            pat: ${{ parameters.pat }}

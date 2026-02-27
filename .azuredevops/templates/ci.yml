@@ -11,8 +11,6 @@ parameters:
     type: string
   - name: package_feed
     type: string
-  - name: feed_view
-    type: string
   - name: PatUsername
     type: string
   - name: DevOpsPAT
@@ -50,6 +48,10 @@ stages:
   displayName: Staging checks
   dependsOn: [] 
   condition: and(eq(variables['Build.Reason'], 'PullRequest'), or(eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main'), eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/develop')))
+  variables:
+    - name: feed_view
+      value: $[if(eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main'), prod', 'dvlm')]
+  
   jobs:
     - job: Check
       variables:
@@ -62,6 +64,6 @@ stages:
             organisation_name: ${{ parameters.devops_organisation }}
             devops_project: ${{ parameters.devops_project }}
             package_feed: ${{ parameters.package_feed }}
-            feed_view: ${{ parameters.feed_view }}
+            feed_view: $(feed_view)
             pat_username: ${{ parameters.PatUsername }}
             pat: ${{ parameters.DevOpsPAT }}

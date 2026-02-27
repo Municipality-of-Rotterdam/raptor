@@ -49,7 +49,13 @@ stages:
 - stage: Check
   displayName: Staging checks
   dependsOn: [] 
-  condition: or(   eq(variables['isDev'], true),   eq(variables['isMain'], true)    )
+  condition: and(
+    eq(variables['Build.Reason'], 'PullRequest'),
+    or(
+      eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main'),
+      eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/develop')
+    )
+  )
   jobs:
     - job: Check
       variables:

@@ -32,8 +32,8 @@ stages:
       steps:
         - template: .azuredevops/templates/pre_commit.yml@raptor
           parameters:
-            python_version: ${{ parameters.pythonVersion }}
-            poetry_version: ${{ parameters.poetryVersion }}
+            python_version: ${{ parameters.python_version }}
+            poetry_version: ${{ parameters.poetry_version }}
             pat_username: ${{ parameters.pat_username }}
             pat: ${{ parameters.pat }}
 
@@ -48,8 +48,8 @@ stages:
         - template: .azuredevops/templates/test.yml@raptor
           parameters:
             package_name: ${{ parameters.package_name }}
-            python_version: ${{ parameters.pythonVersion }}
-            poetry_version: ${{ parameters.poetryVersion }}
+            python_version: ${{ parameters.python_version }}
+            poetry_version: ${{ parameters.poetry_version }}
             pat_username: ${{ parameters.pat_username }}
             pat: ${{ parameters.pat }}
 
@@ -66,8 +66,8 @@ stages:
       steps:
         - template: .azuredevops/templates/build.yml@raptor
           parameters:
-            python_version: ${{ parameters.pythonVersion }}
-            poetry_version: ${{ parameters.poetryVersion }}
+            python_version: ${{ parameters.python_version }}
+            poetry_version: ${{ parameters.poetry_version }}
             organisation_name: ${{ parameters.devops_organisation }}
             devops_project: ${{ parameters.devops_project }}
             package_feed: ${{ parameters.package_feed }}

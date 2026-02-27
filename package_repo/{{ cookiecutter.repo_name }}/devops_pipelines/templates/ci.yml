@@ -26,7 +26,7 @@ resources:
     - repository: raptor
       name: municipality-of-rotterdam/raptor
       type: github
-      ref: tags/{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+      ref: refs/tags/{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
       endpoint: {% endraw %}{{ cookiecutter.github_service_connection }}{% raw %}
 
 stages:
@@ -52,11 +52,11 @@ stages:
       steps:
         - template: .azuredevops/templates/test.yml@raptor
           parameters:
+            package_name: ${{ variables.package_name }}
             python_version: ${{ variables.pythonVersion }}
             poetry_version: ${{ variables.poetryVersion }}
             pat_username: $(PatUsername)
             pat: $(DevOpsPAT)
-            package_name: {% endraw %}{{ cookiecutter.package_name }}{% raw %}
 
 - stage: Check
   displayName: Staging checks

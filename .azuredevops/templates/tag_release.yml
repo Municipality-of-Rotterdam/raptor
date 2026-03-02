@@ -1,6 +1,6 @@
 
 parameters:
-- name: service_connection
+- name: tag_branch
   type: string
 
 steps:
@@ -27,3 +27,7 @@ steps:
     git push origin "$RELEASE_VERSION"
   name: tag_release
   displayName: Tagging the merge commit associated with the latest raptor release
+  condition: and(
+    succeeded(),
+    eq(variables['Build.SourceBranchName'], '${{ parameters.tag_branch }}')
+  )

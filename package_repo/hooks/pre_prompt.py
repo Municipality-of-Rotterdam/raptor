@@ -1,6 +1,15 @@
 import tomllib
 import pathlib
 import json
+import os
+
+cwd_path = pathlib.Path(os.getcwd())
+cwd_path = pathlib.Path(__file__)
+
+print(cwd_path)
+print(list(cwd_path.parent.iterdir()))
+print(list(cwd_path.parents))
+print(list(cwd_path.rglob("*.py")))
 
 raptor_root = pathlib.Path(__file__).parents[2]
 repo_root = pathlib.Path(__file__).parents[1]

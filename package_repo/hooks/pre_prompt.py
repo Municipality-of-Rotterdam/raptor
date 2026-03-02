@@ -8,8 +8,8 @@ toml_path = raptor_root / "pyproject.toml"
 cookiecutter_config_path = repo_root / "cookiecutter.json"
 
 # reading raptor version
-raptor_config = tomllib.load(open(toml_path, 'rb'))
-raptor_version = raptor_config['project']['version']
+raptor_config = tomllib.load(open(toml_path, "rb"))
+raptor_version = raptor_config["project"]["version"]
 
 # setting template version and dumping it back to JSON
 cookiecutter_config = json.loads(cookiecutter_config_path.read_text())

@@ -5,9 +5,6 @@
 
 version: '3'
 
-dotenv:
-  - '{{.HOME}}/taskfile.env'
-
 includes:
   setup_compute_instance: tasks/setup_compute_instance/taskfile.yml
   create_new_repo: tasks/create_new_repo/taskfile.yml

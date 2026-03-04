@@ -5,11 +5,13 @@
 version: '3'
 
 # you could overwrite UV_INSTALL_DIR, CONDA_ENV_DIR and/or UV_VENV_DIR, shouldn't be necessary
-dotenv: ['.env']
+dotenv:
+  - '{{.HOME}}/taskfile.env'
+  - '.env'
 
 includes:
   aa:
-    taskfile: https://github.com/Municipality-of-Rotterdam/raptor.git//.taskfile/taskfile.yml?ref=develop
+    taskfile: https://github.com/Municipality-of-Rotterdam/raptor.git//.taskfile/taskfile_main.yml?ref=develop
     flatten: true
 
 # for setting up the repo (environment, precommit), run `task setup_repo` (after following setup instructions from https://github.com/Municipality-of-Rotterdam/raptor/blob/develop/.taskfile/readme.md)
@@ -19,7 +21,7 @@ vars:
   # use conda for python environment (will use uv venv otherwise). Must be true when using poetry instead of uv!
   USE_CONDA: true
   # use poetry or uv for dependency management
-  USE_POETRY: true
+  USE_POETRY: false
   # list of submodule locations, relative to root project directory
   # SUBMODULES: ["lib/aa_streetnetwork_preparation"]
   # extra arguments to uv sync command, for example extra or optional dependency groups

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+# this child taskfile contains all tasks
+# you should not call these tasks directly, but only from a parent taskfile, see readme.
+
+version: '3'
+
+dotenv:
+  - '{{.HOME}}/taskfile.env'
+
+includes:
+  main:
+    taskfile: taskfile_main.yml
+    flatten: true

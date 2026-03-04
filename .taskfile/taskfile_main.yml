@@ -5,6 +5,12 @@
 
 version: '3'
 
+includes:
+  setup_compute_instance: tasks/setup_compute_instance/taskfile.yml
+  create_new_repo: tasks/create_new_repo/taskfile.yml
+  setup_repo: tasks/setup_repo/taskfile.yml
+  openwebui: tasks/openwebui/taskfile.yml
+
 tasks:
 
   # setup the current git repo: creating python environment, installing precommit, etc.

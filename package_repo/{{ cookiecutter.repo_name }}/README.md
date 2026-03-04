@@ -21,41 +21,82 @@ Give a description of your repository here.
 
 ## Installation
 
-### Prerequisites
+This project uses [uv](https://github.com/astral-sh/uv) for Python package management. `UV_PROJECT_ENVIRONMENT` is used to store the virtual environment on local disk rather than on a network mount.
 
-Install [direnv](https://direnv.net/) and add the hook to your shell:
+Choose **one** of the three setup options below.
+
+### Option 1: direnv (recommended)
+
+Uses the `.envrc` file to auto-set `UV_PROJECT_ENVIRONMENT` when you `cd` into the project. Works for both conda + uv and uv-only.
 
 ```bash
-# Install direnv
+# Install direnv (one-time)
 sudo apt-get install direnv   # Debian/Ubuntu
 
-# Add to your shell profile (~/.bashrc)
-eval "$(direnv hook bash)"     # bash
+# Add to your shell profile (~/.bashrc, one-time)
+eval "$(direnv hook bash)"
+
+# Allow direnv for this project (one-time per clone)
+direnv allow
 ```
 
-### Option A: Conda + uv (recommended for packages that need system libraries like GDAL)
+Then continue with either [Conda + uv](#conda--uv) or [uv only](#uv-only) below.
+
+### Option 2: Conda + uv with activate hooks
+
+No extra tools needed. Sets `UV_PROJECT_ENVIRONMENT` automatically when you `conda activate`.
 
 ```bash
-# Create conda env (installs Python + uv at /anaconda/envs/{{ cookiecutter.package_name }})
+# Create conda env (one-time)
 conda env create --file environment.yml
 
-# Allow direnv for this project (one-time)
-direnv allow
+# Install activate/deactivate hooks (one-time)
+./scripts/setup_conda_uv_hooks.sh
+```
 
-# Activate the conda env and sync uv dependencies
+Then continue with [Conda + uv](#conda--uv) below.
+
+### Option 3: uv only with activate script
+
+No extra tools needed. Creates the environment on local disk and generates an activate script.
+
+```bash
+# Set up environment and create activate script (one-time)
+./scripts/setup_uv_env.sh
+```
+
+Then continue with [uv only](#uv-only) below.
+
+---
+
+### Conda + uv
+
+Recommended when you need system libraries (e.g. GDAL) that are only available via conda.
+
+```bash
+# Create conda env if not done above (installs Python + uv at /anaconda/envs/{{ cookiecutter.package_name }})
+conda env create --file environment.yml
+
+# Activate the conda env
 conda activate {{ cookiecutter.package_name }}
-uv sync --inexact                           # base dependencies (--inexact keeps conda packages)
+
+# Open new terminal or cd away and back to project root
+cd ..
+cd {{ cookiecutter.repo_name }}
+
+# Sync uv dependencies (--inexact keeps conda packages)
+uv sync --inexact                           # base dependencies
 uv sync --inexact --group dev               # include dev dependencies
 uv sync --inexact --group dev --group test  # include dev + test dependencies
 ```
 
-### Option B: uv only
+### uv only
 
 ```bash
-# Allow direnv for this project (one-time)
-direnv allow
+# Activate the environment (not needed if using direnv)
+source activate.sh
 
-# Sync dependencies (direnv auto-sets the environment path)
+# Sync dependencies
 uv sync                           # base dependencies
 uv sync --group dev               # include dev dependencies
 uv sync --group dev --group test  # include dev + test dependencies
@@ -67,8 +108,6 @@ uv sync --group dev --group test  # include dev + test dependencies
 uv run pytest                      # run tests
 uv run python -m {{ cookiecutter.package_name }}  # run your package
 ```
-
-> **Note:** The `.envrc` file uses [direnv](https://direnv.net/) to automatically set `UV_PROJECT_ENVIRONMENT` when you enter this project directory. If a conda environment exists at `/anaconda/envs/{{ cookiecutter.package_name }}`, uv will install into it (use `--inexact` to keep conda packages). Otherwise, uv uses a local disk path at `~/.local/share/uv/envs/{{ cookiecutter.package_name }}`.
 
 ## Documentation
 

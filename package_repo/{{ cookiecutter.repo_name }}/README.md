@@ -21,91 +21,76 @@ Give a description of your repository here.
 
 ## Installation
 
-This project uses [uv](https://github.com/astral-sh/uv) for Python package management. `UV_PROJECT_ENVIRONMENT` is used to store the virtual environment on local disk rather than on a network mount.
+This project uses [uv](https://github.com/astral-sh/uv) for Python package management, optionally combined with [conda](https://docs.conda.io/) for system-level libraries, and [direnv](https://direnv.net/) to automatically configure the environment.
 
-Choose **one** of the three setup options below.
+There are **two setup options**:
 
-### Option 1: direnv (recommended)
+| | Conda + uv | uv only |
+|---|---|---|
+| **Use when** | You need system libraries (e.g. GDAL, PROJ) only available via conda | Pure Python dependencies are sufficient |
+| **Environment location** | `/anaconda/envs/{{ cookiecutter.package_name }}` | `~/.local/share/uv/envs/{{ cookiecutter.package_name }}` |
+| **Sync command** | `uv sync --inexact` (keeps conda packages) | `uv sync` |
 
-Uses the `.envrc` file to auto-set `UV_PROJECT_ENVIRONMENT` when you `cd` into the project. Works for both conda + uv and uv-only.
+Both options require direnv and the `.envrc` file included in this project. The `.envrc` auto-detects which option you're using and sets `UV_PROJECT_ENVIRONMENT` accordingly, so uv installs packages to local disk rather than a network mount.
+
+### Prerequisites: install and enable direnv
 
 ```bash
 # Install direnv (one-time)
 sudo apt-get install direnv   # Debian/Ubuntu
 
-# Add to your shell profile (~/.bashrc, one-time)
+# Add the hook to your shell profile (one-time, add to ~/.bashrc)
 eval "$(direnv hook bash)"
 
 # Allow direnv for this project (one-time per clone)
 direnv allow
 ```
 
-Then continue with either [Conda + uv](#conda--uv) or [uv only](#uv-only) below.
+### Option A: Conda + uv
 
-### Option 2: Conda + uv with activate hooks
-
-No extra tools needed. Sets `UV_PROJECT_ENVIRONMENT` automatically when you `conda activate`.
+Use this option when you need system-level libraries that are only available via conda.
 
 ```bash
-# Create conda env (one-time)
+# 1. Create the conda environment (installs Python + uv)
 conda env create --file environment.yml
 
-# Install activate/deactivate hooks (one-time)
-./scripts/setup_conda_uv_hooks.sh
-```
-
-Then continue with [Conda + uv](#conda--uv) below.
-
-### Option 3: uv only with activate script
-
-No extra tools needed. Creates the environment on local disk and generates an activate script.
-
-```bash
-# Set up environment and create activate script (one-time)
-./scripts/setup_uv_env.sh
-```
-
-Then continue with [uv only](#uv-only) below.
-
----
-
-### Conda + uv
-
-Recommended when you need system libraries (e.g. GDAL) that are only available via conda.
-
-```bash
-# Create conda env if not done above (installs Python + uv at /anaconda/envs/{{ cookiecutter.package_name }})
-conda env create --file environment.yml
-
-# Activate the conda env
+# 2. Activate the conda environment
 conda activate {{ cookiecutter.package_name }}
 
-# Open new terminal or cd away and back to project root
-cd ..
-cd {{ cookiecutter.repo_name }}
+# 3. Re-enter the project directory so direnv picks up the conda env path
+cd .. && cd {{ cookiecutter.repo_name }}
 
-# Sync uv dependencies (--inexact keeps conda packages)
-uv sync --inexact                           # base dependencies
-uv sync --inexact --group dev               # include dev dependencies
-uv sync --inexact --group dev --group test  # include dev + test dependencies
+# 4. Install Python dependencies with uv (--inexact keeps conda packages intact)
+uv sync --inexact --group dev
 ```
 
-### uv only
+### Option B: uv only
+
+Use this option when you only need pure Python dependencies. No conda required.
 
 ```bash
-# Activate the environment (not needed if using direnv)
-source activate.sh
+# 1. Re-enter the project directory (or open a new terminal) so direnv sets the environment
+cd .. && cd {{ cookiecutter.repo_name }}
 
-# Sync dependencies
-uv sync                           # base dependencies
-uv sync --group dev               # include dev dependencies
-uv sync --group dev --group test  # include dev + test dependencies
+# 2. Install Python dependencies with uv
+uv sync --group dev
 ```
+
+### Installing additional dependency groups
+
+Both options support uv's dependency groups. Add `--group <name>` to include extra dependencies:
+
+```bash
+uv sync --group dev --group test   # dev + test dependencies
+uv sync --group dev --group docs   # dev + docs dependencies
+```
+
+> **Note:** When using conda + uv, always pass `--inexact` to preserve conda-installed packages.
 
 ### Running commands
 
 ```bash
-uv run pytest                      # run tests
+uv run pytest                                    # run tests
 uv run python -m {{ cookiecutter.package_name }}  # run your package
 ```
 
@@ -118,7 +103,7 @@ You can find the documentation of this repository [on this website](documentatio
 
 Here you can give some examples. Here is an example to get you started:
 
-```bash
+```python
 from {{ cookiecutter.package_name }} import multiply
 result = multiply(2, 3)
 print(result)

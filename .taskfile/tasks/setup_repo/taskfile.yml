@@ -30,7 +30,7 @@ tasks:
   _main:
     internal: true
     requires:
-      vars: [USE_CONDA, USE_POETRY, ENV_NAME, PYTHON_VERSION]
+      vars: [ENV_NAME, PYTHON_VERSION]
     cmds:
       # check some input variables
       - task: check_vars
@@ -66,6 +66,11 @@ tasks:
         echo "Cannot use poetry without conda, wrong settings"
         exit 1
         {{end}}
+    preconditions:
+      - sh: '[ -n "{{.USE_CONDA}}" ]'
+        msg: USE_CONDA is not set, check readme how to set up a taskfile.yml within the repo, with variables.
+      - sh: '[ -n "{{.USE_POETRY}}" ]'
+        msg: USE_POETRY is not set, check readme how to set up a taskfile.yml within the repo, with variables.
 
   # init submodules (they are empty after cloning a repo)
   init_submodules:

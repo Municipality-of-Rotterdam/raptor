@@ -5,10 +5,103 @@
 
 version: '3'
 
-dotenv:
-  - '{{.HOME}}/taskfile.env'
+tasks:
 
-includes:
-  main:
-    taskfile: taskfile_main.yml
-    flatten: true
+  # setup the current git repo: creating python environment, installing precommit, etc.
+  setup_repo:
+    cmds:
+      - task: setup_repo:_main
+
+  # run precommit in current directory
+  precommit_run:
+    # option to change working directory, to use for submodules
+    dir: '{{.DIR}}'
+    vars:
+      DIR: '{{.DIR| default "."}}'
+    cmds:
+      - pre-commit run --all-files
+    preconditions:
+      - sh: pre-commit --version
+        msg: "Pre-commit not installed. Switch to the correct venv or install pre-commit with uv."
+
+  # run pytest in current directory (with uv for now)
+  pytest_run:
+    cmds:
+      # explicitly pass tests directory, otherwise does not find tests (maybe has to do with symlink?)
+      - uv run pytest tests/
+
+  # clean up old git branches in local repo
+  cleanup_git:
+    cmds:
+      # remove remote branches no longer on remote
+      - git remote prune origin
+      # remove local branches already merged to main
+      - git branch --merged develop | egrep -v "(^\*|main|develop)" | xargs git branch -d
+  
+  # setup a new compute instance
+  setup_compute_instance:
+    cmds:
+      - task: setup_compute_instance:setup_ssh_create_key
+      - task: setup_compute_instance:setup_ssh_print_key
+      - task: setup_compute_instance:setup_ssh
+      - task: setup_compute_instance:set_git_default_branch
+      - task: setup_compute_instance:install_cookiecutter
+      - task: setup_compute_instance:setup_cookiecutter_config
+      - task: setup_compute_instance:conda_init
+      - task: setup_compute_instance:install_poetry
+      - task: setup_compute_instance:install_uv
+      - task: setup_compute_instance:setup_git_maintenance
+      - task: setup_compute_instance:install_vscode
+      - task: setup_compute_instance:enable_code_tunnel_service
+
+  # create new git repo based on raptor cookiecutter
+  create_new_repo:
+    vars:
+      REPO_TYPE: '{{.REPO_TYPE | default "package_repo"}}'
+      COOKIECUTTER_URL: '{{.COOKIECUTTER_URL | default "https://github.com/Municipality-of-Rotterdam/raptor.git"}}'
+      GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS | default "your git service provicer (github/devops)"}}'
+      REPO_NAME_DIRTY: '{{if .REPO_TYPE | contains "package"}}pkg_{{end}}{{.PKG_NAME}}'
+      REPO_NAME: '{{.REPO_NAME_DIRTY | lower | replace " " "" | replace "-" ""}}'
+    dir: '{{.USER_WORKING_DIR}}'
+    requires:
+      vars:
+        - PKG_NAME
+        - GIT_ROOT
+        - name: REPO_TYPE
+          enum: [package_repo, project_repo]
+    cmds:
+      # two preconditions, steps from setup_compute_instance, will skip if already satisfied
+      - task: setup_compute_instance:install_cookiecutter
+      - task: setup_compute_instance:setup_cookiecutter_config
+      # continue
+      - task: create_new_repo:cookiecutter_check
+        vars:
+          REPO_NAME: '{{.REPO_NAME}}'
+      - task: create_new_repo:cookiecutter
+        vars:
+          COOKIECUTTER_URL: '{{.COOKIECUTTER_URL}}'
+          NAME: '{{.PKG_NAME}}'
+          REPO_TYPE: '{{.REPO_TYPE}}'
+          REPO_NAME: '{{.REPO_NAME}}'
+      - task: create_new_repo:add_remote
+        vars:
+          RUN_DIR: '{{.USER_WORKING_DIR}}/{{.REPO_NAME}}'
+          REPO_NAME: '{{.REPO_NAME}}'
+          GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS}}'
+          GIT_ROOT: '{{.GIT_ROOT}}'
+      - task: create_new_repo:setup_build_pipeline_devops
+        if: '{{.GIT_ROOT_HTTPS | contains "dev.azure.com"}}'
+        vars:
+          REPO_NAME: '{{.REPO_NAME}}'
+          GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS}}'
+      - task: create_new_repo:setup_build_policies_devops
+        if: '{{.GIT_ROOT_HTTPS | contains "dev.azure.com"}}'
+        vars:
+          REPO_NAME: '{{.REPO_NAME}}'
+          GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS}}'
+      - task: create_new_repo:setup_default_branch_devops
+        if: '{{.GIT_ROOT_HTTPS | contains "dev.azure.com"}}'
+        vars:
+          REPO_NAME: '{{.REPO_NAME}}'
+          GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS}}'
+      - task: '{{if .REPO_TYPE | contains "package"}}create_new_repo:next_steps_pkg{{else}}create_new_repo:next_steps_proj{{end}}'

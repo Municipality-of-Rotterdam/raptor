@@ -24,13 +24,7 @@ tasks:
       - cmd: echo "Then you are able to connect to your compute instance and setup repos with other tasks (see readme)."
         silent: true
       - task: reinstall_code_tunnel_service
-  
-  set_xdg:
-    cmds:
-      - echo "export XDG_RUNTIME_DIR=/run/user/$(id -u)"
-      - cmd: echo "Done, you probably want to rerun 'setup_compute_instance:reinstall_code_tunnel_service' again."
-        silent: true
-  
+
   # status check before reinstall_code_tunnel_service, in separate task so precondition only runs when status fails
   reinstall_code_tunnel_service:
     # check log of code tunnel service, check last 5 lines, give error if it contains the given string
@@ -50,7 +44,7 @@ tasks:
       - systemctl status --user code-tunnel
     preconditions:
       - sh: '[ -n "${XDG_RUNTIME_DIR}" ]'
-        msg: XDG_RUNTIME_DIR is not set, please run 'eval $(task --taskfile https://github.com/JoeriA/aa_taskfile.git//taskfile.yml?ref=main set_xdg)' first!
+        msg: XDG_RUNTIME_DIR is not set, please run 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' first and rerun this task!
 
   setup_ssh_create_key:
     cmds:
@@ -94,6 +88,7 @@ tasks:
     prompt: For simplicity, first setup a cookiecutter config.yml, see {{.COOKIECUTTER_CONFIG}}. Copy the default_context block, paste it in the next window and save with ctrl+x, Y, enter. Did you copy the default_context?
     cmds:
       - nano ~/raptor_config.yml
+    interactive: true
     status:
       - test -f ~/raptor_config.yml
 

@@ -67,7 +67,7 @@ stages:
       variables:
         build: false
       steps:
-        - template: .azuredevops/templates/build.yml@raptor
+- template: .azuredevops/templates/build.yml@raptor
           parameters:
             python_version: ${{ variables.pythonVersion }}
             poetry_version: ${{ variables.poetryVersion }}

@@ -1,0 +1,23 @@
+{% raw %}
+name: {% endraw %}{{cookiecutter.package_name}}{% raw %} Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+  workflow_dispatch:
+
+# Needed for publication on PyPI
+permissions:
+  contents: read
+  id-token: write
+  pages: write
+
+jobs:
+
+  Documentation:
+    uses: municipality-of-rotterdam/raptor/.github/workflows/documentation.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+    with:
+      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+{% endraw %}

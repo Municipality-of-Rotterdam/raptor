@@ -1,37 +1,23 @@
 {% raw %}
-name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CICD
+name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CD
 
 on:
   push:
     branches:
       - develop
       - main
-      - release/*
 
-  pull_request:
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 # Needed for publication on PyPI
 permissions:
-  contents: read # Permissions to read the repository code
-  id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+  contents: read
+  id-token: write
   pages: write
 
 jobs:
-  Precommit:
-    uses: municipality-of-rotterdam/raptor/.github/workflows/pre_commit.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-    with: 
-      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 
-  UnitTest: 
-    uses: municipality-of-rotterdam/raptor/.github/workflows/unit_test.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-    with: 
-      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
-      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}
-
-  Check: 
-    needs: [Precommit, UnitTest]
+  Check:
     uses: municipality-of-rotterdam/raptor/.github/workflows/check.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
 
   {% endraw %}{% if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
@@ -39,9 +25,9 @@ jobs:
     if: needs.Check.outputs.src_changed == 'True'
     needs: [Check]
     uses: municipality-of-rotterdam/raptor/.github/workflows/build.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-    with: 
+    with:
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
-      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}  
+      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}
       PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %}
   {% endraw %}{% endif %}{% raw %}
 
@@ -55,10 +41,4 @@ jobs:
       RG_NAME: {% endraw %}{{ cookiecutter.azure_resource_group }}{% raw %}
       WS_NAME: {% endraw %}{{ cookiecutter.azureml_workspace }}{% raw %}
   {% endraw %}{% endif %}{% raw %}
-
-  Documentation: 
-    if: success() && github.ref == 'refs/heads/main'
-    uses: municipality-of-rotterdam/raptor/.github/workflows/documentation.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-    with: 
-      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 {% endraw %}

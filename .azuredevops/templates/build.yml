@@ -23,107 +23,213 @@ steps:
       python_version: '${{ parameters.python_version }}'
       uv_version: '${{ parameters.uv_version }}'
 
-  - script: uv sync --only-group build
+  - script: |
+      set -e
+      echo "=== INSTALL BUILD DEPENDENCIES ==="
+      echo "Python version:"
+      python --version
+      echo "uv version:"
+      uv --version
+      echo "Installing build dependencies (uv sync --only-group build)..."
+      uv sync --only-group build
+      echo "Build dependencies installed successfully."
     displayName: 'Install build dependencies with uv'
     env:
       ${{ if ne(parameters.uv_index_name, '') }}:
         UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
         UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
 
+  ###########################################################################
+  # Validate pyproject.toml format
+  ###########################################################################
   - script: |
-      python -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" || pip install tomli --quiet
-      python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); d=tl.load(open('pyproject.toml','rb')); sys.exit('pyproject.toml is missing a [project] table. Raptor requires PEP 621 format.') if 'project' not in d else (sys.exit('pyproject.toml [project] is missing required fields: '+str([f for f in (\"name\",\"version\") if f not in d[\"project\"]])) if any(f not in d['project'] for f in ('name','version')) else None)"
-      version_toml=$(python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); print(tl.load(open('pyproject.toml','rb'))['project']['version'])")
-      echo "Version number in pyproject.toml: $version_toml"
-      echo "##vso[task.setvariable variable=version_toml;]$version_toml"
-      name_toml=$(python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); print(tl.load(open('pyproject.toml','rb'))['project']['name'])")
-      normalised_name=$(echo "$name_toml" | tr '[:upper:]' '[:lower:]' | sed 's/[^[:alnum:]]/-/g')
-      echo "Package name in pyproject.toml (normalised): $normalised_name"
-      echo "##vso[task.setvariable variable=normalised_name;]$normalised_name"
-      package_id=$(curl -u :$(System.AccessToken) 'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1' | jq '.value[] | select(.name == "'"$normalised_name"'" ) | .id')
-      package_id=${package_id//\"/}
-      echo "##vso[task.setvariable variable=package_id;]$package_id"
-    displayName: "Get version number, package name, package id"
+      set -e
+      echo "=== VALIDATE PYPROJECT.TOML FORMAT ==="
 
-  - script: |
-      if [[ ! "$(version_toml)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "Error: Version number in pyproject.toml is not in number.number.number format" >&2
-          exit 1
-      fi
-    displayName: "Check version number format in pyproject.toml"
-
-  - script: |
-      response=$(curl -u :$(System.AccessToken) -o /dev/null -w "%{http_code}" 'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1')
-      if [ ${response} -ne 200 ]; then
-        echo "Please create Artifacts feed with name ${{ parameters.package_feed }}"
+      if [ ! -f pyproject.toml ]; then
+        echo "##vso[task.logissue type=error]pyproject.toml not found."
         exit 1
       fi
+
+      python -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" || pip install tomli --quiet
+      python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); d=tl.load(open('pyproject.toml','rb')); sys.exit('pyproject.toml is missing a [project] table. Raptor requires PEP 621 format.') if 'project' not in d else (sys.exit('pyproject.toml [project] is missing required fields: '+str([f for f in (\"name\",\"version\") if f not in d[\"project\"]])) if any(f not in d['project'] for f in ('name','version')) else None)"
+
+      echo "pyproject.toml format validated."
+    displayName: 'Validate pyproject.toml format'
+
+  ###########################################################################
+  # Extract version from pyproject.toml
+  ###########################################################################
+  - script: |
+      set -e
+      echo "=== EXTRACT PROJECT VERSION ==="
+
+      version_toml=$(python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); print(tl.load(open('pyproject.toml','rb'))['project']['version'])")
+
+      if [[ -z "$version_toml" || "$version_toml" == "null" ]]; then
+        echo "##vso[task.logissue type=error]Version not found in pyproject.toml."
+        exit 1
+      fi
+
+      echo "Version detected: $version_toml"
+
+      if [[ ! "$version_toml" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "##vso[task.logissue type=error]Version must follow number.number.number format."
+        exit 1
+      fi
+
+      echo "Version format validated."
+      echo "##vso[task.setvariable variable=version_toml]$version_toml"
+    displayName: 'Get project version from pyproject.toml'
+
+  ###########################################################################
+  # Extract normalized package name
+  ###########################################################################
+  - script: |
+      set -e
+      echo "=== EXTRACT PROJECT NAME ==="
+
+      name_toml=$(python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); print(tl.load(open('pyproject.toml','rb'))['project']['name'])")
+
+      if [[ -z "$name_toml" || "$name_toml" == "null" ]]; then
+        echo "##vso[task.logissue type=error]Project name not found in pyproject.toml."
+        exit 1
+      fi
+
+      normalised_name=$(echo "$name_toml" | tr '[:upper:]' '[:lower:]' | sed 's/[^[:alnum:]]/-/g')
+
+      echo "Original project name: $name_toml"
+      echo "Normalized package name: $normalised_name"
+
+      echo "##vso[task.setvariable variable=normalised_name]$normalised_name"
+    displayName: 'Get normalized project name from pyproject.toml'
+
+  ###########################################################################
+  # Check if feed exists
+  ###########################################################################
+  - script: |
+      set -e
+      echo "=== CHECK ARTIFACTS FEED EXISTENCE ==="
+
+      FEED_URL="https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}?api-version=7.1-preview.1"
+
+      echo "Organisation: ${{ parameters.organisation_name }}"
+      echo "Project: ${{ parameters.devops_project }}"
+      echo "Feed: ${{ parameters.package_feed }}"
+      echo "Checking feed availability..."
+
+      http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -H "Authorization: Bearer $(System.AccessToken)" \
+        "$FEED_URL")
+
+      echo "HTTP status code: $http_code"
+
+      if [[ "$http_code" -ne 200 ]]; then
+        echo "##vso[task.logissue type=error]Artifacts feed not reachable or does not exist."
+        exit 1
+      fi
+
+      echo "Feed exists and is accessible."
     displayName: "Check if Artifacts feed exists"
 
-  # check if version exists in feed (in any view)
+  ###########################################################################
+  # Fetch package list and determine if package exists
+  ###########################################################################
   - script: |
-      versions_info_feed=$(curl -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$(package_id)/versions?%22api-version=7.1-preview.1%22")
-      versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version'))
-      echo "Existing versions in feed are: ${versions_feed[@]}"
-      version_exists_feed=false
-      for version in "${versions_feed[@]}"
-      do
-          if [ "$version" = "$(version_toml)" ]; then
-              version_exists_feed=true
-          fi
+      set -e
+      echo "=== CHECK IF PACKAGE EXISTS IN FEED ==="
+
+      response=$(curl -sS \
+        -H "Authorization: Bearer $(System.AccessToken)" \
+        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages?api-version=7.1-preview.1')
+
+      if [[ -z "$response" ]]; then
+        echo "##vso[task.logissue type=error]Empty response from Azure Artifacts."
+        exit 1
+      fi
+
+      total_packages=$(echo "$response" | jq '.value | length')
+      echo "Total packages found in feed: $total_packages"
+
+      if [[ "$total_packages" -eq 0 ]]; then
+        echo "No packages currently exist in this feed."
+        echo "##vso[task.setvariable variable=package_id]\"\""
+        exit 0
+      fi
+
+      package_id=$(echo "$response" | jq -r ".value[] | select(.name == \"$(normalised_name)\") | .id")
+
+      if [[ -z "$package_id" ]]; then
+        echo "Package '$(normalised_name)' not found in feed."
+        echo "##vso[task.setvariable variable=package_id]\"\""
+        exit 0
+      fi
+
+      echo "Package found. Package ID resolved."
+      echo "##vso[task.setvariable variable=package_id]$package_id"
+    displayName: "Resolve package id from artifacts feed"
+
+  ###########################################################################
+  # Check if version exists in feed
+  ###########################################################################
+  - script: |
+      set -e
+      echo "=== CHECK VERSION IN FEED ==="
+
+      if [[ -z "$(package_id)" ]]; then
+        echo "Package does not exist → skipping version validation."
+        exit 0
+      fi
+
+      versions_info_feed=$(curl -sS \
+        -H "Authorization: Bearer $(System.AccessToken)" \
+        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}/packages/$(package_id)/versions?api-version=7.1-preview.1')
+
+      version_count=$(echo "$versions_info_feed" | jq '.value | length')
+      echo "Number of versions in feed: $version_count"
+
+      versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version? // empty'))
+
+      echo "##vso[task.setvariable variable=version_exists_feed]false"
+      for version in "${versions_feed[@]}"; do
+        if [[ "$version" == "$(version_toml)" ]]; then
+          echo "Found matching version in feed, will not build, only promote."
+          echo "##vso[task.setvariable variable=version_exists_feed]true"
+        fi
       done
-      echo "Version exists in feed: $version_exists_feed"
-      echo "##vso[task.setvariable variable=version_exists_feed;]$version_exists_feed"
     displayName: "Check if version number exists in Artifacts feed"
 
-  # build and publish package if it does not exist in feed (in any view)
+  ###########################################################################
+  # Check if version exists in view
+  ###########################################################################
   - script: |
-      uv build
-    displayName: 'Build distribution'
-    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
-    env:
-      ${{ if ne(parameters.uv_index_name, '') }}:
-        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
-        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
+      set -e
+      echo "=== CHECK VERSION IN FEED VIEW ==="
 
-  - task: TwineAuthenticate@1
-    inputs:
-      artifactFeed: ${{ parameters.devops_project }}/${{ parameters.package_feed }}
-    displayName: 'Authenticate with Azure Artifacts'
-    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
-
-  - script: |
-      uv run twine upload -r "${{ parameters.package_feed }}" --config-file $(PYPIRC_PATH) dist/*.whl --verbose
-    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
-    displayName: "Publish if version does not exists in Artifacts feed"
-    env:
-      ${{ if ne(parameters.uv_index_name, '') }}:
-        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
-        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
-
-  # check if version exists in specified view. error when merging to main, otherwise a warning
-  - script: |
-      versions_info_view=$(curl -u :$(System.AccessToken) "https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$(package_id)/versions?%22api-version=7.1-preview.1%22")
-      versions_view=($(echo "$versions_info_view" | jq -r '.value[].protocolMetadata.data.version'))
-      echo "Existing versions are in view: ${versions_view[@]}"
-      version_exists_view=false
-      for version in "${versions_view[@]}"
-      do
-          if [ "$version" = "$(version_toml)" ]; then
-              version_exists_view=true
-          fi
-      done
-      echo "Version exists in view: $version_exists_view"
-      if [ "$version_exists_view" = true ]; then
-        if [ "$(prod)" = True ]; then
-          echo "##vso[task.logissue type=error]Version number already exists in prod view, not allowed when merging to main"
-          echo "##vso[task.complete result=Failed;]"
-        else
-          echo "##vso[task.logissue type=warning]Version number already exists in dvlm view, will not build/promote"
-          echo "##vso[task.complete result=SucceededWithIssues;]"
-        fi
+      if [[ -z "$(package_id)" ]]; then
+        echo "Package does not exist → skipping view validation."
+        exit 0
       fi
-      echo "##vso[task.setvariable variable=version_exists_view;]$version_exists_view"
+
+      versions_info_view=$(curl -sS \
+        -H "Authorization: Bearer $(System.AccessToken)" \
+        'https://feeds.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/Feeds/${{ parameters.package_feed }}@${{ parameters.feed_view }}/packages/$(package_id)/versions?api-version=7.1-preview.1')
+
+      version_count=$(echo "$versions_info_view" | jq '.value | length')
+      echo "Number of versions in view: $version_count"
+
+      versions_view=($(echo "$versions_info_view" | jq -r '.value[].protocolMetadata.data.version? // empty'))
+
+      version_exists_view=false
+      for version in "${versions_view[@]}"; do
+        if [[ "$version" == "$(version_toml)" ]]; then
+          echo "Version already exists in feed view."
+          version_exists_view=true
+        fi
+      done
+
+      echo "Version exists in view: $version_exists_view"
+      echo "##vso[task.setvariable variable=version_exists_view]$version_exists_view"
     displayName: "Check if version number exists in Artifacts feed view"
 
   - powershell: |
@@ -143,7 +249,7 @@ steps:
       $url = "$(System.CollectionUri)$(System.TeamProject)/_apis/git/repositories/$(Build.Repository.Name)/pullRequests/$(System.PullRequest.PullRequestId)/threads?api-version=7.1-preview.1"
       try {
         $response_list = Invoke-RestMethod -Uri $url -Method GET -Headers @{Authorization = "Bearer $(System.AccessToken)"} -ContentType application/json
-        $response=$response_list.value | ConvertTo-Json
+        $response = $response_list.value | ConvertTo-Json
         if ($response.Contains($message)) {
           Write-Host "Comment already exists, do not post a new one."
         } else {
@@ -163,8 +269,104 @@ steps:
     displayName: Post comment on PR if version already exists in view
     # https://stackoverflow.com/questions/60048492/how-to-create-a-comment-in-azure-devops-pr-in-case-of-build-failure
 
-  # promote when version does not exist in specified view yet
   - script: |
-      curl -X 'PATCH' "https://pkgs.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/feeds/${{ parameters.package_feed }}/PyPI/packages/$(normalised_name)/versions/$(version_toml)?api-version=7.1-preview.1" -H 'Content-Type: application/json' -u :$(System.AccessToken) -d "{\"views\": {\"op\": \"add\", \"path\": \"/views/-\", \"value\": \"${{ parameters.feed_view }}\"}}"
-    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_view'], 'false'))
+      echo "Checks complete."
+      echo "Package name: $(normalised_name)"
+      echo "Package version: $(version_toml)"
+      echo "Package id: $(package_id)"
+      echo "Build flag: $(build)"
+      echo "Version exists in feed: $(version_exists_feed)"
+    displayName: "Debug display on completed checks"
+
+  ###########################################################################
+  # Build and publish to feed
+  ###########################################################################
+  - script: |
+      set -e
+
+      echo "Starting Python package build..."
+      echo "Build flag: $(build)"
+      echo "Version exists in feed: $(version_exists_feed)"
+
+      echo "Running uv build..."
+      uv build
+
+      echo "Build completed successfully."
+      echo "Generated distributions:"
+      ls -1 dist/
+    displayName: "Build distribution (if version not in feed)"
+    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
+
+  - task: TwineAuthenticate@1
+    displayName: "Authenticate with Azure Artifacts feed"
+    inputs:
+      artifactFeed: ${{ parameters.devops_project }}/${{ parameters.package_feed }}
+    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
+
+  - script: |
+      set -e
+
+      echo "Preparing to publish package to Azure Artifacts feed..."
+      echo "Feed: ${{ parameters.package_feed }}"
+
+      if ! ls dist/*.whl > /dev/null 2>&1; then
+        echo "ERROR: No wheel files found in dist/. Aborting publish."
+        exit 1
+      fi
+
+      echo "Uploading wheel distribution..."
+      uv run twine upload \
+        -r "${{ parameters.package_feed }}" \
+        --config-file "$(PYPIRC_PATH)" \
+        dist/*.whl \
+        --verbose
+
+      echo "Package upload completed successfully."
+    displayName: "Publish package (if version not in feed)"
+    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
+
+  ###########################################################################
+  # Promote (when version does not exist in specified view yet)
+  ###########################################################################
+  - script: |
+      set -euo pipefail
+
+      echo "Starting package promotion..."
+      echo "Package: $(normalised_name)"
+      echo "Version: $(version_toml)"
+      echo "Target view: ${{ parameters.feed_view }}"
+      echo "Feed: ${{ parameters.package_feed }}"
+      echo "Project: ${{ parameters.devops_project }}"
+
+      AZDO_URL="https://pkgs.dev.azure.com/${{ parameters.organisation_name }}/${{ parameters.devops_project }}/_apis/packaging/feeds/${{ parameters.package_feed }}/PyPI/packages/$(normalised_name)/versions/$(version_toml)?api-version=7.1-preview.1"
+
+      echo "Sending promotion request to Azure Artifacts..."
+
+      HTTP_STATUS=$(curl -sS -o response.json -w "%{http_code}" \
+        -X PATCH "$AZDO_URL" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $(System.AccessToken)" \
+        -d "{\"views\": {\"op\": \"add\", \"path\": \"/views/-\", \"value\": \"${{ parameters.feed_view }}\"}}"
+      )
+
+      if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+        echo "Promotion successful (HTTP $HTTP_STATUS)."
+      else
+        echo "ERROR: Promotion failed with HTTP status $HTTP_STATUS"
+        echo "Response from server:"
+        cat response.json
+        exit 1
+      fi
+
+      rm -f response.json
+      echo "Promotion step completed."
     displayName: "Promote package to view '${{ parameters.feed_view }}'"
+    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_view'], 'false'))

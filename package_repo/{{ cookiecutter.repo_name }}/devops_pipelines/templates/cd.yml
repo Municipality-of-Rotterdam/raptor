@@ -69,32 +69,4 @@ stages:
         aml_environment: ${{ variables.aml_environment }}
         base_image: ${{ variables.base_image }}
 
-- stage: Documentation
-  jobs:
-
-  - job: BuildDocs
-    displayName: "Generate Wiki Documentation"
-    steps:
-      - template: .azuredevops/templates/generate_docs.yml@raptor
-        parameters:
-          python_version: ${{ variables.pythonVersion }}
-          uv_version: ${{ variables.uvVersion }}
-          uv_index_name: ${{ variables.uvIndexName }}
-
-  - job: WikiUpdate
-    displayName: "Sync Documentation to Devops"
-    pool: ${{ variables.sh_agent_pool_name }}
-    dependsOn: BuildDocs
-    condition: eq(variables['isMain'], true)
-    steps:
-      - template: .azuredevops/templates/update_wiki.yml@raptor
-        parameters:
-          python_version: ${{ variables.pythonVersion }}
-          uv_version: ${{ variables.uvVersion }}
-          uv_index_name: ${{ variables.uvIndexName }}
-          branchName: ${{ variables.docsBranch }}
-          organisation: ${{ variables.devops_organisation }}
-          clientsecret: $(WikiSecret)
-          clientid: $(WikiId)
-          tenant: $(TenantName)
 {% endraw %}

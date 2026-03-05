@@ -20,6 +20,8 @@ Migrated from Poetry to uv.
 ### **Removed**
 - `poetry-plugin-export` dependency from package_repo template
 - `tests/test_requirements.txt` (consolidated into pyproject.toml)
+## [1.2.1] - 2026-02-12
+Hotfix for getting tag refs for CI/CD templates.
 
 ## [1.2.0] - 2026-02-12
 Centralized template hosting.

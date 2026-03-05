@@ -4,6 +4,11 @@ version = "0.0.1"
 requires-python = ">={{cookiecutter.python_version}}"
 dependencies = []
 
+[dependency-groups]
+precommit = [
+    "pre-commit=={{ cookiecutter.precommit_version }}",
+]
+
 [tool.uv]
 package = false
 

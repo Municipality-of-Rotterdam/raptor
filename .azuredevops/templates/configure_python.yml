@@ -6,11 +6,7 @@ parameters:
   type: string
 
 steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '${{ parameters.python_version }}'
-    displayName: 'Use Python ${{ parameters.python_version }}'
-  - bash: |
-        python -m pip install --upgrade pip
-        python -m pip install uv==${{ parameters.uv_version }}
+  - bash: curl -LsSf https://astral.sh/uv/${{ parameters.uv_version }}/install.sh | sh
     displayName: 'Install uv ${{ parameters.uv_version }}'
+  - bash: uv python install ${{ parameters.python_version }}
+    displayName: 'Install Python ${{ parameters.python_version }}'

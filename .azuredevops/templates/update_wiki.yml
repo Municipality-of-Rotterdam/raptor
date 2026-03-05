@@ -23,7 +23,7 @@ steps:
     python_version: '${{ parameters.python_version }}'
     uv_version: '${{ parameters.uv_version }}'
 
-- script: uv sync --only-group docs
+- script: uv sync --group docs
   displayName: 'Install docs dependencies with uv'
   env:
     ${{ if ne(parameters.uv_index_name, '') }}:

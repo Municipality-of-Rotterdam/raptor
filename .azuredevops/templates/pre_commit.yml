@@ -14,12 +14,9 @@ steps:
       python_version: '${{ parameters.python_version }}'
       uv_version: '${{ parameters.uv_version }}'
 
-  - script: uv sync --only-group precommit
-    displayName: 'Install precommit dependencies with uv'
+  - script: uv run --only-group precommit pre-commit run --all-files --show-diff-on-failure
+    displayName: 'Run pre-commit'
     env:
       ${{ if ne(parameters.uv_index_name, '') }}:
         UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
         UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
-
-  - script: uv run pre-commit run --all-files --show-diff-on-failure
-    displayName: 'Run pre-commit'

@@ -1,7 +1,5 @@
 steps:
   - template: /devops_pipelines/templates/install_and_configure_python.yml
-    parameters:
-      pythonVersion: '$(pythonVersion)'
   - script: |
       uv run cookiecutter . --no-input --directory project_repo
     env:
@@ -10,7 +8,7 @@ steps:
   - script: |
       cd ./repo_name
       git add .
-      uv run pre-commit run --all-files --show-diff-on-failure
+      uv run --group precommit pre-commit run --all-files --show-diff-on-failure
     displayName: 'Run project_repo own pre-commit config (DevOps variant)'
   - script: |
       uv run cookiecutter . --no-input --directory project_repo additional_prompts=Github repo_name=repo_name_gh
@@ -20,5 +18,5 @@ steps:
   - script: |
       cd ./repo_name_gh
       git add .
-      uv run pre-commit run --all-files --show-diff-on-failure
+      uv run --group precommit pre-commit run --all-files --show-diff-on-failure
     displayName: 'Run project_repo own pre-commit config (Github variant)'

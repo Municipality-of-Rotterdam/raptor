@@ -1,12 +1,10 @@
 
 steps:
   - task: UsePythonVersion@0
-    name: UsePythonLocation
     inputs:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
   - script: |
       python -m pip install --upgrade pip
       python -m pip install uv==$(uvVersion)
-      uv sync
-    displayName: 'Install dependencies'
+    displayName: 'Install uv'

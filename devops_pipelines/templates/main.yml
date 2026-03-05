@@ -15,7 +15,10 @@ stages:
         steps:
           - checkout: self
             path: $(project_name)
-          - template: /devops_pipelines/templates/pre_commit.yml
+          - template: /devops_pipelines/templates/install_and_configure_python.yml
+          - script: |
+              uv run --group precommit pre-commit run --all-files --show-diff-on-failure
+            displayName: 'Run pre-commit on raptor repo'
 
       - job: check_version
         displayName: 'Check if release version specified in pyproject.toml is still available'

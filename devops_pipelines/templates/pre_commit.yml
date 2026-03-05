@@ -1,9 +1,0 @@
-
-steps:
-  - template: /devops_pipelines/templates/install_and_configure_python.yml
-    parameters:
-      pythonVersion: '$(pythonVersion)'
-
-  - script: |
-      uv run pre-commit run --all-files --show-diff-on-failure
-    displayName: 'Run pre-commit on raptor repo'

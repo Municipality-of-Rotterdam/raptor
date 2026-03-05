@@ -76,16 +76,60 @@ cd .. && cd {{ cookiecutter.repo_name }}
 uv sync --group dev
 ```
 
-### Installing additional dependency groups
+### Managing dependencies
 
-Both options support uv's dependency groups. Add `--group <name>` to include extra dependencies:
+Add a package to the project (optionally into a dependency group):
 
 ```bash
-uv sync --group dev --group test   # dev + test dependencies
-uv sync --group dev --group docs   # dev + docs dependencies
+uv add <package>                        # add to [project.dependencies]
+uv add --group dev <package>            # add to [dependency-groups] dev
+```
+
+Sync one or more dependency groups:
+
+```bash
+uv sync --group dev --group test        # dev + test dependencies
 ```
 
 > **Note:** When using conda + uv, always pass `--inexact` to preserve conda-installed packages.
+
+### Adding private package dependencies  [devops-only]
+
+This project is configured with a private Azure Artifacts feed (`{{ cookiecutter.package_feed }}`). The index is marked `explicit = true`, meaning packages will only be resolved from it when explicitly pinned. To add a private package:
+
+1. Add the dependency:
+
+    ```bash
+    uv add <package-name>
+    ```
+
+2. Pin the package to the private index by adding a `[tool.uv.sources]` entry in `pyproject.toml`:
+
+    ```toml
+    [tool.uv.sources]
+    <package-name> = { index = "{{ cookiecutter.package_feed }}" }
+    ```
+
+3. Lock and sync:
+
+    ```bash
+    uv lock
+    uv sync
+    ```
+
+Without the `[tool.uv.sources]` entry, uv will only search PyPI and won't find your private package.
+
+#### Authenticating with the private feed
+
+In CI/CD, authentication is handled automatically via `System.AccessToken`. For local development, create a `~/.netrc` file with a Personal Access Token (PAT) from Azure DevOps:
+
+```
+machine pkgs.dev.azure.com
+login <your-devops-email>
+password <your-pat>
+```
+
+To create a PAT: Azure DevOps → User Settings → Personal Access Tokens → New Token → grant the **Packaging (Read)** scope.
 
 ### Running commands
 

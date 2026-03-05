@@ -31,10 +31,12 @@ steps:
         UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
 
   - script: |
-      version_toml=$(uv run tomlq -r '.project.version' pyproject.toml)
+      python -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" || pip install tomli --quiet
+      python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); d=tl.load(open('pyproject.toml','rb')); sys.exit('pyproject.toml is missing a [project] table. Raptor requires PEP 621 format.') if 'project' not in d else (sys.exit('pyproject.toml [project] is missing required fields: '+str([f for f in (\"name\",\"version\") if f not in d[\"project\"]])) if any(f not in d['project'] for f in ('name','version')) else None)"
+      version_toml=$(python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); print(tl.load(open('pyproject.toml','rb'))['project']['version'])")
       echo "Version number in pyproject.toml: $version_toml"
       echo "##vso[task.setvariable variable=version_toml;]$version_toml"
-      name_toml=$(uv run tomlq -r '.project.name' pyproject.toml)
+      name_toml=$(python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); print(tl.load(open('pyproject.toml','rb'))['project']['name'])")
       normalised_name=$(echo "$name_toml" | tr '[:upper:]' '[:lower:]' | sed 's/[^[:alnum:]]/-/g')
       echo "Package name in pyproject.toml (normalised): $normalised_name"
       echo "##vso[task.setvariable variable=normalised_name;]$normalised_name"

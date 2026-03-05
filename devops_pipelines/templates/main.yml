@@ -17,7 +17,7 @@ stages:
             path: $(project_name)
           - template: /devops_pipelines/templates/install_and_configure_python.yml
           - script: |
-              uv run --group precommit pre-commit run --all-files --show-diff-on-failure
+              uv run pre-commit run --all-files --show-diff-on-failure
             displayName: 'Run pre-commit on raptor repo'
 
       - job: check_version

@@ -33,16 +33,23 @@ There are **two setup options**:
 
 Both options require direnv and the `.envrc` file included in this project. The `.envrc` auto-detects which option you're using and sets `UV_PROJECT_ENVIRONMENT` accordingly, so uv installs packages to local disk rather than a network mount.
 
-### Prerequisites: install and enable direnv
+### Prerequisites: install uv and direnv
 
 ```bash
+# Install uv (one-time, skip if already present)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Install direnv (one-time)
 sudo apt-get install direnv   # Debian/Ubuntu
 
-# Add the hook to your shell profile (one-time, add to ~/.bashrc)
-eval "$(direnv hook bash)"
+# Add the hook to your shell profile (one-time, will skip if already present)
+grep -qF 'direnv hook bash' ~/.bashrc || echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
 
-# Allow direnv for this project (one-time per clone)
+# Reload shell for changes to take effect
+source ~/.bashrc
+
+# It will say that .envrc is blocked.
+# Run the following to approve it (one-time per clone):
 direnv allow
 ```
 
@@ -95,29 +102,7 @@ uv sync --group dev --group test        # dev + test dependencies
 
 ### Adding private package dependencies  [devops-only]
 
-This project is configured with a private Azure Artifacts feed (`{{ cookiecutter.package_feed }}`). The index is marked `explicit = true`, meaning packages will only be resolved from it when explicitly pinned. To add a private package:
-
-1. Add the dependency:
-
-    ```bash
-    uv add <package-name>
-    ```
-
-2. Pin the package to the private index by adding a `[tool.uv.sources]` entry in `pyproject.toml`:
-
-    ```toml
-    [tool.uv.sources]
-    <package-name> = { index = "{{ cookiecutter.package_feed }}" }
-    ```
-
-3. Lock and sync:
-
-    ```bash
-    uv lock
-    uv sync
-    ```
-
-Without the `[tool.uv.sources]` entry, uv will only search PyPI and won't find your private package.
+This project is configured with a private Azure Artifacts feed (`{{ cookiecutter.package_feed }}`). The index is marked `explicit = true`, meaning packages will only be resolved from it when explicitly pinned.
 
 #### Authenticating with the private feed
 
@@ -130,6 +115,23 @@ password <your-pat>
 ```
 
 To create a PAT: Azure DevOps → User Settings → Personal Access Tokens → New Token → grant the **Packaging (Read)** scope.
+
+#### Adding a private package
+
+Because the feed is marked `explicit = true`, uv will not search it unless a package is explicitly pinned to it. You must add the source entry **before** adding the package, otherwise uv won't find it.
+
+1. Pin the package to the private index by adding a `[tool.uv.sources]` entry in `pyproject.toml`:
+
+    ```toml
+    [tool.uv.sources]
+    <package-name> = { index = "{{ cookiecutter.package_feed }}" }
+    ```
+
+2. Add and install the dependency:
+
+    ```bash
+    uv add <package-name>
+    ```
 
 ### Running commands
 

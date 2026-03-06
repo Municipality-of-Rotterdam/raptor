@@ -254,34 +254,38 @@ The update is done automatically in Azure DevOps pipeline after receiving an app
 3. The pipeline YOUR_PACKAGE_NAME should get permission to access these two environments, either during the first pipeline run
 or beforehand in "Environments > Environment_name > Security > Pipeline permissions".
 
-## Environment setup
+## Environment setup (package repo)
 
-In this section, you will have setup your environment to work in and setup the dependency management properly.
-Conda will setup and manage a virtual environment, with the python runtime and some base packages. Conda is also used by azureml to setup environments.
-uv will manage all dependencies related to the python package (when using a package repo).
+This project uses [uv](https://github.com/astral-sh/uv) for Python package management, optionally combined with [conda](https://docs.conda.io/) for system-level libraries, and [direnv](https://direnv.net/) to automatically configure the environment.
 
-#### 4.1. Conda setup
+There are **two setup options**:
 
-If you use conda for the first time, run:
+| | Conda + uv | uv only |
+|---|---|---|
+| **Use when** | You need system libraries (e.g. GDAL, PROJ) only available via conda | Pure Python dependencies are sufficient |
+| **Sync command** | `uv sync --inexact` (keeps conda packages) | `uv sync` |
+
+Both options use direnv and the `.envrc` file included in the generated project. The `.envrc` auto-detects which option you're using and sets `UV_PROJECT_ENVIRONMENT` accordingly, so uv installs packages to local disk rather than a network mount.
+
+#### 4.1. Prerequisites: install uv and direnv
+
 ```bash
-conda init
-```
-Close terminal and open a new one.
-Then, create an environment to work in:
-```bash
-conda env create -n *yourenvname* -f environment.yml
-conda activate *yourenvname*
-```
-This will create a sort of "blank" conda environment to work in. We use conda as AzureML works with conda environment.
-This environment is used for local development. Subsequent installs will be done with uv.
-
-#### 4.2. uv setup
-
-If you use uv for the first time, install it by running:
-```bash
+# Install uv (one-time, skip if already present)
 curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install direnv (one-time)
+sudo apt-get install direnv   # Debian/Ubuntu
+
+# Add the hook to your shell profile (one-time, will skip if already present)
+grep -qF 'direnv hook bash' ~/.bashrc || echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+
+# Reload shell for changes to take effect
+source ~/.bashrc
+
+# It will say that .envrc is blocked.
+# Run the following to approve it (one-time per clone):
+direnv allow
 ```
-Restart terminal or open new terminal.
 
 uv can also be installed via conda or pip:
 ```bash
@@ -289,26 +293,52 @@ conda activate *environment-name*
 pip install uv
 ```
 
-uv manages dependencies via `pyproject.toml` and `uv.lock`. The lock file ensures reproducible environments.
-By default, uv uses the PyPI repository for package installation and publishing.
-Using a different (e.g. private) package repository will be covered in 4.2.2.
+#### 4.2. Option A: Conda + uv
 
-#### 4.2.1 Installing packages
+Use this option when you need system-level libraries that are only available via conda.
 
-To install the first set of packages that are added by default, go to the root directory of the repository, and run:
 ```bash
-uv sync
-```
-This will install all main dependencies and create a virtual environment in `.venv/`. To also install a specific dependency group (e.g. test):
-```bash
-uv sync --group test
+# 1. Create the conda environment (installs Python + uv)
+conda env create --file environment.yml
+
+# 2. Activate the conda environment
+conda activate *yourenvname*
+
+# 3. Re-enter the project directory so direnv picks up the conda env path
+cd .. && cd *yourreponame*
+
+# 4. Install Python dependencies with uv (--inexact keeps conda packages intact)
+uv sync --inexact --group dev
 ```
 
-To add new packages, run:
+#### 4.3. Option B: uv only
+
+Use this option when you only need pure Python dependencies. No conda required.
+
 ```bash
-uv add package_name
+# 1. Re-enter the project directory (or open a new terminal) so direnv sets the environment
+cd .. && cd *yourreponame*
+
+# 2. Install Python dependencies with uv
+uv sync --group dev
 ```
-The `pyproject.toml` and `uv.lock` files will be updated automatically.
+
+#### 4.4. Managing dependencies
+
+Add a package to the project (optionally into a dependency group):
+
+```bash
+uv add <package>                        # add to [project.dependencies]
+uv add --group dev <package>            # add to [dependency-groups] dev
+```
+
+Sync one or more dependency groups:
+
+```bash
+uv sync --group dev --group test        # dev + test dependencies
+```
+
+> **Note:** When using conda + uv, always pass `--inexact` to preserve conda-installed packages.
 
 To run commands within the virtual environment:
 ```bash
@@ -316,22 +346,13 @@ uv run python my_script.py
 uv run pytest
 ```
 
-#### 4.2.2 Installing private packages
+#### 4.5. Installing private packages
 In this section, we will explain how to use other private packages within your repository. This is very useful for re-using generic code from colleagues.
-##### 4.2.2.1 Installing private packages from artifacts feed
+##### 4.5.1 Installing private packages from artifacts feed
 With the cookiecutter setup, we can install private packages from a private artifacts feed in our environment using uv.
 This is the preferred way to use private code from other repos in our current repository. It can be used in all different CI/CD locations: locally in VS Code, remotely in the devops agent, and as a dependency in an AML environment.
 
 **DevOps**
-
-To install private packages in our environment, we need to be able to connect to the artifacts feed. Authentication is configured via environment variables.
-
-For local development, set the following environment variables. The env var name is derived from the index name: uppercase it and replace hyphens with underscores (e.g. feed name `my-feed` becomes `UV_INDEX_MY_FEED_*`):
-```bash
-export UV_INDEX_<FEED_NAME_UPPER>_USERNAME=VssSessionToken
-export UV_INDEX_<FEED_NAME_UPPER>_PASSWORD=<YOUR_PAT_OR_TOKEN>
-```
-A personal access token (PAT) with read access to Packaging can be created in DevOps under user settings > personal access tokens > new token.
 
 The private index is configured in your `pyproject.toml` using the feed name specified during repo creation:
 ```toml
@@ -341,10 +362,27 @@ url = "https://pkgs.dev.azure.com/ORGANISATION/PROJECT/_packaging/<FEED_NAME>/py
 explicit = true
 ```
 
-Then add packages from the private index:
+Because the index is marked `explicit = true`, uv will not search it unless a package is explicitly pinned to it. You must authenticate and pin the source **before** adding a package.
+
+**Step 1: Authenticate (local development)**
+
+Create a `~/.netrc` file with a Personal Access Token (PAT) from Azure DevOps:
+
+```
+machine pkgs.dev.azure.com
+login <your-devops-email>
+password <your-pat>
+```
+
+To create a PAT: Azure DevOps → User Settings → Personal Access Tokens → New Token → grant the **Packaging (Read)** scope.
+
+**Step 2: Add the package**
+
+Use the `--index` flag so uv knows where to find the package:
 ```bash
 uv add --index <FEED_NAME> <PACKAGE_NAME>
 ```
+This will resolve the package from the private feed and add the source entry to `pyproject.toml` automatically.
 
 In CI/CD pipelines, authentication uses `$(System.AccessToken)` instead of a PAT. The env var name is generated automatically from the feed name in your `config.yml`:
 ```yaml
@@ -353,7 +391,7 @@ env:
   UV_INDEX_<FEED_NAME_UPPER>_PASSWORD: $(System.AccessToken)
 ```
 
-##### 4.2.2.2 Installing private packages as custom package (from a submodule)
+##### 4.5.2 Installing private packages as custom package (from a submodule)
 
 In case we are still developing the package dependency, we can custom install it from its repo location after cloning it as a submodules. How to initialize the git submodule in a package repo:
 

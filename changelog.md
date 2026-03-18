@@ -7,6 +7,7 @@ and this repo adheres to [Semantic Versioning](http://semver.org/).
 Migrated from Poetry to uv.
 
 ### **Changed**
+- Replaced pyproject.toml validation in CI/CD build pipeline with a `check-jsonschema` pre-commit hook using the PEP 621 schema
 - Replaced Poetry with uv for dependency management, building, and running commands
 - Converted `[tool.poetry.group.*]` dependency groups to PEP 735 `[dependency-groups]`
 - Switched build backend from poetry-core to hatchling (package_repo template)

@@ -40,24 +40,6 @@ steps:
         UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
 
   ###########################################################################
-  # Validate pyproject.toml format
-  ###########################################################################
-  - script: |
-      set -e
-      echo "=== VALIDATE PYPROJECT.TOML FORMAT ==="
-
-      if [ ! -f pyproject.toml ]; then
-        echo "##vso[task.logissue type=error]pyproject.toml not found."
-        exit 1
-      fi
-
-      python -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" || pip install tomli --quiet
-      python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); d=tl.load(open('pyproject.toml','rb')); sys.exit('pyproject.toml is missing a [project] table. Raptor requires PEP 621 format.') if 'project' not in d else (sys.exit('pyproject.toml [project] is missing required fields: '+str([f for f in (\"name\",\"version\") if f not in d[\"project\"]])) if any(f not in d['project'] for f in ('name','version')) else None)"
-
-      echo "pyproject.toml format validated."
-    displayName: 'Validate pyproject.toml format'
-
-  ###########################################################################
   # Extract version from pyproject.toml
   ###########################################################################
   - script: |

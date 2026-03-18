@@ -72,7 +72,7 @@ stages:
             aml_environment: ${{ variables.aml_environment }}
             base_image: ${{ variables.base_image }}
 
-  {% endraw %}{% endif %}{% raw %}
+{% endraw %}{% endif %}{% raw %}
 
 - stage: TagRelease
   jobs:

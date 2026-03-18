@@ -20,7 +20,7 @@ Migrated from Poetry to uv.
 - CI/CD templates now install uv via standalone installer and Python via `uv python install`, removing the `UsePythonVersion` task and pip dependency
 - Simplified CI/CD templates: merged separate `uv sync` + `uv run` steps into single `uv run --group <name>` calls where possible
 - Environment setup now uses direnv (`.envrc`) for both conda+uv and uv-only workflows
-- Replaced `tomlq` dependency with `yq` (which provides the `tomlq` CLI natively since v3.0)
+- Replaced `tomlq` dependency with `tomllib` if python>=3.11 or `tomli` if python <3.11
 - Updated `ipykernel` from pinned yanked version `6.21.0` to `>=6.21.1`
 - Improved generated README with clear two-option setup guide (conda+uv vs uv-only)
 

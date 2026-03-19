@@ -3,8 +3,7 @@ name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CI
 
 on:
   pull_request:
-    types:
-      - *
+
 
   workflow_dispatch:
 

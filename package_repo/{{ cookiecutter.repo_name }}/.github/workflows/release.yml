@@ -4,7 +4,7 @@ name: {% endraw %}{{cookiecutter.package_name}}{% raw %} Release
 on:
   push:
     tags:
-      - *
+      - '**'
 
   workflow_dispatch:
 

@@ -50,6 +50,16 @@ stages:
         pat: $(DevOpsPAT)
         package_name: {% endraw %}{{cookiecutter.package_name}}{% raw %}
 
+- stage: TagRelease
+  jobs:
+  - job: RunTagRelease
+    pool: ${{ variables.sh_agent_pool_name }}
+    displayName: Tagging latest release on merge
+    steps:
+    - template: /.azuredevops/templates/tag_release.yml@raptor
+      parameters:
+        tag_branch: main
+
 - stage: Build
   dependsOn:
     - PreCommit

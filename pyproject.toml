@@ -1,6 +1,6 @@
 [project]
 name = "raptor"
-version = "1.2.0"
+version = "1.2.1"
 requires-python = ">=3.11"
 dependencies = [
     "setuptools (==65.6.3)",

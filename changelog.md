@@ -3,6 +3,9 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.2.1] - 2026-02-12
+Hotfix for getting tag refs for CI/CD templates.
+
 ## [1.2.0] - 2026-02-12
 Centralized template hosting.
 

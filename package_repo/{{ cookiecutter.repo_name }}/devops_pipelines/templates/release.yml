@@ -8,8 +8,8 @@ trigger:
 variables:
   - template: config.yml
 
-# Use production wiki credentials only for tagged releases
-- group: AmlProdGroup
+  # Use production wiki credentials only for tagged releases
+  - group: AmlProdGroup
 
 resources:
   repositories:

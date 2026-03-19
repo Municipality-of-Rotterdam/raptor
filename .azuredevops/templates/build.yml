@@ -161,6 +161,7 @@ steps:
   - script: |
       set -e
       echo "=== CHECK VERSION IN FEED ==="
+      echo "##vso[task.setvariable variable=version_exists_feed]false"
 
       if [[ -z "$(package_id)" ]]; then
         echo "Package does not exist → skipping version validation."
@@ -176,7 +177,6 @@ steps:
 
       versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version? // empty'))
 
-      echo "##vso[task.setvariable variable=version_exists_feed]false"
       for version in "${versions_feed[@]}"; do
         if [[ "$version" == "$(version_toml)" ]]; then
           echo "Found matching version in feed, will not build, only promote."

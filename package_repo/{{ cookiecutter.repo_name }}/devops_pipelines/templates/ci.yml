@@ -5,6 +5,8 @@ pr:
   branches:
     include:
       - "*"
+    exclude: 
+      - "generated/*"
 
 variables:
   # Load shared config

@@ -77,7 +77,6 @@ stages:
 - stage: TagRelease
   jobs:
   - job: RunTagRelease
-    pool: ${{ variables.sh_agent_pool_name }}
     displayName: Tagging latest release on merge
     steps:
     - template: .azuredevops/templates/tag_release.yml@raptor

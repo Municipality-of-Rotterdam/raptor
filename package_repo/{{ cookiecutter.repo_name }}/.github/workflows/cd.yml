@@ -1,40 +1,22 @@
 {% raw %}
-name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CICD
+name: {% endraw %}{{cookiecutter.package_name}}{% raw %} CD
 
 on:
   push:
     branches:
       - develop
       - main
-      - release/*
 
-  pull_request:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Needed for publication on PyPI
-permissions:
-  contents: read # Permissions to read the repository code
-  id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
-  pages: write
-
 jobs:
-  Precommit:
-    uses: municipality-of-rotterdam/raptor/.github/workflows/pre_commit.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-    with: 
-      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 
-  UnitTest: 
-    uses: municipality-of-rotterdam/raptor/.github/workflows/unit_test.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-    with: 
-      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
-      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}
-
+  {% endraw %}{% if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
   Check: 
     needs: [Precommit, UnitTest]
     uses: municipality-of-rotterdam/raptor/.github/workflows/check.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
 
-  {% endraw %}{% if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
   Build:
     if: needs.Check.outputs.src_changed == 'True'
     needs: [Check]
@@ -56,9 +38,4 @@ jobs:
       WS_NAME: {% endraw %}{{ cookiecutter.azureml_workspace }}{% raw %}
   {% endraw %}{% endif %}{% raw %}
 
-  Documentation: 
-    if: success() && github.ref == 'refs/heads/main'
-    uses: municipality-of-rotterdam/raptor/.github/workflows/documentation.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-    with: 
-      PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
 {% endraw %}

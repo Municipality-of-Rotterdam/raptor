@@ -1,0 +1,54 @@
+{% raw %}
+trigger:
+  tags:
+    include:
+      - '*'   # Trigger on any tag
+
+# Load shared config
+variables:
+  - template: config.yml
+
+  # Use production wiki credentials only for tagged releases
+  - group: AmlProdGroup
+
+resources:
+  repositories:
+    - repository: raptor
+      name: municipality-of-rotterdam/raptor
+      type: github
+      ref: refs/tags/{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+      endpoint: {% endraw %}{{cookiecutter.github_service_connection}}{% raw %}
+
+stages:
+
+- stage: Documentation
+  displayName: "Generate and Publish Documentation"
+  jobs:
+
+    - job: BuildDocs
+      displayName: "Generate Wiki Documentation"
+      steps:
+        - template: .azuredevops/templates/generate_docs.yml@raptor
+          parameters:
+            python_version: ${{ variables.pythonVersion }}
+            poetry_version: ${{ variables.poetryVersion }}
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
+
+    - job: WikiUpdate
+      displayName: "Sync Documentation to DevOps Wiki"
+      dependsOn: BuildDocs
+      pool: ${{ variables.sh_agent_pool_name }}
+      steps:
+        - template: .azuredevops/templates/update_wiki.yml@raptor
+          parameters:
+            python_version: ${{ variables.pythonVersion }}
+            poetry_version: ${{ variables.poetryVersion }}
+            branchName: ${{ variables.docsBranch }}
+            organisation: ${{ variables.devops_organisation }}
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
+            clientsecret: $(WikiSecret)
+            clientid: $(WikiId)
+            tenant: $(TenantName)
+{% endraw %}

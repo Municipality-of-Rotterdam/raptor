@@ -1,0 +1,82 @@
+{% raw %}
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  # Shared config
+  - template: config.yml
+
+  # Branch detection
+  - name: isMain
+    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+
+  # Determine feed view (prod for main, dvlm otherwise)
+  - name: feed_view
+    value: $[replace(replace(eq(variables['isMain'], true), True, 'prod'), False, 'dvlm')]
+
+  # Environment-specific variable groups
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+    - group: AmlProdGroup
+  - ${{ else }}:
+    - group: AmlDevGroup
+
+resources:
+  repositories:
+    - repository: raptor
+      name: municipality-of-rotterdam/raptor
+      type: github
+      ref: refs/tags/{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
+      endpoint: {% endraw %}{{cookiecutter.github_service_connection}}{% raw %}
+
+stages:
+
+- stage: Build
+  displayName: Build package
+  dependsOn: []
+  jobs:
+    - job: Build
+      displayName: 'Build and store staging artifact'
+      variables:
+        build: true
+      steps:
+        - template: .azuredevops/templates/build.yml@raptor
+          parameters:
+            python_version: ${{ variables.pythonVersion }}
+            poetry_version: ${{ variables.poetryVersion }}
+            organisation_name: ${{ variables.devops_organisation }}
+            devops_project: ${{ variables.devops_project }}
+            package_feed: ${{ variables.package_feed }}
+            feed_view: $(feed_view)
+            pat_username: $(PatUsername)
+            pat: $(DevOpsPAT)
+
+- stage: Register
+  displayName: Register AML Environment
+  dependsOn: Build 
+  jobs:
+    - job: Register
+      condition: eq(variables.RegisterAmlEnv, true)
+      pool: ${{ variables.sh_agent_pool_name }}
+      displayName: 'Register new environment in Azure ML'
+      steps:
+        - template: .azuredevops/templates/register.yml@raptor
+          parameters:
+            service_connection: $(AmlServiceConnection)
+            devops_organisation: ${{ variables.devops_organisation }}
+            package_feed_view: ${{ variables.package_feed }}@$(feed_view)
+            aml_environment: ${{ variables.aml_environment }}
+            base_image: ${{ variables.base_image }}
+
+- stage: TagRelease
+  jobs:
+  - job: RunTagRelease
+    displayName: Tagging latest release on merge
+    steps:
+    - template: .azuredevops/templates/tag_release.yml@raptor
+      parameters:
+        tag_branch: main
+
+{% endraw %}

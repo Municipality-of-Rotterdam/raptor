@@ -53,8 +53,6 @@ stages:
             pat_username: $(PatUsername)
             pat: $(DevOpsPAT)
 
-{% endraw %}{% if cookiecutter.create_aml_environment_in_cicd|lower in ["y", "yes", "true"] %}{% raw %}
-
 - stage: Register
   displayName: Register AML Environment
   dependsOn: Build 
@@ -71,8 +69,6 @@ stages:
             package_feed_view: ${{ variables.package_feed }}@$(feed_view)
             aml_environment: ${{ variables.aml_environment }}
             base_image: ${{ variables.base_image }}
-
-{% endraw %}{% endif %}{% raw %}
 
 - stage: TagRelease
   jobs:

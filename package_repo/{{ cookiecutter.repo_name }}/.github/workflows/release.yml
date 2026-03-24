@@ -4,20 +4,22 @@ name: {% endraw %}{{cookiecutter.package_name}}{% raw %} Release
 on:
   push:
     tags:
-      - "*"
+      - '**'
 
   workflow_dispatch:
 
 # Needed for publication on PyPI
 permissions:
-  contents: read
-  id-token: write
+  contents: read # Permissions to read the repository code
+  id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
   pages: write
 
 jobs:
 
-  Documentation:
+  Documentation: 
+    if: success() && github.ref == 'refs/heads/main'
     uses: municipality-of-rotterdam/raptor/.github/workflows/documentation.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-    with:
+    with: 
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
+
 {% endraw %}

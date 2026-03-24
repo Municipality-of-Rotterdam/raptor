@@ -2,28 +2,26 @@
 trigger:
   branches:
     include:
-    - main
-    - develop
+      - main
+      - develop
 
 variables:
-# Extract variables from config.yml
-- template: config.yml
+  # Shared config
+  - template: config.yml
 
-# Create booleans for branches we want to build
-# should be true when triggered after merge to main (after PR)
-- name: isMain
-  value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+  # Branch detection
+  - name: isMain
+    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
 
-# use complicated ifelse to define feed_view, cannot use if at runtime, only at compile time (and toMain is only available at runtime)
-- name: feed_view
-  value: $[replace(   replace(     eq(variables['isMain'], true),     True, 'prod'),       False, 'dvlm')]
+  # Determine feed view (prod for main, dvlm otherwise)
+  - name: feed_view
+    value: $[replace(replace(eq(variables['isMain'], true), True, 'prod'), False, 'dvlm')]
 
-# If main, create aml environment in production aml workspace
-- ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
-  - group: AmlProdGroup
-# otherwise fallback on development settings
-- ${{ else }}:
-  - group: AmlDevGroup
+  # Environment-specific variable groups
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+    - group: AmlProdGroup
+  - ${{ else }}:
+    - group: AmlDevGroup
 
 resources:
   repositories:
@@ -34,8 +32,6 @@ resources:
       endpoint: {% endraw %}{{cookiecutter.github_service_connection}}{% raw %}
 
 stages:
-- stage: Build
-  jobs:
 
   - job: Build
     displayName: 'Build and store staging artifact'
@@ -54,19 +50,29 @@ stages:
         feed_view: $(feed_view)
 
 - stage: Register
+  displayName: Register AML Environment
+  dependsOn: Build 
   jobs:
+    - job: Register
+      condition: eq(variables.RegisterAmlEnv, true)
+      pool: ${{ variables.sh_agent_pool_name }}
+      displayName: 'Register new environment in Azure ML'
+      steps:
+        - template: .azuredevops/templates/register.yml@raptor
+          parameters:
+            service_connection: $(AmlServiceConnection)
+            devops_organisation: ${{ variables.devops_organisation }}
+            package_feed_view: ${{ variables.package_feed }}@$(feed_view)
+            aml_environment: ${{ variables.aml_environment }}
+            base_image: ${{ variables.base_image }}
 
-  - job: Register
-    condition: eq(variables.RegisterAmlEnv, true)
-    pool: ${{ variables.sh_agent_pool_name }}
-    displayName: 'Register new environment in Azure ML'
+- stage: TagRelease
+  jobs:
+  - job: RunTagRelease
+    displayName: Tagging latest release on merge
     steps:
-    - template: .azuredevops/templates/register.yml@raptor
+    - template: .azuredevops/templates/tag_release.yml@raptor
       parameters:
-        service_connection: $(AmlServiceConnection)
-        devops_organisation: ${{ variables.devops_organisation }}
-        package_feed_view: ${{ variables.package_feed }}@$(feed_view)
-        aml_environment: ${{ variables.aml_environment }}
-        base_image: ${{ variables.base_image }}
+        tag_branch: main
 
 {% endraw %}

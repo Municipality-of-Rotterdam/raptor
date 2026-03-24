@@ -7,6 +7,8 @@ trigger:
 # Load shared config
 variables:
   - template: config.yml
+
+  # Use production wiki credentials only for tagged releases
   - group: AmlProdGroup
 
 resources:

@@ -5,19 +5,23 @@ pr:
   branches:
     include:
       - "*"
+    exclude: 
+      - "generated/*"
 
 variables:
-# Extract variables from config.yml
-- template: config.yml
+  # Load shared config
+  - template: config.yml
 
-# check whether this is a PR to main, run checks for things we want to do when isMain (after PR is completed)
-# note: this variable is only available at runtime, not compile time, so using this variable can be complicated
-- name: toMain
-  value: $[eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main')]
+  # PR target checks
+  - name: toMain
+    value: $[eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main')]
 
-# use complicated ifelse to define feed_view, cannot use if at runtime, only at compile time (and toMain is only available at runtime)
-- name: feed_view
-  value: $[replace(    replace(   eq(variables['toMain'], true),    True, 'prod'),     False, 'dvlm')]
+  - name: toDev
+    value: $[eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/develop')]
+
+  # Determine feed view at runtime (prod for main, dvlm otherwise)
+  - name: feed_view
+    value: $[replace(replace(eq(variables['toMain'], true), True, 'prod'), False, 'dvlm')]
 
 resources:
   repositories:
@@ -25,10 +29,13 @@ resources:
       name: municipality-of-rotterdam/raptor
       type: github
       ref: refs/tags/{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-      endpoint: {% endraw %}{{cookiecutter.github_service_connection}}{% raw %}
+      endpoint: {% endraw %}{{ cookiecutter.github_service_connection }}{% raw %}
 
 stages:
+
 - stage: PreCommit
+  displayName: Pre-commit checks
+  dependsOn: [] 
   jobs:
   - job: ExecutePreCommit
     displayName: 'Perform pre-commit checks'
@@ -40,6 +47,8 @@ stages:
         uv_index_name: ${{ variables.uvIndexName }}
 
 - stage: UnitTest
+  displayName: Unit tests
+  dependsOn: [] 
   jobs:
   - job: ExecuteUnitTests
     displayName: 'Unit Tests Coverage'

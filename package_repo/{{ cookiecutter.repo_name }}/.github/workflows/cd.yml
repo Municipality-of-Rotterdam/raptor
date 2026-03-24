@@ -20,7 +20,6 @@ jobs:
   Check:
     uses: municipality-of-rotterdam/raptor/.github/workflows/check.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
 
-  {% endraw %}{% if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
   Build:
     if: needs.Check.outputs.src_changed == 'True'
     needs: [Check]

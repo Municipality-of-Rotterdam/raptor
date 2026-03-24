@@ -23,6 +23,9 @@ steps:
       python_version: '${{ parameters.python_version }}'
       uv_version: '${{ parameters.uv_version }}'
 
+  ###########################################################################
+  # Extract version from pyproject.toml
+  ###########################################################################
   - script: |
       set -e
       echo "=== INSTALL BUILD DEPENDENCIES ==="

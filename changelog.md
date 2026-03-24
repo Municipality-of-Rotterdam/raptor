@@ -3,7 +3,7 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
-## [1.3.0] - 2026-03-05
+## [1.5.0] - 2026-03-05
 Migrated from Poetry to uv.
 
 ### **Changed**
@@ -30,6 +30,7 @@ Migrated from Poetry to uv.
 - `tests/test_requirements.txt` (consolidated into pyproject.toml)
 - `azure-pipelines.yml` entry point from generated repos (replaced by separate ci/cd pipeline files)
 - `scripts/setup_conda_uv_hooks.sh` and `scripts/setup_uv_env.sh` (replaced by direnv)
+
 ## [1.2.1] - 2026-02-12
 Hotfix for getting tag refs for CI/CD templates.
 

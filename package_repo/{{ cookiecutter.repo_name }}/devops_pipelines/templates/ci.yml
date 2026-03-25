@@ -61,6 +61,8 @@ stages:
         package_name: {% endraw %}{{cookiecutter.package_name}}{% raw %}
 
 - stage: Build
+  displayName: Build
+  dependsOn: [] 
   jobs:
   - job: Build
     displayName: 'Build and store staging artifact'

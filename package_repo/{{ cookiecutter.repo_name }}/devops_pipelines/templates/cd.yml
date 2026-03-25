@@ -33,7 +33,7 @@ resources:
 
 stages:
 
-  - job: Build
+  - stage: Build
     displayName: 'Build and store staging artifact'
     variables:
       build: true

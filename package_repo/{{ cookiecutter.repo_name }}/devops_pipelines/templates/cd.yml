@@ -33,21 +33,24 @@ resources:
 
 stages:
 
-  - stage: Build
-    displayName: 'Build and store staging artifact'
-    variables:
-      build: true
-      prod: eq(variables['isMain'], true)
-    steps:
-    - template: .azuredevops/templates/build.yml@raptor
-      parameters:
-        python_version: ${{ variables.pythonVersion }}
-        uv_version: ${{ variables.uvVersion }}
-        uv_index_name: ${{ variables.uvIndexName }}
-        organisation_name: ${{ variables.devops_organisation }}
-        devops_project: ${{ variables.devops_project }}
-        package_feed: ${{ variables.package_feed }}
-        feed_view: $(feed_view)
+- stage: Build
+  displayName: Build package
+  dependsOn: []
+  jobs:
+    - job: Build
+      displayName: 'Build and store staging artifact'
+      variables:
+        build: true
+      steps:
+        - template: .azuredevops/templates/build.yml@raptor
+          parameters:
+            python_version: ${{ variables.pythonVersion }}
+            uv_version: ${{ variables.uvVersion }}
+            uv_index_name: ${{ variables.uvIndexName }}
+            organisation_name: ${{ variables.devops_organisation }}
+            devops_project: ${{ variables.devops_project }}
+            package_feed: ${{ variables.package_feed }}
+            feed_view: $(feed_view)
 
 - stage: Register
   displayName: Register AML Environment

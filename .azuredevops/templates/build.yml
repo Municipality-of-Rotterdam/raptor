@@ -316,4 +316,4 @@ steps:
       rm -f response.json
       echo "Promotion step completed."
     displayName: "Promote package to view '${{ parameters.feed_view }}'"
-    condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_view'], 'false'))
+    condition: and(succeeded(), eq(variables['build'], true))

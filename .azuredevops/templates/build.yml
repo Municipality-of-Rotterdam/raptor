@@ -160,6 +160,7 @@ steps:
   - script: |
       set -e
       echo "=== CHECK VERSION IN FEED ==="
+      echo "##vso[task.setvariable variable=version_exists_feed]false"
 
       if [[ -z "$(package_id)" ]]; then
         echo "Package does not exist → skipping version validation."
@@ -175,7 +176,6 @@ steps:
 
       versions_feed=($(echo "$versions_info_feed" | jq -r '.value[].protocolMetadata.data.version? // empty'))
 
-      echo "##vso[task.setvariable variable=version_exists_feed]false"
       for version in "${versions_feed[@]}"; do
         if [[ "$version" == "$(version_toml)" ]]; then
           echo "Found matching version in feed, will not build, only promote."
@@ -183,6 +183,7 @@ steps:
         fi
       done
     displayName: "Check if version number exists in Artifacts feed"
+
 
   ###########################################################################
   # Check if version exists in view
@@ -205,55 +206,16 @@ steps:
 
       versions_view=($(echo "$versions_info_view" | jq -r '.value[].protocolMetadata.data.version? // empty'))
 
-      version_exists_view=false
       for version in "${versions_view[@]}"; do
         if [[ "$version" == "$(version_toml)" ]]; then
-          echo "Version already exists in feed view."
-          version_exists_view=true
+          echo "##vso[task.logissue type=error]Version already exists in feed view."
+          exit 1
         fi
       done
 
-      echo "Version exists in view: $version_exists_view"
-      echo "##vso[task.setvariable variable=version_exists_view]$version_exists_view"
+      echo "Version does not exist in feed view. Safe to proceed."
     displayName: "Check if version number exists in Artifacts feed view"
-
-  - powershell: |
-      $message = "The package version already exists in the specified feed. No build/promote will be triggered, make sure this is intentional."
-      $body = @"
-        {
-          "comments": [
-            {
-              "parentCommentId": 0,
-              "content": "$message",
-              "commentType": 3
-            }
-          ],
-          "status": 1
-        }
-      "@
-      $url = "$(System.CollectionUri)$(System.TeamProject)/_apis/git/repositories/$(Build.Repository.Name)/pullRequests/$(System.PullRequest.PullRequestId)/threads?api-version=7.1-preview.1"
-      try {
-        $response_list = Invoke-RestMethod -Uri $url -Method GET -Headers @{Authorization = "Bearer $(System.AccessToken)"} -ContentType application/json
-        $response = $response_list.value | ConvertTo-Json
-        if ($response.Contains($message)) {
-          Write-Host "Comment already exists, do not post a new one."
-        } else {
-          Throw "Comment does not exist yet, post a new one."
-        }
-      } catch {
-        try {
-          Invoke-RestMethod -Uri $url -Method POST -Headers @{Authorization = "Bearer $(System.AccessToken)"} -Body $Body -ContentType application/json
-        } catch {
-          Write-Host $_
-          Write-Host $_.Exception.Message
-          Write-Host "##vso[task.logissue type=error]Error occurred while posting comment to PR, add 'PullRequestContribute' permission for 'Build Service' in Project Settings > Repositories > [Repo] > Security"
-          Write-Host "##vso[task.complete result=Failed;]"
-        }
-      }
-    condition: and(succeeded(), eq(variables['version_exists_view'], 'true'), eq(variables['Build.Reason'], 'PullRequest'))
-    displayName: Post comment on PR if version already exists in view
-    # https://stackoverflow.com/questions/60048492/how-to-create-a-comment-in-azure-devops-pr-in-case-of-build-failure
-
+    
   - script: |
       echo "Checks complete."
       echo "Package name: $(normalised_name)"

@@ -2,8 +2,11 @@
 parameters:
 - name: python_version
   type: string
-- name: poetry_version
+- name: uv_version
   type: string
+- name: uv_index_name
+  type: string
+  default: ''
 - name: organisation_name
   type: string
 - name: devops_project
@@ -12,31 +15,32 @@ parameters:
   type: string
 - name: feed_view
   type: string
-- name: pat_username
-  type: string
-- name: pat
-  type: string
 
 steps:
 
   - template: configure_python.yml
     parameters:
       python_version: '${{ parameters.python_version }}'
-      poetry_version: '${{ parameters.poetry_version }}'
-      pat_username: '${{ parameters.pat_username }}'
-      pat: '${{ parameters.pat }}'
+      uv_version: '${{ parameters.uv_version }}'
 
+  ###########################################################################
+  # Extract version from pyproject.toml
+  ###########################################################################
   - script: |
       set -e
       echo "=== INSTALL BUILD DEPENDENCIES ==="
       echo "Python version:"
       python --version
-      echo "Poetry version:"
-      poetry --version
-      echo "Installing build dependencies (poetry install --only build)..."
-      poetry install --only build
+      echo "uv version:"
+      uv --version
+      echo "Installing build dependencies (uv sync --only-group build)..."
+      uv sync --only-group build
       echo "Build dependencies installed successfully."
-    displayName: 'Install build dependencies with poetry'
+    displayName: 'Install build dependencies with uv'
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
 
   ###########################################################################
   # Extract version from pyproject.toml
@@ -45,12 +49,7 @@ steps:
       set -e
       echo "=== EXTRACT PROJECT VERSION ==="
 
-      if [ ! -f pyproject.toml ]; then
-        echo "##vso[task.logissue type=error]pyproject.toml not found."
-        exit 1
-      fi
-
-      version_toml=$(poetry run tomlq -r '.project.version' pyproject.toml)
+      version_toml=$(python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); print(tl.load(open('pyproject.toml','rb'))['project']['version'])")
 
       if [[ -z "$version_toml" || "$version_toml" == "null" ]]; then
         echo "##vso[task.logissue type=error]Version not found in pyproject.toml."
@@ -75,7 +74,7 @@ steps:
       set -e
       echo "=== EXTRACT PROJECT NAME ==="
 
-      name_toml=$(poetry run tomlq -r '.project.name' pyproject.toml)
+      name_toml=$(python -c "import sys; tl=__import__('tomllib' if sys.version_info>=(3,11) else 'tomli'); print(tl.load(open('pyproject.toml','rb'))['project']['name'])")
 
       if [[ -z "$name_toml" || "$name_toml" == "null" ]]; then
         echo "##vso[task.logissue type=error]Project name not found in pyproject.toml."
@@ -216,7 +215,7 @@ steps:
 
       echo "Version does not exist in feed view. Safe to proceed."
     displayName: "Check if version number exists in Artifacts feed view"
-
+    
   - script: |
       echo "Checks complete."
       echo "Package name: $(normalised_name)"
@@ -236,16 +235,18 @@ steps:
       echo "Build flag: $(build)"
       echo "Version exists in feed: $(version_exists_feed)"
 
-      echo "Running poetry build..."
-      poetry build
+      echo "Running uv build..."
+      uv build
 
       echo "Build completed successfully."
       echo "Generated distributions:"
       ls -1 dist/
-
     displayName: "Build distribution (if version not in feed)"
     condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
-
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
 
   - task: TwineAuthenticate@1
     displayName: "Authenticate with Azure Artifacts feed"
@@ -253,13 +254,11 @@ steps:
       artifactFeed: ${{ parameters.devops_project }}/${{ parameters.package_feed }}
     condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
 
-
   - script: |
       set -e
 
       echo "Preparing to publish package to Azure Artifacts feed..."
       echo "Feed: ${{ parameters.package_feed }}"
-      echo "Using authenticated .pypirc from secure pipeline variable."
 
       if ! ls dist/*.whl > /dev/null 2>&1; then
         echo "ERROR: No wheel files found in dist/. Aborting publish."
@@ -267,18 +266,19 @@ steps:
       fi
 
       echo "Uploading wheel distribution..."
-      # Do NOT echo config file path or contents (contains credentials)
-      poetry run twine upload \
+      uv run twine upload \
         -r "${{ parameters.package_feed }}" \
         --config-file "$(PYPIRC_PATH)" \
         dist/*.whl \
         --verbose
 
       echo "Package upload completed successfully."
-
     displayName: "Publish package (if version not in feed)"
     condition: and(succeeded(), eq(variables['build'], true), eq(variables['version_exists_feed'], 'false'))
-
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
 
   ###########################################################################
   # Promote (when version does not exist in specified view yet)
@@ -300,7 +300,7 @@ steps:
       HTTP_STATUS=$(curl -sS -o response.json -w "%{http_code}" \
         -X PATCH "$AZDO_URL" \
         -H "Content-Type: application/json" \
-        -u ":$(System.AccessToken)" \
+        -H "Authorization: Bearer $(System.AccessToken)" \
         -d "{\"views\": {\"op\": \"add\", \"path\": \"/views/-\", \"value\": \"${{ parameters.feed_view }}\"}}"
       )
 
@@ -315,8 +315,5 @@ steps:
 
       rm -f response.json
       echo "Promotion step completed."
-
     displayName: "Promote package to view '${{ parameters.feed_view }}'"
     condition: and(succeeded(), eq(variables['build'], true))
-    env:
-      SYSTEM_ACCESSTOKEN: $(System.AccessToken)

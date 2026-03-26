@@ -7,7 +7,7 @@
     {# Common prompts #}
     {{ cookiecutter.update({"description": prompt_user("Description", "A short description of the package.")}) }}
     {{ cookiecutter.update({"python_version": prompt_user("Python version", "3.11")}) }}
-    {{ cookiecutter.update({"poetry_version": prompt_user("Poetry version", "2.1.3")}) }}
+    {{ cookiecutter.update({"uv_version": prompt_user("uv version", "0.10.6")}) }}
     {{ cookiecutter.update({"precommit_version": prompt_user("Pre-commit version", "3.4.0")}) }}
 
     {# DevOps-specific prompt #}

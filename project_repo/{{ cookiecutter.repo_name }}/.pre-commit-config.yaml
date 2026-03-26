@@ -12,6 +12,15 @@ repos:
    -  id: check-merge-conflict
    -  id: check-yaml
 
+-   repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.33.2
+    hooks:
+    -   id: check-jsonschema
+        name: validate pyproject.toml
+        files: ^pyproject\.toml$
+        types: [toml]
+        args: ["--schemafile", "https://json.schemastore.org/pyproject.json"]
+
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:

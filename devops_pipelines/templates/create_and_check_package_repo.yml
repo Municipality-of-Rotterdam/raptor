@@ -1,35 +1,31 @@
 
 steps:
   - template: /devops_pipelines/templates/install_and_configure_python.yml
-    parameters:
-      pythonVersion: '$(pythonVersion)'
   - script: |
-      cookiecutter . --no-input --directory package_repo
+      uv run cookiecutter . --no-input --directory package_repo
     env:
       COOKIECUTTER_NO_INPUT: "1"
     displayName: 'Call cookiecutter on package_repo (DevOps variant)'
   - script: |
       cd ./pkg_package_name
       git add .
-      pre-commit run --all-files --show-diff-on-failure
+      uv run --group precommit pre-commit run --all-files --show-diff-on-failure
     displayName: 'Run pre-commit on package_repo (DevOps variant)'
   - script: |
       cd ./pkg_package_name
-      poetry install --only test
-      poetry run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
+      uv run --group test pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
     displayName: 'Run pytest on package_repo (DevOps variant)'
   - script: |
-      cookiecutter . --no-input --directory package_repo additional_prompts=Github repo_name=pkg_package_name_gh
+      uv run cookiecutter . --no-input --directory package_repo additional_prompts=Github repo_name=pkg_package_name_gh
     env:
       COOKIECUTTER_NO_INPUT: "1"
     displayName: 'Call cookiecutter on package_repo (Github variant)'
   - script: |
       cd ./pkg_package_name_gh
       git add .
-      pre-commit run --all-files --show-diff-on-failure
+      uv run --group precommit pre-commit run --all-files --show-diff-on-failure
     displayName: 'Run pre-commit on package_repo (Github variant)'
   - script: |
       cd ./pkg_package_name_gh
-      poetry install --only test
-      poetry run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
+      uv run --group test pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
     displayName: 'Run pytest on package_repo (Github variant)'

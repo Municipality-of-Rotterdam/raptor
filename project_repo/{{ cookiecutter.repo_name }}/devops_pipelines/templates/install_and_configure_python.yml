@@ -13,5 +13,5 @@ steps:
   - script: |
       python -m pip install --upgrade pip
       python -m pip install pre-commit==${{ parameters.pre_commit_version }}
-    displayName: 'Install dependencies with poetry'
+    displayName: 'Install dependencies'
 {% endraw %}

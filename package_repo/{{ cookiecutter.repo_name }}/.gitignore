@@ -41,6 +41,9 @@ mlruns/
 # Virtual environment files
 venv
 
+# Generated activate script (contains machine-specific paths)
+/activate.sh
+
 # Pytest coverage files
 # Commented out - unittests do not work
 # *.coverage*

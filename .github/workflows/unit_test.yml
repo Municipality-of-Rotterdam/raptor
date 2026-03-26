@@ -1,19 +1,19 @@
 name: Unit Test Coverage
 
-on: 
+on:
   workflow_call:
     inputs:
-      PYTHON_VERSION: 
+      PYTHON_VERSION:
         required: true
         type: string
-      PACKAGE_NAME: 
+      PACKAGE_NAME:
         required: true
         type: string
 
 jobs:
   UnitTest:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,14 +23,14 @@ jobs:
         with:
           python-version: ${{ inputs.PYTHON_VERSION }}
 
-      - name: Install dependencies with poetry
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install poetry
-          poetry install --only dev,test
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies with uv
+        run: uv sync --group dev --group test
 
       - name: Unit tests
-        run: poetry run pytest --cov-report term-missing --cov=src/${{ inputs.PACKAGE_NAME }} tests/ -m "not onlylocal" 
+        run: uv run pytest --cov-report term-missing --cov=src/${{ inputs.PACKAGE_NAME }} tests/ -m "not onlylocal"
 
       - name: Upload test results
         # Use always() to always run this step to publish test results when there are test failures
@@ -48,13 +48,13 @@ jobs:
           badge: true
           format: 'markdown'
           output: 'both'
-    
+
       - name: Add Coverage PR Comment
         uses: marocchino/sticky-pull-request-comment@v2
         if: github.event_name == 'pull_request'
         with:
           recreate: true
           path: code-coverage-results.md
-  
+
       - name: Write to Job Summary
         run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY

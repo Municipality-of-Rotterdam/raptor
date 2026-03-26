@@ -1,7 +1,7 @@
 # Raptor
 
 ![build status](https://github.com/Municipality-of-Rotterdam/raptor/actions/workflows/main.yml/badge.svg?branch=feature/github_actions)
-[![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
 ![Raptor](raptor_logo.png)
 
@@ -25,7 +25,7 @@ This repository is a cookiecutter template to be used for projects in Azure Mach
 
 ## Introduction
 
-This document will guide you through setting up your repository, configuring your development environment, and managing dependencies with Conda and Poetry.
+This document will guide you through setting up your repository, configuring your development environment, and managing dependencies with Conda and uv.
 This document supports two types of repository templates used in AzureML projects:
 
 - Package Repository: for developing and maintaining reusable Python packages (mainly .py files)
@@ -44,7 +44,7 @@ The CI/CD process here focuses on testing, formatting, linting the code, publish
 
 - Mainly for Data Scientists
 - Contains a package with one or more modules (the folders inside the src directory)
-- Uses a Poetry environment to manage dependencies
+- Uses uv to manage dependencies
 - CI: Unit tests, pre-commit hooks
 - CD: Publishes package to Artifacts, registers the environment
 - Follows best practices for production-ready code
@@ -179,7 +179,7 @@ Note that Github currently only supports using public pypi for package publishin
 | Author email       | Your email address                       | `"your@email.com"`         |
 | Description        | Short description of the package/project | `"A short description..."` |
 | Python version     | Python version to use                    | `"3.11"`                   |
-| Poetry version     | Poetry tool version                      | `"2.1.3"`                  |
+| uv version         | uv tool version                          | `"0.10.6"`                 |
 | Pre-commit version | Pre-commit hook version                  | `"3.4.0"`                  |
 
 ---
@@ -254,104 +254,144 @@ The update is done automatically in Azure DevOps pipeline after receiving an app
 3. The pipeline YOUR_PACKAGE_NAME should get permission to access these two environments, either during the first pipeline run
 or beforehand in "Environments > Environment_name > Security > Pipeline permissions".
 
-## Environment setup
+## Environment setup (package repo)
 
-In this section, you will have setup your environment to work in and setup the dependency management properly.
-Conda will setup and manage a virtual environment, with the python runtime and some base packages. Conda is also used by azureml to setup environments.
-Poetry will manage all dependencies related to the python package (when using a package repo).
+This project uses [uv](https://github.com/astral-sh/uv) for Python package management, optionally combined with [conda](https://docs.conda.io/) for system-level libraries, and [direnv](https://direnv.net/) to automatically configure the environment.
 
-#### 4.1. Conda setup
+There are **two setup options**:
 
-If you use conda for the first time, run:
+| | Conda + uv | uv only |
+|---|---|---|
+| **Use when** | You need system libraries (e.g. GDAL, PROJ) only available via conda | Pure Python dependencies are sufficient |
+| **Sync command** | `uv sync --inexact` (keeps conda packages) | `uv sync` |
+
+Both options use direnv and the `.envrc` file included in the generated project. The `.envrc` auto-detects which option you're using and sets `UV_PROJECT_ENVIRONMENT` accordingly, so uv installs packages to local disk rather than a network mount.
+
+#### 4.1. Prerequisites: install uv and direnv
+
 ```bash
-conda init
-```
-Close terminal and open a new one.
-Then, create an environment to work in:
-```bash
-conda env create -n *yourenvname* -f environment.yml
-conda activate *yourenvname*
-```
-This will create a sort of "blank" conda environment to work in. We use conda as AzureML works with conda environment.
-This environment is used for local development. Subsequent installs will be done with poetry.
+# Install uv (one-time, skip if already present)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-#### 4.2. Poetry setup
+# Install direnv (one-time)
+sudo apt-get install direnv   # Debian/Ubuntu
 
-If you use poetry for the first time, do a base install of poetry by running:
-```bash
-curl -sSL https://install.python-poetry.org | python3 -
-echo "export PATH="/home/azureuser/.local/bin:$PATH"" >> /home/azureuser/.bashrc
+# Add the hook to your shell profile (one-time, will skip if already present)
+grep -qF 'direnv hook bash' ~/.bashrc || echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+
+# Reload shell for changes to take effect
+source ~/.bashrc
+
+# It will say that .envrc is blocked.
+# Run the following to approve it (one-time per clone):
+direnv allow
 ```
-Restart terminal or open new terminal
 
-Note that poetry can also be installed in a virtual environment using conda, so a base install of poetry is not strictly necessary. You can also do:
+uv can also be installed via conda or pip:
 ```bash
 conda activate *environment-name*
-conda install poetry
+pip install uv
 ```
-From there on out, the way of working remains the same
 
-It is advised to use poetry by default to install packages.
-When adding packages with poetry, the exact package information will be stored in the poetry.lock file,
-which makes it easiest to reproduce the environment (compared to conda and pip as package managers).
-By default, Poetry is configured to use the PyPI repository, for package installation and publishing.
-Using a different (e.g. private) package repository will be covered in 4.2.2.
+#### 4.2. Option A: Conda + uv
 
-#### 4.2.1 Installing packages
+Use this option when you need system-level libraries that are only available via conda.
 
-To install the first set of packages that are added by default, go to the root directory of the repositoy, and run (from the activated environment)
 ```bash
-poetry install
-```
-Note that the command above will also install the current repo code as a package. Note also that it installs packages from all dependency groups.
+# 1. Create the conda environment (installs Python + uv)
+conda env create --file environment.yml
 
-To add new packages using poetry, run
+# 2. Activate the conda environment
+conda activate *yourenvname*
+
+# 3. Re-enter the project directory so direnv picks up the conda env path
+cd .. && cd *yourreponame*
+
+# 4. Install Python dependencies with uv (--inexact keeps conda packages intact)
+uv sync --inexact --group dev
+```
+
+#### 4.3. Option B: uv only
+
+Use this option when you only need pure Python dependencies. No conda required.
+
 ```bash
-poetry add package_name
-```
-The pyproject.toml and poetry.lock files will be updated automatically.
+# 1. Re-enter the project directory (or open a new terminal) so direnv sets the environment
+cd .. && cd *yourreponame*
 
-#### 4.2.2 Installing private packages
-In this section, we will explain how to use other private packages within your repository. This is very useful for re-using generic code from colleagues. 
-##### 4.2.2.1 Installing private packages from artifacts feed
-With the cookiecutter setup, we can install private packages from a private artifacts feed in our environment using poetry. 
+# 2. Install Python dependencies with uv
+uv sync --group dev
+```
+
+#### 4.4. Managing dependencies
+
+Add a package to the project (optionally into a dependency group):
+
+```bash
+uv add <package>                        # add to [project.dependencies]
+uv add --group dev <package>            # add to [dependency-groups] dev
+```
+
+Sync one or more dependency groups:
+
+```bash
+uv sync --group dev --group test        # dev + test dependencies
+```
+
+> **Note:** When using conda + uv, always pass `--inexact` to preserve conda-installed packages.
+
+To run commands within the virtual environment:
+```bash
+uv run python my_script.py
+uv run pytest
+```
+
+#### 4.5. Installing private packages
+In this section, we will explain how to use other private packages within your repository. This is very useful for re-using generic code from colleagues.
+##### 4.5.1 Installing private packages from artifacts feed
+With the cookiecutter setup, we can install private packages from a private artifacts feed in our environment using uv.
 This is the preferred way to use private code from other repos in our current repository. It can be used in all different CI/CD locations: locally in VS Code, remotely in the devops agent, and as a dependency in an AML environment.
 
 **DevOps**
 
-To install private packages in our environment, we need to be able to connect to the artifacts feed. For that, we need a personal access token (PAT) with read access to our packages.
-This can be achieved by going in devops to user settings → personal access tokens → new token. Use the custom scope and check read access to Packaging.
-Use the PAT to configure the following in the terminal of your compute instance
-
-```bash
-python -m keyring --disable  # keyring cannot contain duplicate keys or something, gives errors when using multiple compute instances
-poetry config http-basic.private <USERNAME> <PAT>
-poetry add --source private <PACKAGE_NAME>
+The private index is configured in your `pyproject.toml` using the feed name specified during repo creation:
+```toml
+[[tool.uv.index]]
+name = "<FEED_NAME>"
+url = "https://pkgs.dev.azure.com/ORGANISATION/PROJECT/_packaging/<FEED_NAME>/pypi/simple/"
+explicit = true
 ```
-This assumes the package is located in the default feed, specified in the cookiecutter prompt (TODO).
 
-The PAT will be stored in 
-```bash
-/home/azureuser/.config/pypoetry/auth.toml
-```
-To specify a different feed, add a different source to the pyproject.toml by running
-```bash
-poetry source add --priority=explicit <SOURCE_NAME> <FEED_URL> (e.g. https://pkgs.dev.azure.com/ORGANISATION/PROJECT/_packaging/FEED/pypi/simple/)
-```
-Then the package can be added with
-```bash
-poetry add --source <SOURCE_NAME> <PACKAGE_NAME>
-```
-If the private code is still under development, it is recommended to add the repository as a submodule in the current repository. 
-But instead of also installing it as an editable package to a "submodule" group with poetry, 
-manually install the package from the lib/submodule location for development purposes until a registered package can be installed from the artifacts feed. 
-This can also be a back and forth (e.g. first use package v1.0 install from artifacts feed, then use lib/submodule install to develop v1.1, 
-then use package v1.1 from artifacts feed once v1.1 is released) if the development cycle involves both the current repository and the submodule repository. More on submodules will be explained in the section below.
+Because the index is marked `explicit = true`, uv will not search it unless a package is explicitly pinned to it. You must authenticate and pin the source **before** adding a package.
 
-NOTE: the CI/CD now makes use of a PAT to connect to the DevOps artifacts feed. However, it is still a PERSONAL access token (with read access at packaging, with limited validity), so it is dependent on one person's token being active. 
-This is a workaround solution, since a functional user in devops is not always supported for every organisation.
+**Step 1: Authenticate (local development)**
 
-##### 4.2.2.2 Installing private packages as custom package (from a submodule)
+Create a `~/.netrc` file with a Personal Access Token (PAT) from Azure DevOps:
+
+```
+machine pkgs.dev.azure.com
+login <your-devops-email>
+password <your-pat>
+```
+
+To create a PAT: Azure DevOps → User Settings → Personal Access Tokens → New Token → grant the **Packaging (Read)** scope.
+
+**Step 2: Add the package**
+
+Use the `--index` flag so uv knows where to find the package:
+```bash
+uv add --index <FEED_NAME> <PACKAGE_NAME>
+```
+This will resolve the package from the private feed and add the source entry to `pyproject.toml` automatically.
+
+In CI/CD pipelines, authentication uses `$(System.AccessToken)` instead of a PAT. The env var name is generated automatically from the feed name in your `config.yml`:
+```yaml
+env:
+  UV_INDEX_<FEED_NAME_UPPER>_USERNAME: VssSessionToken
+  UV_INDEX_<FEED_NAME_UPPER>_PASSWORD: $(System.AccessToken)
+```
+
+##### 4.5.2 Installing private packages as custom package (from a submodule)
 
 In case we are still developing the package dependency, we can custom install it from its repo location after cloning it as a submodules. How to initialize the git submodule in a package repo:
 
@@ -359,14 +399,14 @@ In case we are still developing the package dependency, we can custom install it
 2. Go with the terminal to this directory (`cd lib`)
 3. `git submodule add git@ssh.dev.azure.com:v3/ORGANISATION/PROJECT/SUBMODULE`
 
-By default, the default branch is tracked, but you can choose another branch in the .gitmodules file from the root of this repository. 
-However, it is recommended to track the main branch, as this will ensure the module is always stable. 
+By default, the default branch is tracked, but you can choose another branch in the .gitmodules file from the root of this repository.
+However, it is recommended to track the main branch, as this will ensure the module is always stable.
 You can run 'git submodule update --remote' to fetch any changes from the remote repository.
-After navigating to the root of the repo for the submodule, run, with the conda environment activated,
+After navigating to the root of the repo for the submodule, run:
 ```bash
-poetry install
+uv sync
 ```
-The custom package and its dependencies will be installed in editable mode (i.e. changes in the code will be live), based on its pyproject.toml.
+The custom package and its dependencies will be installed based on its pyproject.toml.
 Note that this install will not be reflected in the main package's pyproject.toml, and thus also not in its CI/CD.
 If a package has private package dependencies, and these packages will be used in the CI/CD, make sure they are added to the pyproject.toml from the artifacts feed.
 
@@ -387,10 +427,10 @@ pre-commit run --all-files
 The checks that are performed when running pre-commit, are defined by the pre-commit hooks in your .pre-commit-config.yaml and the rules/settings in your pyproject.toml. 
 We use multiple pre-commit hooks, amongst which are:
 
-- pre-commit (checks for merge-conflict artifacts in cod & checks yaml files, https://pre-commit.com/)
+- pre-commit (checks for merge-conflict artifacts in code & checks yaml files, https://pre-commit.com/)
 - mypy (code formatting, https://mypy-lang.org/)
 - ruff (linting, amongst others, https://docs.astral.sh/ruff/rules/)
-- poetry (checks package & dependency management, https://python-poetry.org/)
+- uv-lock (checks that uv.lock is up to date, https://github.com/astral-sh/uv-pre-commit)
 
 You can change which rules to enforce or ignore, even on a per-file or per-line basis. Do this in the pyproject.toml via the ruff rules or settings. 
 There you can see the complete list of available ruff subset rules (also available at: https://docs.astral.sh/ruff/rules/).
@@ -398,28 +438,28 @@ There you can see the complete list of available ruff subset rules (also availab
 #### 5.2 Pytest
 
 
-Install packages from dependency group test (if not done already)
+Install packages from dependency group test (if not done already):
 ```bash
-poetry install --only test
+uv sync --group test
 ```
-Note that packages that are needed for the unit tests need to be added to the test dependencies in poetry.
-This can be done by running
+Note that packages that are needed for the unit tests need to be added to the test dependency group.
+This can be done by running:
 ```bash
-poetry add package_name -G test
+uv add --group test package_name
 ```
 This is especially important for the CI, since only packages from the test dependency group will be installed in the environment that runs the tests!
 
 To run all tests (that are not marked out per default pytest settings), execute:
 ```bash
-pytest
+uv run pytest
 ```
 To run all tests (including the example tests included with raptor), execute:
 ```bash
-pytest -m example
+uv run pytest -m example
 ```
 To check your test coverage, execute:
 ```bash
-pytest --cov
+uv run pytest --cov
 ```
 Pytest-cov does not work well on Azure ML Compute Instances. It uses a sqllite3 database, which needs
 to be stored. This has to be done in the ~/localfiles/ folder. Therefore, .coveragerc has a line to do
@@ -471,7 +511,6 @@ The template expects library groups AmlDevGroup and AmlProdGroup for connecting 
 These library groups contain
 
 - AML workspace credentials
-- PAT for connecting from agent to artifacts feed (or use a superuser)
 
 In it, we need at least the following keys:
 For connecting with Azure Machine Learning:
@@ -479,9 +518,7 @@ AmlServiceConnection
 AmlWorkspaceName
 AmlResourceGroup
 
-For connecting with the DevOps artifacts feed: 
-PatUsername
-DevOpsPAT
+Note: authentication to the DevOps artifacts feed is handled via `$(System.AccessToken)` using uv environment variables (`UV_INDEX_<FEED_NAME>_USERNAME` / `UV_INDEX_<FEED_NAME>_PASSWORD`), so no PAT is needed in the library group for package feeds.
 
 For connecting with the DevOps Wiki:
 WikiId

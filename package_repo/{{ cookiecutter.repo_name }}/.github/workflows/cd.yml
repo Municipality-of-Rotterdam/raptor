@@ -7,25 +7,27 @@ on:
       - develop
       - main
 
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+
+# Needed for publication on PyPI
+permissions:
+  contents: read
+  id-token: write
+  pages: write
 
 jobs:
 
-  {% endraw %}{% if cookiecutter.publish_package_on_public_pypi|lower in ["y", "yes", "true"] %}{% raw %}
-  Check: 
-    needs: [Precommit, UnitTest]
+  Check:
     uses: municipality-of-rotterdam/raptor/.github/workflows/check.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
 
   Build:
     if: needs.Check.outputs.src_changed == 'True'
     needs: [Check]
     uses: municipality-of-rotterdam/raptor/.github/workflows/build.yml@{% endraw %}{{cookiecutter.__cookiecutter_template_version}}{% raw %}
-    with: 
+    with:
       PYTHON_VERSION: {% endraw %}{{cookiecutter.python_version}}{% raw %}
-      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}  
+      PACKAGE_NAME: {% endraw %}{{cookiecutter.package_name}}{% raw %}
       PROJECT_NAME: {% endraw %}{{cookiecutter.project_name}}{% raw %}
-  {% endraw %}{% endif %}{% raw %}
 
   {% endraw %}{% if cookiecutter.create_aml_environment_in_cicd|lower in ["y", "yes", "true"] %}{% raw %}
   Register:
@@ -37,5 +39,4 @@ jobs:
       RG_NAME: {% endraw %}{{ cookiecutter.azure_resource_group }}{% raw %}
       WS_NAME: {% endraw %}{{ cookiecutter.azureml_workspace }}{% raw %}
   {% endraw %}{% endif %}{% raw %}
-
 {% endraw %}

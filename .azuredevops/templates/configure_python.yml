@@ -2,20 +2,11 @@
 parameters:
 - name: python_version
   type: string
-- name: poetry_version
+- name: uv_version
   type: string
-- name: pat_username
-  type: string
-- name: pat
-  type: string
-  
+
 steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '${{ parameters.python_version }}'
-    displayName: 'Use Python ${{ parameters.python_version }}'
-  - template: configure_poetry.yml
-    parameters:
-      poetry_version: '${{ parameters.poetry_version }}'
-      username: '${{ parameters.pat_username }}'
-      personalAccessToken: '${{ parameters.pat }}'
+  - bash: curl -LsSf https://astral.sh/uv/${{ parameters.uv_version }}/install.sh | sh
+    displayName: 'Install uv ${{ parameters.uv_version }}'
+  - bash: uv python install ${{ parameters.python_version }}
+    displayName: 'Install Python ${{ parameters.python_version }}'

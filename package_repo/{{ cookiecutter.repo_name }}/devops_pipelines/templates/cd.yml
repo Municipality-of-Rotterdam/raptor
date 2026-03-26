@@ -45,13 +45,12 @@ stages:
         - template: .azuredevops/templates/build.yml@raptor
           parameters:
             python_version: ${{ variables.pythonVersion }}
-            poetry_version: ${{ variables.poetryVersion }}
+            uv_version: ${{ variables.uvVersion }}
+            uv_index_name: ${{ variables.uvIndexName }}
             organisation_name: ${{ variables.devops_organisation }}
             devops_project: ${{ variables.devops_project }}
             package_feed: ${{ variables.package_feed }}
             feed_view: $(feed_view)
-            pat_username: $(PatUsername)
-            pat: $(DevOpsPAT)
 
 - stage: Register
   displayName: Register AML Environment

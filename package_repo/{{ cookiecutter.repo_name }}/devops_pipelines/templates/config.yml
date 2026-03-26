@@ -1,15 +1,14 @@
 
 variables:
-  package_name: {{cookiecutter.package_name}}
-
-  # Python and poetry versions
   pythonVersion: {{cookiecutter.python_version}}
-  poetryVersion: {{cookiecutter.poetry_version}}
-
-  # Devops configuration
+  uvVersion: {{cookiecutter.uv_version}}
   devops_organisation: {{cookiecutter.organisation_name}}
   devops_project: {{cookiecutter.project_name}}
+  
+  # Name of artifacts feed
   package_feed:  {{cookiecutter.package_feed}}
+  # UV index name for env var auth (uppercased, hyphens to underscores)
+  uvIndexName: {{ cookiecutter.package_feed | upper | replace('-', '_') }}
   
   # Whether to register environment in Azure Machine Learning based on package
   RegisterAmlEnv: {{cookiecutter.create_aml_environment_in_cicd}}

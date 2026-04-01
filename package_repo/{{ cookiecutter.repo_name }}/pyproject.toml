@@ -49,6 +49,14 @@ docs = [
     "azure-devops==7.1.0b4",
 ]
 
+[tool.uv]
+package=true
+default-groups = [
+    "dev",
+    "precommit",
+    "test",
+]
+
 {% if cookiecutter.additional_prompts.lower() == "devops" %}
 [[tool.uv.index]]
 name = "{{cookiecutter.package_feed}}"

@@ -50,6 +50,7 @@ tasks:
       - task: setup_compute_instance:setup_ssh_create_key
       - task: setup_compute_instance:setup_ssh_print_key
       - task: setup_compute_instance:setup_ssh
+      - task: setup_compute_instance:install_direnv
       - task: setup_compute_instance:set_git_default_branch
       - task: setup_compute_instance:install_cookiecutter
       - task: setup_compute_instance:setup_cookiecutter_config

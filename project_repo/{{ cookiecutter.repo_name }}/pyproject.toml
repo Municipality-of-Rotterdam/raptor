@@ -11,6 +11,9 @@ precommit = [
 
 [tool.uv]
 package = false
+default-groups = [
+    "precommit",
+]
 
 [tool.mypy]
 python_version = "{{cookiecutter.python_version}}"

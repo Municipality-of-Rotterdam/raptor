@@ -19,7 +19,7 @@ includes:
 vars:
   PYTHON_VERSION: {{cookiecutter.python_version}}
   # use conda for python environment (will use uv venv otherwise). Must be true when using poetry instead of uv!
-  USE_CONDA: true
+  USE_CONDA: false
   # use poetry or uv for dependency management
   USE_POETRY: false
   # list of submodule locations, relative to root project directory
@@ -27,4 +27,4 @@ vars:
   # extra arguments to uv sync command, for example extra or optional dependency groups
   # UV_SYNC_EXTRA: "--extra submodules"
   # name of environment
-  ENV_NAME: {{ cookiecutter.repo_name }}
+  ENV_NAME: {{ cookiecutter.package_name }}

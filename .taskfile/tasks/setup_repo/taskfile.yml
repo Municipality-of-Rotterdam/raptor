@@ -11,7 +11,7 @@ includes:
 vars:
   CONDA_ENV_DIR: '{{default "/anaconda/envs" .CONDA_ENV_DIR}}'
   # NOTE: ~ for home dir is not interpreted correctly, will create ~ dir inside working directory for some uv commands
-  UV_VENV_DIR: '{{default "/home/azureuser/venv" .UV_VENV_DIR}}'
+  UV_VENV_DIR: '{{default "/home/azureuser/.local/share/uv/envs" .UV_VENV_DIR}}'
   # set venv dir on correct conda or venv directory (dependent on using conda or not)
   VENV_DIR: '{{if .USE_CONDA}}{{.CONDA_ENV_DIR}}{{else}}{{.UV_VENV_DIR}}{{end}}/{{.ENV_NAME}}'
 
@@ -19,7 +19,7 @@ vars:
 # vars:
 #   PYTHON_VERSION: 3.11
 #   USE_CONDA: false
-#   USE_POETRY: true
+#   USE_POETRY: false
 #   ENV_NAME: amazing_project
 # # optional:
 #   UV_SYNC_EXTRA: "--extra submodules"
@@ -83,12 +83,14 @@ tasks:
   # create python environment with uv
   create_uv_env:
     env:
-      UV_PROJECT_ENVIRONMENT: "{{.VENV_DIR}}"
       PYTHON_VERSION: "{{.PYTHON_VERSION}}"
     cmds:
       - uv venv --python {{.PYTHON_VERSION}}
     status:
       - test -d {{.VENV_DIR}}
+    preconditions:
+      - sh: '[ -n "$UV_PROJECT_ENVIRONMENT" ]'
+        msg: UV_PROJECT_ENVIRONMENT is not set, is .envrc correct?
 
   # create python environment with conda
   create_conda_env:
@@ -107,28 +109,15 @@ tasks:
 
   # install python dependencies with uv
   uv_sync:
-    env:
-      UV_PROJECT_ENVIRONMENT: "{{.VENV_DIR}}"
     cmds:
-      - task: set_uv_project_env_source
       # use UV_SYNC_EXTRA to pass other options (such as which groups to sync)
       - uv sync {{.UV_SYNC_EXTRA}}
-
-  # for uv, set uv project environment variable permanently
-  set_uv_project_env_source:
-    cmds:
-      - echo "export UV_PROJECT_ENVIRONMENT={{.VENV_DIR}}" >> "{{.VENV_DIR}}/bin/activate"
     preconditions:
-      - sh: test -f {{.VENV_DIR}}/bin/activate
-        msg: "Environment does not exist"
-    status:
-      - grep -q "UV_PROJECT_ENVIRONMENT" "{{.VENV_DIR}}/bin/activate"
+      - sh: '[ -n "$UV_PROJECT_ENVIRONMENT" ]'
+        msg: UV_PROJECT_ENVIRONMENT is not set, is .envrc correct?
 
   # install precommit hook
   precommit_install:
-    # set uv project directory
-    env:
-      UV_PROJECT_ENVIRONMENT: "{{.VENV_DIR}}"
     # option to change working directory, to use for submodules
     dir: '{{.DIR}}'
     vars:

@@ -117,3 +117,10 @@ tasks:
     cmds:
       - sudo git maintenance start
       - git config --global maintenance.strategy incremental
+
+  # install direnv
+  install_direnv:
+    cmds:
+      - sudo apt-get install direnv
+    status:
+      - direnv --version

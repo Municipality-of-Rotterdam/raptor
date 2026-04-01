@@ -9,6 +9,8 @@ This is a taskfile containing a collection of commands for various tasks, such a
 Compared to following the confluence documentation, this taskfile will automates as many tasks as possible.
 Additionally, for some, by going through all tasks step-by-step makes it easier to follow everything and not forget something.
 
+Important: the taskfiles are developed and tested on Ubuntu. For other linux distributions you might need small changes (related to apt-get/snap installations or paths).
+
 ## Installation
 
 Install taskfile, on Ubuntu: `sudo snap install task --classic`. See https://taskfile.dev/docs/installation for other methods.
@@ -53,10 +55,6 @@ GIT_ROOT=git@ssh.dev.azure.com:v3/ORGANISATION/PROJECT  # git root ssh url (incl
 GIT_PUBLIC_KEY_URL=https://dev.azure.com/ORGANISATION/_usersSettings/keys  # git https url to page for adding new public keys
 ```
 
-### VScode plugin
-
-- Recommended to install the vscode extension 'taskfile-launcher' (the official 'task' extension does not work yet with mounted disks). Note: tasks started from the plugin will always run in the root of your vscode project, you have to use the terminal to run in another directory.
-
 ## Running tasks
 
 You can run a task with `task --taskfile https://github.com/Municipality-of-Rotterdam/raptor.git//.taskfile/taskfile.yml?ref=develop TASK_NAME`.
@@ -90,7 +88,7 @@ Arguments:
 Setup the current git repo: creating python environment, installing precommit, etc.
 Should be run in the repo itself using the following:
 
-1. When using an older raptor-based repo, copy https://github.com/Municipality-of-Rotterdam/raptor/blob/develop/package_repo/%7B%7B%20cookiecutter.repo_name%20%7D%7D/taskfile.yml into your repo.
+1. When using an older raptor-based repo based on poetry, copy https://github.com/Municipality-of-Rotterdam/raptor/blob/develop/package_repo/%7B%7B%20cookiecutter.repo_name%20%7D%7D/taskfile.yml into your repo.
 2. Open the taskfile.yml in the repo and check all vars values!
 3. Then run 'task setup_repo' in your terminal, while in your repo directory.
 

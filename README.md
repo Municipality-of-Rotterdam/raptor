@@ -225,19 +225,32 @@ git config --global --add safe.directory PATH/TO/REPO
 
 #### 3.4. CI/CD
 
-To add Continuous Integration, Continuous Delivery (CI/CD) in DevOps, go to the repository and click "set up build".
+The build pipelines are for now limited to a single CI pipeline, a CD pipeline and a release pipeline. 
+If you are using DevOps, you will manually have to add these pipelines. Github will add the workflows automatically. 
 
-It will automatically use the azure-pipelines.yml from the root of the repository.
-Click, under "run", on "save".
-Now we have created a pipeline, which will be triggered when there are changes in specified folders (in principle package folder and tests folder) on specified branches (in principle main, develop and release branches).
-Now we need to set branch policies (by default we only have the main and develop branch, and others need to be created). 
+To add the pipelines in DevOps: 
+- Navigate to pipelines in your DevOps project.
+- Click 'New Pipeline'
+- Select Azure Repos Git
+- Select your new repository
+- Choose 'Existing Azure Pipelines YAML file'
+- Select the 'Main' branch then Under Path, choose 'devops_pipelines/templates/ci.yml', click continue.
+- Under Run, choose 'Save'. 
 
-Navigate to branches and then set the following for the main and develop branch:
-  - Require a minimum number of reviewers (2)
-  - Build validation -> add build policy -> select the pipeline we just created -> save.
+You have now succesfully added the CI pipeline. You will have to repeat this proces for the CD pipeline (cd.yml) and the release pipeline (release.yml).
+Note that the pipelines will appear under the same name, for convenience, you may give theme unique names to your preference. 
 
-#TODO Github variant
+Note that the CI pipeline will also serve as a branch protection policy, which under DevOps you will have to set manually. 
+To do this, navigate to your new repository, then: 
+- Select 'Branches' in the left pane browser. 
+- Select the three dots to the far right of 'Develop' and click 'Branch Policies'.
+- Under 'Build Validation', click '+' and select the CI pipeline you have added through the steps above. 
+- Set the policy requirement to 'Required' and the Build expiration to 'Immediately when develop is updated'. 
+- Click save.
 
+Note that this only applies to the Develop branch, and you will have to repeat the above steps for the Main branch. 
+
+You have now succesfully added the three main pipelines to your Azure DevOps repository and are good to go.
 
 #### 3.5. ML deployments (project repo)
 

@@ -68,7 +68,7 @@ jobs:
       - name: Run pre-commit in test repo (DevOps variant)
         run: |
           cd ${{ github.workspace }}/pkg_package_name && git add .
-          cd ${{ github.workspace }}/pkg_package_name && uv run pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/pkg_package_name && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Run pytest in test repo (DevOps variant)
         run: |
@@ -84,7 +84,7 @@ jobs:
       - name: Run pre-commit in test repo (Github variant)
         run: |
           cd ${{ github.workspace }}/pkg_package_name_gh && git add .
-          cd ${{ github.workspace }}/pkg_package_name_gh && uv run pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/pkg_package_name_gh && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Run pytest in test repo (Github variant)
         run: |
@@ -121,7 +121,7 @@ jobs:
       - name: Run pre-commit in test repo (DevOps variant)
         run: |
           cd ${{ github.workspace }}/repo_name && git add .
-          cd ${{ github.workspace }}/repo_name && uv run pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/repo_name && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Create test repo with cookiecutter (Github variant)
         run: |
@@ -132,4 +132,4 @@ jobs:
       - name: Run pre-commit in test repo (Github variant)
         run: |
           cd ${{ github.workspace }}/repo_name_gh && git add .
-          cd ${{ github.workspace }}/repo_name_gh && uv run pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/repo_name_gh && uv run --group precommit pre-commit run --all-files --show-diff-on-failure

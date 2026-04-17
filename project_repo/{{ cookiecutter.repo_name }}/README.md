@@ -12,7 +12,7 @@ Pipelines > {{ cookiecutter.repo_name }} > click on three dots in upper right co
 
 ################
 
-[![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
 Give a description of your repository here.
 

@@ -1,12 +1,21 @@
-[tool.poetry]
-package-mode = false
+[project]
+name = "raptor"
+version = "2.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    "pre-commit==2.19.0",
+    "cookiecutter==2.4.0"
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-setuptools = "65.6.3"
-pre-commit = "2.19.0"
-cookiecutter = "2.4.0"
+[tool.uv]
+package = false
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+test = [
+    "wheel",
+    "uv>=0.10.0",
+    "pylint==2.13.8",
+    "pyyaml",
+    "pytest==7.1.2",
+    "pytest-cov",
+]

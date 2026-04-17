@@ -6,7 +6,7 @@ variables:
     value: $[eq(variables['Build.SourceBranch'], 'refs/heads/develop')]
   - name: PublishPackage
     value: True
-
+             
 stages:
   - stage: cookiecutter_self
     jobs:
@@ -15,7 +15,20 @@ stages:
         steps:
           - checkout: self
             path: $(project_name)
-          - template: /devops_pipelines/templates/pre_commit.yml
+          - template: /devops_pipelines/templates/install_and_configure_python.yml
+          - script: |
+              uv run pre-commit run --all-files --show-diff-on-failure
+            displayName: 'Run pre-commit on raptor repo'
+
+  - stage: tag_release
+    dependsOn: cookiecutter_self
+    jobs:
+    - job: RunTagRelease
+      displayName: Tagging latest release
+      steps:
+      - template: /.azuredevops/templates/tag_release.yml
+        parameters:
+          tag_branch: develop
 
   - stage: cookiecutter_package
     jobs:

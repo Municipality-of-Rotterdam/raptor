@@ -1,16 +1,14 @@
-{% raw %}
 parameters:
 - name: python_version
   type: string
-- name: poetry_version
+- name: uv_version
   type: string
-- name: pat_username
+- name: uv_index_name
   type: string
-- name: pat
+  default: ''
+- name: clientsecret
   type: string
-- name: keyvault_name
-  type: string
-- name: service_connection
+- name: clientid
   type: string
 - name: tenant
   type: string
@@ -20,22 +18,17 @@ parameters:
   type: string
 
 steps:
-- template: /devops_pipelines/templates/configure_python.yml
+- template: configure_python.yml
   parameters:
     python_version: '${{ parameters.python_version }}'
-    poetry_version: '${{ parameters.poetry_version }}'
-    pat_username: '${{ parameters.pat_username }}'
-    pat: '${{ parameters.pat }}'
+    uv_version: '${{ parameters.uv_version }}'
 
-- script: poetry install --only docs
-  displayName: 'Install docs dependencies with poetry'
-
-- task: AzureKeyVault@2
-  displayName: Obtain Secrets from Key Vault
-  inputs:
-    azureSubscription: '${{ parameters.service_connection }}'
-    KeyVaultName: '${{ parameters.keyvault_name }}'
-    SecretsFilter: 'SP-Wiki-ID,SP-Wiki-SECRET'
+- script: uv sync --group docs
+  displayName: 'Install docs dependencies with uv'
+  env:
+    ${{ if ne(parameters.uv_index_name, '') }}:
+      UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+      UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
 
 - download: current
   artifact: documentation_dir
@@ -46,9 +39,8 @@ steps:
       --project $(System.TeamProject) ^
       --name $(Build.Repository.Name) ^
       --branch ${{ parameters.branchName }} ^
-      --clientsecret $(SP-Wiki-SECRET) ^
-      --clientid $(SP-Wiki-ID) ^
+      --clientsecret ${{ parameters.clientsecret }}  ^
+      --clientid ${{ parameters.clientid }}  ^
       --tenant ${{ parameters.tenant }} ^
       --organisation ${{ parameters.organisation }}
   displayName: 'Create/Update Wiki'
-{% endraw %}

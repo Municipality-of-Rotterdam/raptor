@@ -1,4 +1,4 @@
-{% raw %}
+
 parameters:
 - name: service_connection
   type: string
@@ -16,7 +16,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      PACKAGE_VERSION=$(sed '3!d' pyproject.toml | awk '{print $3}')
+      PACKAGE_VERSION=$(grep '^version *= *' pyproject.toml | sed -E 's/version *= *"(.*)"/\1/')
       echo "Current package version is ${PACKAGE_VERSION}"
       echo "##vso[task.setvariable variable=PackageVersion]${PACKAGE_VERSION}"
     workingDirectory: '$(Build.SourcesDirectory)'
@@ -32,4 +32,3 @@ steps:
       mv temp.yml component_env.yml
       az ml environment create --name ${{ parameters.aml_environment }} --version $(PackageVersion) --image ${{ parameters.base_image }} --conda-file component_env.yml --resource-group $(AmlResourceGroup) --workspace-name $(AmlWorkspaceName) --no-wait
   displayName: 'Register and build new AML environment'
-{% endraw %}

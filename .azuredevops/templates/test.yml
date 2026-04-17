@@ -1,0 +1,39 @@
+
+parameters:
+- name: python_version
+  type: string
+- name: uv_version
+  type: string
+- name: uv_index_name
+  type: string
+  default: ''
+- name: package_name
+  type: string
+
+steps:
+  - template: configure_python.yml
+    parameters:
+      python_version: '${{ parameters.python_version }}'
+      uv_version: '${{ parameters.uv_version }}'
+
+  - script: uv run --group test pytest ./tests --doctest-modules --junitxml=junit/test-results.xml --cov=src/${{ parameters.package_name }} --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
+    displayName: 'Unit tests'
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: 'junit/test-results.xml'
+      testRunTitle: '$(Agent.OS) - $(Build.BuildNumber)[$(Agent.JobName)] - Python $(python.version) - Linting and Unit Test results'
+    condition: succeededOrFailed()
+    displayName: 'Publish unit test results'
+
+  - task: PublishCodeCoverageResults@2
+    inputs:
+      failIfCoverageEmpty: true
+      summaryFileLocation: 'coverage.xml'
+      pathToSources: 'src/${{ parameters.package_name }}'
+    displayName: 'Publish Coverage Results'

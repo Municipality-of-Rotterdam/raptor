@@ -1,0 +1,35 @@
+parameters:
+- name: python_version
+  type: string
+- name: uv_version
+  type: string
+- name: uv_index_name
+  type: string
+  default: ''
+
+steps:
+  - template: configure_python.yml
+    parameters:
+      python_version: '${{ parameters.python_version }}'
+      uv_version: '${{ parameters.uv_version }}'
+
+  - script: uv sync --group docs
+    displayName: 'Install docs dependencies with uv'
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
+
+  - script: uv run sphinx-apidoc -o docs/source src --tocfile module
+    displayName: 'Update documentation modules'
+
+  # Change to 'uv run make html' in case we can build and publish static html to a webserver
+  - script: |
+      cd docs
+      uv run make clean
+      uv run make markdown
+    displayName: 'Build the documentation'
+
+# Change to '$(Agent.BuildDirectory)/s/docs/build/html' in case we can build and publish static html to a webserver
+  - publish: $(Agent.BuildDirectory)/s/docs/build/markdown
+    artifact: documentation_dir

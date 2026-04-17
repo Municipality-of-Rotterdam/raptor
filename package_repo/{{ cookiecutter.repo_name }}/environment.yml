@@ -6,5 +6,4 @@ channels:
 dependencies:
   - python={{cookiecutter.python_version}}
   - pip==23.0
-  - poetry={{cookiecutter.poetry_version}}  
-
+  - uv={{cookiecutter.uv_version}}

@@ -1,0 +1,12 @@
+
+parameters:
+- name: python_version
+  type: string
+- name: uv_version
+  type: string
+
+steps:
+  - bash: curl -LsSf https://astral.sh/uv/${{ parameters.uv_version }}/install.sh | sh
+    displayName: 'Install uv ${{ parameters.uv_version }}'
+  - bash: uv python install ${{ parameters.python_version }}
+    displayName: 'Install Python ${{ parameters.python_version }}'

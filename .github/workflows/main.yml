@@ -28,14 +28,15 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r tests/test_requirements.txt
+        run: uv sync --group test
 
       - name: Run pre-commit on raptor repo
         run: |
-          cd ${{ github.workspace }} && pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }} && uv run pre-commit run --all-files --show-diff-on-failure
 
   Create_and_test_package_repo:
     name: Create package repo and run pre-commit
@@ -52,42 +53,43 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r tests/test_requirements.txt
+        run: uv sync --group test
 
       - name: Create test repo with cookiecutter (DevOps variant)
         run: |
-          cd ${{ github.workspace }} && cookiecutter . --no-input --directory package_repo
+          cd ${{ github.workspace }} && uv run cookiecutter . --no-input --directory package_repo
         env:
           COOKIECUTTER_NO_INPUT: "1"
 
       - name: Run pre-commit in test repo (DevOps variant)
         run: |
           cd ${{ github.workspace }}/pkg_package_name && git add .
-          cd ${{ github.workspace }}/pkg_package_name && pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/pkg_package_name && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Run pytest in test repo (DevOps variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name && poetry install --only test && poetry run pip install poetry
-          cd ${{ github.workspace }}/pkg_package_name && poetry run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
+          cd ${{ github.workspace }}/pkg_package_name && uv sync --only-group test
+          cd ${{ github.workspace }}/pkg_package_name && uv run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
 
       - name: Create test repo with cookiecutter (Github variant)
         run: |
-          cd ${{ github.workspace }} && cookiecutter . --no-input --directory package_repo additional_prompts=Github repo_name=pkg_package_name_gh
+          cd ${{ github.workspace }} && uv run cookiecutter . --no-input --directory package_repo additional_prompts=Github repo_name=pkg_package_name_gh
         env:
           COOKIECUTTER_NO_INPUT: "1"
 
       - name: Run pre-commit in test repo (Github variant)
         run: |
           cd ${{ github.workspace }}/pkg_package_name_gh && git add .
-          cd ${{ github.workspace }}/pkg_package_name_gh && pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/pkg_package_name_gh && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Run pytest in test repo (Github variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name_gh && poetry install --only test && poetry run pip install poetry
-          cd ${{ github.workspace }}/pkg_package_name_gh && poetry run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
+          cd ${{ github.workspace }}/pkg_package_name_gh && uv sync --only-group test
+          cd ${{ github.workspace }}/pkg_package_name_gh && uv run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
 
   Create_and_test_project_repo:
     name: Create project repo and run pre-commit
@@ -104,29 +106,30 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r tests/test_requirements.txt
+        run: uv sync --group test
 
       - name: Create test repo with cookiecutter (DevOps variant)
         run: |
-          cd ${{ github.workspace }} && cookiecutter . --no-input --directory project_repo
+          cd ${{ github.workspace }} && uv run cookiecutter . --no-input --directory project_repo
         env:
           COOKIECUTTER_NO_INPUT: "1"
 
       - name: Run pre-commit in test repo (DevOps variant)
         run: |
           cd ${{ github.workspace }}/repo_name && git add .
-          cd ${{ github.workspace }}/repo_name && pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/repo_name && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Create test repo with cookiecutter (Github variant)
         run: |
-          cd ${{ github.workspace }} && cookiecutter . --no-input --directory project_repo additional_prompts=Github repo_name=repo_name_gh
+          cd ${{ github.workspace }} && uv run cookiecutter . --no-input --directory project_repo additional_prompts=Github repo_name=repo_name_gh
         env:
           COOKIECUTTER_NO_INPUT: "1"
 
       - name: Run pre-commit in test repo (Github variant)
         run: |
           cd ${{ github.workspace }}/repo_name_gh && git add .
-          cd ${{ github.workspace }}/repo_name_gh && pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/repo_name_gh && uv run --group precommit pre-commit run --all-files --show-diff-on-failure

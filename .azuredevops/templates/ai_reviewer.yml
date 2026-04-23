@@ -1,0 +1,128 @@
+# /.azuredevops/templates/ai_reviewer.yml
+
+parameters:
+- name: python_version
+  type: string
+- name: uv_version
+  type: string
+- name: uv_index_name
+  type: string
+  default: ''
+- name: pat_username
+  type: string
+- name: pat
+  type: string
+
+steps:
+  - checkout: self
+    persistCredentials: true
+    clean: true
+    fetchDepth: 0
+
+  - template: configure_python.yml
+    parameters:
+      python_version: '${{ parameters.python_version }}'
+      uv_version: '${{ parameters.uv_version }}'
+
+  - script: uv run --only-group precommit pre-commit install
+    displayName: 'Install pre-commit hooks'
+
+  - script: uv sync --group test
+    env:
+      ${{ if ne(parameters.uv_index_name, '') }}:
+        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
+        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
+    displayName: 'Sync test dependencies'
+
+  - script: poetry run python devops_pipelines/scripts/ai_reviewer.py --output pr_comments.json
+    displayName: 'Generate AI review comments'
+    env:
+      AZURE_DEVOPS_ORG: $(AZURE_DEVOPS_ORG)
+      AZURE_DEVOPS_PAT: $(AZURE_DEVOPS_PAT)
+
+  - task: PowerShell@2
+    displayName: 'Post AI review comments to PR'
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+    inputs:
+      targetType: 'inline'
+      script: |
+        $ErrorActionPreference = "Stop"
+
+        $prId    = $env:SYSTEM_PULLREQUEST_PULLREQUESTID
+        $orgUrl  = $env:SYSTEM_COLLECTIONURI.TrimEnd('/')
+        $project = $env:SYSTEM_TEAMPROJECT
+        $repoId  = $env:BUILD_REPOSITORY_ID
+        $token   = $env:SYSTEM_ACCESSTOKEN
+
+        if (-not $prId) {
+          Write-Host "No PR ID (SYSTEM_PULLREQUEST_PULLREQUESTID is empty). Skipping comment posting."
+          exit 0
+        }
+
+        if (-not $token) {
+          Write-Error "SYSTEM_ACCESSTOKEN is empty. Enable 'Allow scripts to access OAuth token'."
+          exit 1
+        }
+
+        $commentsJson = Get-Content "pr_comments.json" -Raw
+        if ([string]::IsNullOrWhiteSpace($commentsJson)) {
+          Write-Host "No comments found in pr_comments.json. Skipping."
+          exit 0
+        }
+
+        $comments = $commentsJson | ConvertFrom-Json
+        if ($comments.Count -eq 0) {
+          Write-Host "No comments to post from AI reviewer."
+          exit 0
+        }
+
+        $baseUri = "$orgUrl/$project/_apis/git/repositories/$repoId/pullRequests/$prId/threads?api-version=7.1"
+
+        foreach ($c in $comments) {
+          $filePath = [string]$c.file_path
+          $filePath = $filePath -replace '\\', '/'
+          
+          if (-not $filePath.StartsWith("/")) {
+            $filePath = "/" + $filePath
+          }
+          $line     = [int]$c.line
+          $message  = [string]$c.message
+
+          $bodyObj = @{
+            comments = @(
+              @{
+                parentCommentId = 0
+                content         = $message
+                commentType     = "text"
+              }
+            )
+            status        = "active"
+            threadContext = @{
+              filePath       = $filePath
+              leftFileStart  = $null
+              leftFileEnd    = $null
+              rightFileStart = @{
+                line   = $line
+                offset = 1
+              }
+              rightFileEnd   = @{
+                line   = $line
+                offset = 200
+              }
+            }
+          }
+
+          $body = $bodyObj | ConvertTo-Json -Depth 10
+
+          Write-Host "Posting AI review comment to ${filePath}:${line}"
+          Invoke-RestMethod `
+            -Uri $baseUri `
+            -Method Post `
+            -Headers @{ Authorization = "Bearer $token" } `
+            -ContentType "application/json" `
+            -Body $body
+        }
+        
+        Write-Host "Posted $($comments.Count) AI review comments."
+    condition: always()

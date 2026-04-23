@@ -36,6 +36,8 @@ test = [
     "pytest-cov>=4.0.0",
     "pytest-azurepipelines>=1.0.4",
     "pytest-mock>=3.15.1",
+    "azure-devops>=7.1.0b4",
+    "requests>=2.32.0",
 ]
 build = [
     "yq>=3.0.0",

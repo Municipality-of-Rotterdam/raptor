@@ -3,6 +3,18 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### **Added**
+- AI code reviewer integration for Azure DevOps PRs via Mistral API
+- New `.azuredevops/templates/ai_reviewer.yml` template for generating and posting AI review comments
+- `ai_reviewer.py` script in package_repo template with embedded `AzureDevOpsClient` and `DiffType` classes
+- New `AIReview` stage in CI pipeline that runs non-blocking on PRs
+
+### **Changed**
+- Added `azure-devops` and `requests` to `[dependency-groups].test` in pyproject.toml
+- CI pipeline now includes AI review stage after pre-commit checks
+
 ## [2.0.0] - 2026-03-05
 Migrated from Poetry to uv.
 

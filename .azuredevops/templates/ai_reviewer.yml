@@ -34,11 +34,317 @@ steps:
         UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
     displayName: 'Sync test dependencies'
 
-  - script: poetry run python devops_pipelines/scripts/ai_reviewer.py --output pr_comments.json
+  - task: PowerShell@2
     displayName: 'Generate AI review comments'
     env:
       AZURE_DEVOPS_ORG: $(AZURE_DEVOPS_ORG)
       AZURE_DEVOPS_PAT: $(AZURE_DEVOPS_PAT)
+    inputs:
+      targetType: 'inline'
+      script: |
+        $ErrorActionPreference = "Stop"
+        
+        # Get PR metadata
+        $prId = $env:SYSTEM_PULLREQUEST_PULLREQUESTID
+        $sourceBranch = $env:SYSTEM_PULLREQUEST_SOURCEBRANCH
+        $targetBranch = $env:SYSTEM_PULLREQUEST_TARGETBRANCH
+        $project = $env:SYSTEM_TEAMPROJECT
+        $orgUrl = $env:SYSTEM_COLLECTIONURI.TrimEnd('/')
+        
+        Write-Host "PR ID: $prId"
+        Write-Host "Source branch: $sourceBranch"
+        Write-Host "Target branch: $targetBranch"
+        
+        # Normalize branches
+        function Test-BranchExists {
+            param([string]$branch)
+            $result = git rev-parse --verify $branch 2>$null
+            return $LASTEXITCODE -eq 0
+        }
+        
+        function Get-BranchRef {
+            param([string]$branch, [string]$prId)
+            
+            if (Test-BranchExists $branch) {
+                return $branch
+            }
+            
+            $short = $branch -replace "refs/heads/", ""
+            $remoteRef = "remotes/origin/$short"
+            if (Test-BranchExists $remoteRef) {
+                return $remoteRef
+            }
+            
+            $mergeRef = "remotes/pull/$prId/merge"
+            if (Test-BranchExists $mergeRef) {
+                return $mergeRef
+            }
+            
+            throw "Branch $branch not found locally"
+        }
+        
+        $sourceRef = Get-BranchRef $sourceBranch $prId
+        $targetRef = Get-BranchRef $targetBranch $prId
+        
+        Write-Host "Normalized: Source=$sourceRef, Target=$targetRef"
+        
+        # Get git diff
+        Write-Host "Fetching git diff between $targetRef and $sourceRef"
+        $diffOutput = git diff "$targetRef...$sourceRef" -U0 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to get git diff: $diffOutput"
+        }
+        
+        Write-Host "Diff retrieved, length: $($diffOutput.Length)"
+        
+        # Parse diff into file changes
+        $fileDiffs = @{}
+        $ignoreExtensions = @(".ipynb", ".lock")
+        
+        $diffSections = $diffOutput -split '(?m)^diff --git ' | ForEach-Object {
+            if ($_ -and $_.Trim()) { $_ }
+        }
+        
+        foreach ($section in $diffSections) {
+            $lines = $section -split "`n"
+            $headerLine = $lines[0]
+            $parts = $headerLine -split ' '
+            
+            if ($parts.Count -lt 2) { continue }
+            
+            $bPath = $parts[1]
+            if ($bPath.StartsWith("b/")) {
+                $bPath = $bPath.Substring(2)
+            }
+            
+            $path = $bPath
+            $ext = [System.IO.Path]::GetExtension($path)
+            
+            if ($ignoreExtensions -contains $ext) { continue }
+            
+            $changeType = "modify"
+            if ($section -match "new file mode") {
+                $changeType = "add"
+            } elseif ($section -match "deleted file mode") {
+                $changeType = "delete"
+            } elseif ($section -match "similarity index") {
+                $changeType = "rename"
+            }
+            
+            # Extract diff body
+            $diffBodyMatch = $section -match '(?m)^@@.*'
+            if (-not $diffBodyMatch) { continue }
+            
+            $diffBodyStart = [regex]::Match($section, '(?m)^@@.*').Index
+            $diffBody = $section.Substring($diffBodyStart)
+            
+            if (-not $diffBody.Trim()) { continue }
+            
+            $fileDiffs[$path] = @{
+                change_type = $changeType
+                diff = $diffBody
+            }
+        }
+        
+        Write-Host "Found $($fileDiffs.Count) file changes"
+        if ($fileDiffs.Count -eq 0) {
+            Write-Host "No relevant changes found, skipping AI review"
+            $commentsJson = "[]"
+            Set-Content -Path "pr_comments.json" -Value $commentsJson
+            exit 0
+        }
+        
+        # Prepare LLM input
+        $llmInput = @{
+            diff = @{}
+            file_contents = @{
+                new_files = @{}
+                existing_files = @{}
+                removed_files = @{}
+            }
+        }
+        
+        foreach ($path in $fileDiffs.Keys) {
+            $diffInfo = $fileDiffs[$path]
+            $llmInput["diff"][$path] = $diffInfo
+            
+            $absPath = Join-Path $PWD $path
+            $changeType = $diffInfo["change_type"]
+            
+            if ($changeType -eq "add" -or $changeType -eq "modify") {
+                if (Test-Path $absPath) {
+                    $content = Get-Content -Path $absPath -Raw -ErrorAction SilentlyContinue
+                    if ($changeType -eq "add") {
+                        $llmInput["file_contents"]["new_files"][$path] = $content
+                    } else {
+                        $llmInput["file_contents"]["existing_files"][$path] = $content
+                    }
+                } else {
+                    if ($changeType -eq "add") {
+                        $llmInput["file_contents"]["new_files"][$path] = $null
+                    } else {
+                        $llmInput["file_contents"]["existing_files"][$path] = $null
+                    }
+                }
+            } elseif ($changeType -eq "delete") {
+                $llmInput["file_contents"]["removed_files"][$path] = $null
+            }
+        }
+        
+        Write-Host "Preparing LLM request"
+        
+        # Call Mistral API
+        $mistralUrl = $env:url_env
+        $mistralApiKey = $env:api_key
+        
+        if (-not $mistralUrl -or -not $mistralApiKey) {
+            throw "Environment variables url_env and api_key must be set"
+        }
+        
+        # System prompt defined as raw text to avoid YAML parsing issues
+        $systemPrompt = @"
+You are a code-review assistant. You receive a JSON object where each key is a file path and each value contains:
+- change_type
+- diff (unified diff format)
+
+Your task: analyze the diff and output structured JSON that can be used to post PR comments in Azure DevOps.
+
+### PRIORITY ORDER
+1) correctness / bugs
+2) security issues
+3) maintainability / architecture
+4) performance
+5) readability / style
+
+### OUTPUT FORMAT
+Return a single JSON object:
+
+{
+  "<file_path>": {
+    "summary": "Short description of what changed.",
+    "comments": [
+    {
+      "message": "Description of the issue.",
+      "proposed_solution": "Clear and actionable fix.",
+      "category": "bug|security|maintainability|performance|style",
+      "severity": "high|medium|low",
+
+      "line_info": {
+        "original_line": int | null,
+        "new_line": int | null
+      }
+    }
+    ]
+  }
+}
+
+### LINE NUMBER RULES
+Extract line numbers from diff hunks using these rules:
+
+- Each hunk starts with: @@ -X,Y +A,B @@
+- X = starting line in the original file
+- Y = number of lines in the original file hunk
+- A = starting line in the new file
+- B = number of lines in the new file hunk
+
+- For each line in the hunk:
+- Lines starting with '+' -> increment new_line only
+- Lines starting with '-' -> increment original_line only
+- Lines starting with ' ' -> increment both original_line and new_line
+
+- For added or edited lines: set new_line to the line number in the new file
+- For removed lines: set new_line to null, but attach the comment to the **start of the removed block** (original_line)
+
+### COMMENT LINE MATCHING
+- When suggesting a comment, first check if the target line **exactly matches a line in the diff**.
+- If no exact match is found:
+1) Use the snippet or surrounding context to locate the **closest line in the full file from the PR**.
+2) Attach the comment to that line.
+
+### REQUIREMENTS
+- Only generate comments for real, meaningful issues.
+- Keep messages short and suitable for PR review.
+- proposed_solution must be specific and realistic.
+- Output must be valid JSON and contain nothing else.
+"@
+
+        $promptJson = $llmInput | ConvertTo-Json -Depth 10
+        Write-Host "Sending prompt to Mistral API"
+        
+        $body = @{
+            messages = @(
+                @{ role = "system"; content = $systemPrompt },
+                @{ role = "user"; content = $promptJson }
+            )
+            temperature = 0.4
+            response_format = @{ type = "json_object" }
+        } | ConvertTo-Json -Depth 20
+        
+        $headers = @{
+            "Content-Type" = "application/json"
+            "Authorization" = "Bearer $mistralApiKey"
+        }
+        
+        try {
+            $response = Invoke-RestMethod -Uri $mistralUrl -Method Post -Headers $headers -Body $body -ErrorAction Stop
+            $resultStr = $response.choices[0].message.content
+            Write-Host "Received response from Mistral API"
+        } catch {
+            Write-Host "Mistral API call failed: $_" -ForegroundColor Red
+            $commentsJson = "[]"
+            Set-Content -Path "pr_comments.json" -Value $commentsJson
+            exit 0
+        }
+        
+        # Parse LLM output
+        try {
+            $reviewOutput = $resultStr | ConvertFrom-Json
+            Write-Host "Parsed $($reviewOutput.PSObject.Properties.Count) files from LLM output"
+        } catch {
+            Write-Host "Failed to parse LLM output as JSON: $_" -ForegroundColor Red
+            $reviewOutput = @{}
+        }
+        
+        # Generate PR comments array
+        $prComments = @()
+        
+        foreach ($fileData in $reviewOutput.PSObject.Properties) {
+            $filePath = $fileData.Name
+            $fileComments = $fileData.Value
+            
+            foreach ($comment in $fileComments.comments) {
+                $lineInfo = $comment.line_info
+                $newLine = $lineInfo.new_line
+                $originalLine = $lineInfo.original_line
+                
+                $commentLine = if ($newLine -ne $null) { $newLine } else { $originalLine }
+                
+                $severity = $comment.severity
+                $category = $comment.category
+                $messageText = $comment.message
+                $proposedSolution = $comment.proposed_solution
+                
+                $fullMessage = "[PR-BOT]: [Severity: $severity], [Category: $category]`n$messageText`nSuggested fix: $proposedSolution"
+                if ($newLine -eq $null -and $originalLine -ne $null) {
+                    $fullMessage += "`n(Note: line was removed starting at original line $originalLine)"
+                }
+                
+                $prComment = @{
+                    file_path = $filePath
+                    line = $commentLine
+                    message = $fullMessage
+                }
+                $prComments += $prComment
+            }
+        }
+        
+        Write-Host "Generated $($prComments.Count) comments"
+        
+        # Write comments to JSON file
+        $commentsJson = $prComments | ConvertTo-Json -Depth 10
+        Set-Content -Path "pr_comments.json" -Value $commentsJson
+        
+        Write-Host "Comments written to pr_comments.json"
 
   - task: PowerShell@2
     displayName: 'Post AI review comments to PR'
@@ -48,37 +354,37 @@ steps:
       targetType: 'inline'
       script: |
         $ErrorActionPreference = "Stop"
-
+        
         $prId    = $env:SYSTEM_PULLREQUEST_PULLREQUESTID
         $orgUrl  = $env:SYSTEM_COLLECTIONURI.TrimEnd('/')
         $project = $env:SYSTEM_TEAMPROJECT
         $repoId  = $env:BUILD_REPOSITORY_ID
         $token   = $env:SYSTEM_ACCESSTOKEN
-
+        
         if (-not $prId) {
           Write-Host "No PR ID (SYSTEM_PULLREQUEST_PULLREQUESTID is empty). Skipping comment posting."
           exit 0
         }
-
+        
         if (-not $token) {
           Write-Error "SYSTEM_ACCESSTOKEN is empty. Enable 'Allow scripts to access OAuth token'."
           exit 1
         }
-
+        
         $commentsJson = Get-Content "pr_comments.json" -Raw
         if ([string]::IsNullOrWhiteSpace($commentsJson)) {
           Write-Host "No comments found in pr_comments.json. Skipping."
           exit 0
         }
-
+        
         $comments = $commentsJson | ConvertFrom-Json
         if ($comments.Count -eq 0) {
           Write-Host "No comments to post from AI reviewer."
           exit 0
         }
-
+        
         $baseUri = "$orgUrl/$project/_apis/git/repositories/$repoId/pullRequests/$prId/threads?api-version=7.1"
-
+        
         foreach ($c in $comments) {
           $filePath = [string]$c.file_path
           $filePath = $filePath -replace '\\', '/'
@@ -88,7 +394,7 @@ steps:
           }
           $line     = [int]$c.line
           $message  = [string]$c.message
-
+          
           $bodyObj = @{
             comments = @(
               @{
@@ -112,9 +418,9 @@ steps:
               }
             }
           }
-
+          
           $body = $bodyObj | ConvertTo-Json -Depth 10
-
+          
           Write-Host "Posting AI review comment to ${filePath}:${line}"
           Invoke-RestMethod `
             -Uri $baseUri `

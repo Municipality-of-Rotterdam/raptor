@@ -60,8 +60,6 @@ stages:
         python_version: ${{ variables.pythonVersion }}
         uv_version: ${{ variables.uvVersion }}
         uv_index_name: ${{ variables.uvIndexName }}
-        pat_username: $(PatUsername)
-        pat: $(DevOpsPAT)
 
 - stage: UnitTest
   displayName: Unit tests

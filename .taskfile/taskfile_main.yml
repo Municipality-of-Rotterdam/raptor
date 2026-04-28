@@ -55,7 +55,6 @@ tasks:
       - task: setup_compute_instance:install_cookiecutter
       - task: setup_compute_instance:setup_cookiecutter_config
       - task: setup_compute_instance:conda_init
-      - task: setup_compute_instance:install_poetry
       - task: setup_compute_instance:install_uv
       - task: setup_compute_instance:setup_git_maintenance
       - task: setup_compute_instance:install_vscode

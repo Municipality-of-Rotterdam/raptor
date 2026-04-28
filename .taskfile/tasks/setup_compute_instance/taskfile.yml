@@ -96,15 +96,6 @@ tasks:
     cmds:
       - conda init
 
-  # install poetry
-  install_poetry:
-    cmds:
-      # default installation dir didn't work, install it somewhere where it will be picked up by $PATH (or add it)
-      - curl -sSL https://install.python-poetry.org | python3 -
-      - echo "export PATH="/home/azureuser/.local/bin:$PATH"" >> /home/azureuser/.bashrc
-    status:
-      - poetry --version
-
   # install uv
   install_uv:
     cmds:

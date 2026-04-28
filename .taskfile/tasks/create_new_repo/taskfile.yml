@@ -49,9 +49,8 @@ tasks:
     silent: true
     cmds:
       - echo "Done, you probably want to run the task 'setup_repo' within the repo directory next!"
-      - echo "1. Until included in cookiecutter, copy https://github.com/JoeriA/aa_taskfile/blob/main/taskfile_package_repo.yml into your repo and rename to taskfile.yml."
-      - echo "2. Open the taskfile.yml and check all vars values!"
-      - echo "3. Then run 'task setup_repo' in your terminal, while in your repo directory."
+      - echo "1. Open the taskfile.yml and check all vars values!"
+      - echo "2. Then run 'task setup_repo' in your terminal, while in your repo directory."
 
   next_steps_proj:
     silent: true

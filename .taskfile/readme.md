@@ -17,14 +17,16 @@ Install taskfile, on Ubuntu: `sudo snap install task --classic`. See https://tas
 
 ### Config
 
+To fully configure taskfile, create both files as explained below.
+
 #### Taskfile config
 
-Create a .taskrc.yml in your home folder, for example with `nano ~/.taskrc.yml`. Below an example:
+To configure taskfile itself, create a .taskrc.yml in your home folder, for example with `nano ~/.taskrc.yml`. Below an example:
 
 ```
 interactive: true  # get prompts for missing variables instead of errors
 experiments:
-  remote_taskfiles: 1  # enable remote taskfiles
+  REMOTE_TASKFILES: 1  # enable remote taskfiles
 remote:
   cache-dir: ~/.task  # store cache in home folder, not within git repos
   trusted-hosts:
@@ -33,7 +35,7 @@ remote:
 
 #### Environment variables
 
-Create a taskfile.env file in your home folder, for example with `nano ~/taskfile.env`.
+To set some default values to be used in the tasks from this repo, create a taskfile.env file in your home folder, for example with `nano ~/taskfile.env`.
 
 For now the following variables can be set:
 

@@ -68,7 +68,7 @@ tasks:
       - test -d $UV_PROJECT_ENVIRONMENT
     preconditions:
       - sh: '[ -n "$UV_PROJECT_ENVIRONMENT" ]'
-        msg: UV_PROJECT_ENVIRONMENT is not set, is .envrc correct?
+        msg: UV_PROJECT_ENVIRONMENT is not set, is .envrc correct and did you run `direnv allow`?
 
   # create python environment with uv
   create_uv_env:

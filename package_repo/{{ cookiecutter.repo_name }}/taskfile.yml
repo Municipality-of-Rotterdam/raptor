@@ -20,8 +20,6 @@ vars:
   PYTHON_VERSION: {{cookiecutter.python_version}}
   # use conda for python environment (will use uv venv otherwise). Must be true when using poetry instead of uv!
   USE_CONDA: false
-  # use poetry or uv for dependency management
-  USE_POETRY: false
   # list of submodule locations, relative to root project directory
   # SUBMODULES: ["lib/aa_streetnetwork_preparation"]
   # extra arguments to uv sync command, for example extra or optional dependency groups

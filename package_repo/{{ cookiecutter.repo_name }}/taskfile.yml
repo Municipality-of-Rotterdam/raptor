@@ -5,9 +5,11 @@
 version: '3'
 
 # you could overwrite UV_INSTALL_DIR, CONDA_ENV_DIR and/or UV_VENV_DIR, shouldn't be necessary
+{% raw %}
 dotenv:
   - '{{.HOME}}/taskfile.env'
   - '.env'
+{% endraw %}
 
 includes:
   aa:

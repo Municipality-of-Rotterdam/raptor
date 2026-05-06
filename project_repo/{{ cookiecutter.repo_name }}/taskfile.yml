@@ -27,4 +27,4 @@ vars:
   # extra arguments to uv sync command, for example extra or optional dependency groups
   # UV_SYNC_EXTRA: "--extra submodules"
   # name of environment
-  ENV_NAME: {{ cookiecutter.package_name }}
+  ENV_NAME: {{ cookiecutter.repo_name }}

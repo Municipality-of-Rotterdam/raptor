@@ -13,7 +13,8 @@ exclude:
         .*/.*/azure-pipelines.yml|
         .*/.*/environment.yml|
         .*/.*/component_env.yml|
-        .*/local_extensions.py
+        .*/local_extensions.py|
+        .*/.*/taskfile.yml
     )
 
 repos:

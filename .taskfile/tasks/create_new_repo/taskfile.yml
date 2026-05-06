@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+
+  cookiecutter_check:
+    dir: '{{.USER_WORKING_DIR}}'
+    prompt: There is already a folder with repo_name '{{.REPO_NAME}}' within directory {{.USER_WORKING_DIR}}. Continue git setup on this repo?
+    cmds:
+      - cmd: echo "Continue with next steps"
+        silent: true
+    status:
+      - test -d {{.REPO_NAME}} && exit 1 || exit 0
+  
+  cookiecutter:
+    dir: '{{.USER_WORKING_DIR}}'
+    prompt: 'This will setup a {{.REPO_TYPE}} with {{if .REPO_TYPE | contains "package"}}package_name={{.NAME}} and {{end}}repo_name={{.REPO_NAME}} within directory {{.USER_WORKING_DIR}}. Is this correct?'
+    cmds:
+      - cmd: echo "Follow the raptor cookiecutter steps"
+        silent: true
+      - cmd: cookiecutter {{.COOKIECUTTER_URL}} --directory {{.REPO_TYPE}} {{if .REPO_TYPE | contains "package"}}package_name={{.NAME}}{{end}} repo_name={{.REPO_NAME}}
+    status:
+      - test -d {{.REPO_NAME}}
+
+  add_remote:
+    dir: '{{.RUN_DIR}}'
+    prompt: If not done yet, create a new repo with name '{{.REPO_NAME}}' within {{.GIT_ROOT_HTTPS}}, without readme and gitignore. The git repo url should look like {{.GIT_ROOT}}/{{.REPO_NAME}}. If not, change GIT_ROOT variable and rerun the task. Continue?
+    cmds:
+      - git remote add origin {{.GIT_ROOT}}/{{.REPO_NAME}}
+      - git push -u origin --all
+  
+  setup_default_branch_devops:
+    prompt: Go to {{.GIT_ROOT_HTTPS}}/_git/{{.REPO_NAME}}/branches, you can change the default branch here. You probably want to keep it at default (develop). Continue?
+
+  setup_build_pipeline_devops:
+    prompt: |-
+      1. Go to {{.GIT_ROOT_HTTPS}}/_git/{{.REPO_NAME}}, click "Set up build", select "Existing Azure Pipelines YAML file", use path "/devops_pipelines/templates/ci.yml", then "save" (under "run"). Hit the three-dots menu (next to 'Run pipeline'), Rename, then rename to "{{.REPO_NAME}} (ci)".
+      2. Go back to the repo and repeat this for path "/devops_pipelines/templates/cd.yml" to create pipeline "{{.REPO_NAME}} (cd)".
+      3. Repeat again for path "/devops_pipelines/templates/release.yml" to create pipeline "{{.REPO_NAME}} (release)".
+      Done?
+
+  setup_build_policies_devops:
+    prompt: |-
+      Go to {{.GIT_ROOT_HTTPS}}/_git/{{.REPO_NAME}}/branches to set up build policies.
+      Set up the following policies for develop and main branches.
+      - Require a minimum of 2 reviewers (allow requestor to approve own changes)
+      - Check for comment resolution
+      - Build validation, select pipeline "{{.REPO_NAME}} (ci)" created in previous step
+      Done?
+
+  next_steps_pkg:
+    silent: true
+    cmds:
+      - echo "Done, you probably want to run the task 'setup_repo' within the repo directory next!"
+      - echo "1. Open the taskfile.yml and check all vars values!"
+      - echo "2. Then run 'task setup_repo' in your terminal, while in your repo directory."
+
+  next_steps_proj:
+    silent: true
+    cmds:
+      - echo "Done!"

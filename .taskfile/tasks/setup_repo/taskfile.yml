@@ -1,0 +1,142 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+includes:
+  setup_compute_instance:
+    taskfile: ../setup_compute_instance/taskfile.yml
+    internal: true
+
+# these vars are used and must be defined in the taskfile in your repo
+# vars:
+#   PYTHON_VERSION: 3.11
+#   USE_CONDA: false
+#   ENV_NAME: amazing_project
+# # optional:
+#   UV_SYNC_EXTRA: "--extra submodules"
+#   SUBMODULES: ["lib/azureml_utils"]
+
+tasks:
+
+  _main:
+    internal: true
+    requires:
+      vars: [ENV_NAME, PYTHON_VERSION]
+    cmds:
+      # check some input variables
+      - task: check_vars
+      # add to git maintenance
+      - task: register_git_maintenance
+      # initialize git submodules
+      - task: init_submodules
+      # install uv if not done yet
+      - task: 'setup_compute_instance:install_uv'
+      # create environment
+      - task: '{{if .USE_CONDA}}create_conda_env{{else}}create_uv_env{{end}}'
+      # install dependencies
+      - task: 'uv_sync'
+      # install precommit hook for this repo
+      - task: precommit_install
+      # install precommit hooks for submodules
+      - for: { var: SUBMODULES }
+        task: precommit_install
+        vars:
+          DIR: '{{.ITEM}}'
+      - task: '{{if .USE_CONDA}}print_conda_path{{else}}print_uv_path{{end}}'
+  
+  # check for some variable conflicts
+  check_vars:
+    silent: true
+    cmds:
+      - echo .USE_CONDA={{.USE_CONDA}}
+      - '{{if .USE_CONDA}}echo "Using conda and uv"{{end}}'
+      - '{{if not .USE_CONDA}}echo "Using uv without conda"{{end}}'
+    preconditions:
+      - sh: '[ -n "{{.USE_CONDA}}" ]'
+        msg: USE_CONDA is not set, check readme how to set up a taskfile.yml within the repo, with variables.
+
+  # init submodules (they are empty after cloning a repo)
+  init_submodules:
+    cmds:
+      - git submodule update --init
+    status:
+      # check whether submodules are already directories (bit complicated to reuse SUBMODULES var)
+      - for path in {{join " " .SUBMODULES}}; do [ -d "$path" ]; done
+  
+  check_venv_dir:
+    status:
+      - test -d $UV_PROJECT_ENVIRONMENT
+    preconditions:
+      - sh: '[ -n "$UV_PROJECT_ENVIRONMENT" ]'
+        msg: UV_PROJECT_ENVIRONMENT is not set, is .envrc correct and did you run `direnv allow`?
+
+  # create python environment with uv
+  create_uv_env:
+    env:
+      PYTHON_VERSION: "{{.PYTHON_VERSION}}"
+    cmds:
+      - task: check_venv_dir
+      - uv venv --python {{.PYTHON_VERSION}}
+
+  # create python environment with conda
+  create_conda_env:
+    cmds:
+      - task: check_venv_dir
+      - conda env create -f environment.yml -n {{.ENV_NAME}}
+
+  # install python dependencies with uv
+  uv_sync:
+    cmds:
+      - task: check_venv_dir
+      # use UV_SYNC_EXTRA to pass other options (such as which groups to sync)
+      - uv sync {{.UV_SYNC_EXTRA}}
+    preconditions:
+      - sh: '[ -n "$UV_PROJECT_ENVIRONMENT" ]'
+        msg: UV_PROJECT_ENVIRONMENT is not set, is .envrc correct?
+
+  # install precommit hook
+  precommit_install:
+    # option to change working directory, to use for submodules
+    dir: '{{.DIR}}'
+    vars:
+      DIR: '{{.DIR| default "."}}'
+    cmds:
+      - task: check_venv_dir
+      # use uv run (so it works if environment is not yet activated)
+      - 'uv run pre-commit install'
+    preconditions:
+      - sh: 'uv run pre-commit --version'
+        msg: "Pre-commit not installed. Switch to the correct venv or install pre-commit with uv."
+    status:
+      # hooks for submodules are in modules subdirectory of .git
+      # (assuming submodules are in lib subdirectory within project working directory,
+      # if not, no big deal, pre-commit hook will be re-installed but is very fast)
+      - test -f {{if eq .DIR "."}}.git{{else}}../../.git/modules/{{.DIR}}{{end}}/hooks/pre-commit
+
+  # register repo for git maintenance (periodically optimize big repo cache)
+  register_git_maintenance:
+    cmds:
+      # add current repo to git maintenance
+      # for setup check https://stackoverflow.com/a/79741474
+      - git maintenance register
+  
+  # print final message
+  print_uv_path:
+    cmds:
+      - task: check_venv_dir
+      - echo "Setup complete. For vscode, select interpreter (ctrl+shift+p) > Enter interpreter path > Find > $UV_PROJECT_ENVIRONMENT/bin/python."
+    silent: true
+
+  print_conda_path:
+    cmds:
+      - task: check_venv_dir
+      - echo "Setup complete. For vscode, select interpreter (ctrl+shift+p) $UV_PROJECT_ENVIRONMENT (Conda)."
+    silent: true
+
+  convert_poetry_to_uv:
+    prompt: "Note: this will convert the pyproject.toml and package manager to uv, but CI/CD still uses poetry and will not work. Accept?"
+    cmds:
+      # making sure uv is installed
+      - task: setup_compute_instance:install_uv
+      # migrate to uv
+      - uvx migrate-to-uv

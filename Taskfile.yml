@@ -1,0 +1,26 @@
+
+# for setting up taskfile, see: https://dev.azure.com/GemeenteRotterdam/DAPR/_git/aa_taskfile
+
+version: '3'
+
+# you could overwrite UV_INSTALL_DIR, CONDA_ENV_DIR, and/or UV_VENV_DIR
+dotenv:
+  - '{{.HOME}}/taskfile.env'
+  - '.env'
+
+vars:
+  PYTHON_VERSION: 3.11
+  USE_CONDA: false
+  USE_POETRY: false
+  PROJECT_NAME: fisha
+  SUBMODULES: ["lib/aa_optimalisatie_routes"]
+  UV_SYNC_EXTRA: "--extra submodules"
+
+includes:
+  aa:
+    taskfile: "https://github.com/Municipality-of-Rotterdam/raptor.git//.taskfile/taskfile_main.yml?ref=feature/taskfile"
+    flatten: true
+  personal:
+    taskfile: ~/Taskfile.yml
+    flatten: true
+    optional: true

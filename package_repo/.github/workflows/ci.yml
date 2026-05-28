@@ -1,0 +1,22 @@
+{% raw %}
+name: {% endraw %}{{ package_name}}{% raw %} CI
+
+on:
+  pull_request:
+    types:
+      - "*"
+
+  workflow_dispatch:
+
+jobs:
+  Precommit:
+    uses: municipality-of-rotterdam/raptor/.github/workflows/pre_commit.yml@{% endraw %}{{ __cookiecutter_template_version}}{% raw %}
+    with:
+      PYTHON_VERSION: {% endraw %}{{ python_version}}{% raw %}
+
+  UnitTest:
+    uses: municipality-of-rotterdam/raptor/.github/workflows/unit_test.yml@{% endraw %}{{ __cookiecutter_template_version}}{% raw %}
+    with:
+      PYTHON_VERSION: {% endraw %}{{ python_version}}{% raw %}
+      PACKAGE_NAME: {% endraw %}{{ package_name}}{% raw %}
+{% endraw %}

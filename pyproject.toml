@@ -4,7 +4,7 @@ version = "2.3.0"
 requires-python = ">=3.11"
 dependencies = [
     "pre-commit==2.19.0",
-    "cookiecutter==2.4.0"
+    "copier>=9.0.0"
 ]
 
 [tool.uv]

@@ -1,0 +1,11 @@
+name: {{ repo_name }}
+channels:
+  - conda-forge
+  - anaconda
+  - nodefaults
+dependencies:
+  - chardet=5.2.0
+  - python={{ python_version}}
+  - pip==23.0
+  - uv={{ uv_version}}
+  - pre-commit={{ precommit_version}} 

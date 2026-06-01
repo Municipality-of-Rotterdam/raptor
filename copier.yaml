@@ -38,22 +38,21 @@ project_type:
   choices:
     - project
     - package
-  default: project
 
 repo_name:
   type: str
   help: Repository name
-  default: my_repo
+  placeholder: my_repo
 
 author_name:
   type: str
   help: Author name
-  default: Your Name
+  placeholder: Your Name
 
 author_email:
   type: str
   help: Author email
-  default: your@email.com
+  placeholder: your@email.com
 
 description:
   type: str
@@ -81,7 +80,7 @@ ci_cd:
   choices:
     - DevOps
     - GitHub
-  default: GitHub
+  default: DevOps
 
 # --- DevOps-specific questions ---
 
@@ -168,7 +167,7 @@ type_deployment:
 
 __aml_project_code: "{{ repo_name.lower().replace(' ', '_').replace('-', '_') }}"
 __aml_base_deployment_name: "{{ __aml_project_code.replace('_', '-') }}"
-__cookiecutter_template_version: "2.1.0"
+__raptor_template_version: "2.1.0"
 
 # --- Post-generation tasks ---
 

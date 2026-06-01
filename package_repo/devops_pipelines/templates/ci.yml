@@ -31,7 +31,7 @@ resources:
     - repository: raptor
       name: municipality-of-rotterdam/raptor
       type: github
-      ref: refs/tags/{% endraw %}{{ __cookiecutter_template_version}}{% raw %}
+      ref: refs/tags/{% endraw %}{{ raptor_template_version}}{% raw %}
       endpoint: {% endraw %}{{ github_service_connection }}{% raw %}
 
 stages:

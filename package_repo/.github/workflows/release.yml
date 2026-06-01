@@ -18,7 +18,7 @@ jobs:
 
   Documentation: 
     if: success() && github.ref == 'refs/heads/main'
-    uses: municipality-of-rotterdam/raptor/.github/workflows/documentation.yml@{% endraw %}{{ __cookiecutter_template_version}}{% raw %}
+    uses: municipality-of-rotterdam/raptor/.github/workflows/documentation.yml@{% endraw %}{{ raptor_template_version}}{% raw %}
     with: 
       PYTHON_VERSION: {% endraw %}{{ python_version}}{% raw %}
 

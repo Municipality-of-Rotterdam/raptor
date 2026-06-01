@@ -7,8 +7,8 @@ env:
   PRE_COMMIT_VERSION: 2.19.0 # set this to your pre-commit version
   AZURE_CLI_VERSION: 2.64.0 # set this to your Azure CLI version
   TYPE_DEPLOYMENT: {% endraw %}{{ type_deployment}}{% raw %} # set this to your type of model deployment
-  AML_ENDPOINT_NAME: {% endraw %}{{ __aml_base_deployment_name}}-{{ type_deployment}}-endpoint{% raw %}
-  AML_DEPLOYMENT_NAME: {% endraw %}{{ __aml_base_deployment_name}}-{{ type_deployment}}-deployment{% raw %}-${{ github.run_number }}
+  AML_ENDPOINT_NAME: {% endraw %}{{ aml_base_deployment_name}}-{{ type_deployment}}-endpoint{% raw %}
+  AML_DEPLOYMENT_NAME: {% endraw %}{{ aml_base_deployment_name}}-{{ type_deployment}}-deployment{% raw %}-${{ github.run_number }}
   AML_MIRROR_TRAFFIC: 10 # set this to % mirror traffic
   # https://github.com/william-liebenberg/github-gated-deployments/tree/main?tab=readme-ov-file
   ENVIRONMENT_NAME: aml_{% endraw %}{{ repo_name}}{% raw %}

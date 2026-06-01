@@ -4,7 +4,7 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
-Package set-up created with cookiecutter template version {{ __cookiecutter_template_version }}
+Package set-up created with raptor template version {{ raptor_template_version }}
 
 ## [Unreleased] - yyyy-mm-dd
 

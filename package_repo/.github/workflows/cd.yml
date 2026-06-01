@@ -18,12 +18,12 @@ permissions:
 jobs:
 
   Check:
-    uses: municipality-of-rotterdam/raptor/.github/workflows/check.yml@{% endraw %}{{ __cookiecutter_template_version}}{% raw %}
+    uses: municipality-of-rotterdam/raptor/.github/workflows/check.yml@{% endraw %}{{ raptor_template_version}}{% raw %}
 
   Build:
     if: needs.Check.outputs.src_changed == 'True'
     needs: [Check]
-    uses: municipality-of-rotterdam/raptor/.github/workflows/build.yml@{% endraw %}{{ __cookiecutter_template_version}}{% raw %}
+    uses: municipality-of-rotterdam/raptor/.github/workflows/build.yml@{% endraw %}{{ raptor_template_version}}{% raw %}
     with:
       PYTHON_VERSION: {% endraw %}{{ python_version}}{% raw %}
       PACKAGE_NAME: {% endraw %}{{ package_name}}{% raw %}
@@ -33,7 +33,7 @@ jobs:
   Register:
     if: ${{ success() && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release')) }}
     needs: [Build]
-    uses: municipality-of-rotterdam/raptor/.github/workflows/register.yml@{% endraw %}{{ __cookiecutter_template_version}}{% raw %}
+    uses: municipality-of-rotterdam/raptor/.github/workflows/register.yml@{% endraw %}{{ raptor_template_version}}{% raw %}
     with:
       AML_ENVIRONMENT: {% endraw %}{{ package_name }}{% raw %}
       RG_NAME: {% endraw %}{{ azure_resource_group }}{% raw %}

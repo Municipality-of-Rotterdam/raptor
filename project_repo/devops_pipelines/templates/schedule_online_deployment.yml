@@ -27,16 +27,16 @@ variables:
   # If main, deploy to production
 - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
   - name: aml_endpoint_name
-    value: {% endraw %}{{ __aml_base_deployment_name}}{% raw %}-prod
+    value: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-prod
   - name: aml_deployment_name
-    value: {% endraw %}{{ __aml_base_deployment_name}}{% raw %}-deployment-prod
+    value: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-deployment-prod
   - group: AmlProdGroup
 # If not main, fallback on development settings
 - ${{ else }}:
   - name: aml_endpoint_name
-    value: {% endraw %}{{ __aml_base_deployment_name}}{% raw %}-dvlm
+    value: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-dvlm
   - name: aml_deployment_name
-    value: {% endraw %}{{ __aml_base_deployment_name}}{% raw %}-deployment-dvlm
+    value: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-deployment-dvlm
   - group: AmlDevGroup
 
 stages:

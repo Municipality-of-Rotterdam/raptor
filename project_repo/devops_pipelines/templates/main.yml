@@ -14,11 +14,11 @@ variables:
   value: '10'
   # Batch ML pipeline deployment base name
 - name: aml_deployment_name
-  value: {% endraw %}{{ __aml_base_deployment_name}}{% raw %}-pipeline
+  value: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-pipeline
 # If main, deploy to production
 - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
   - name: aml_endpoint_name
-    value: {% endraw %}{{ __aml_base_deployment_name}}{% raw %}-{% endraw %}{{ type_deployment}}{% raw %}-prod
+    value: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-{% endraw %}{{ type_deployment}}{% raw %}-prod
   - name: environment
     value: aml_{% endraw %}{{ repo_name}}{% raw %}_production
   - name: feed_view
@@ -27,7 +27,7 @@ variables:
 # If not main, fallback on development settings
 - ${{ else }}:
   - name: aml_endpoint_name
-    value: {% endraw %}{{ __aml_base_deployment_name}}{% raw %}-{% endraw %}{{ type_deployment}}{% raw %}-dev
+    value: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-{% endraw %}{{ type_deployment}}{% raw %}-dev
   - name: environment
     value: aml_{% endraw %}{{ repo_name}}{% raw %}_development
   - name: feed_view
@@ -77,7 +77,7 @@ stages:
           - template: /devops_pipelines/templates/scheduled_pipeline_deployment.yml
             parameters:
               # job name used for pipelinejob run triggered by ci/cd (not those triggered by schedule)
-              aml_job_name: {% endraw %}{{ __aml_project_code}}{% raw %}_experiment_$(Build.BuildNumber)
+              aml_job_name: {% endraw %}{{ aml_project_code}}{% raw %}_experiment_$(Build.BuildNumber)
 
   - ${{ if or(eq(variables['type_deployment'], 'batch'), eq(variables['type_deployment'], 'online')) }}:
     - stage: Update

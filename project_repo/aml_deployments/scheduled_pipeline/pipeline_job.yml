@@ -2,7 +2,7 @@
 $schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
 type: pipeline
 # this experiment name is only used for the jobs started by CI/CD, not for the jobs started by schedule
-experiment_name: {% endraw %}{{ __aml_project_code}}{% raw %}_experiment
+experiment_name: {% endraw %}{{ aml_project_code}}{% raw %}_experiment
 
 settings:
   default_compute: azureml:cpu001-compute
@@ -25,7 +25,7 @@ jobs:
     type: command
     compute: azureml:cpu001-compute
     # this component is created in the ci/cd pipeline before creating the pipelinejob
-    component: azureml:{% endraw %}{{ __aml_project_code}}{% raw %}_component_a@latest
+    component: azureml:{% endraw %}{{ aml_project_code}}{% raw %}_component_a@latest
     limits:
       timeout: 21600  # timeout in seconds (now set to 6 hours), adjust if needed
     inputs:
@@ -40,7 +40,7 @@ jobs:
     type: command
     compute: azureml:cpu001-compute
     # this component is created in the ci/cd pipeline before creating the pipelinejob
-    component: azureml:{% endraw %}{{ __aml_project_code}}{% raw %}_component_b@latest
+    component: azureml:{% endraw %}{{ aml_project_code}}{% raw %}_component_b@latest
     limits:
       timeout: 21600  # timeout in seconds (now set to 6 hours), adjust if needed
     inputs:

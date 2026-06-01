@@ -1,7 +1,7 @@
 {% raw %}
 $schema: https://azuremlschemas.azureedge.net/latest/schedule.schema.json
 # name of job when triggered by schedule
-name: {% endraw %}{{ __aml_project_code}}{% raw %}_experiment_monthly
+name: {% endraw %}{{ aml_project_code}}{% raw %}_experiment_monthly
 
 trigger:
   type: recurrence
@@ -21,10 +21,10 @@ create_job:
   # but then you cannot easily pass any parameters (such as git hashes)
   # so we run the pipeline job first in CD (although you may not use the output)
   # this pipelinejob is created in the ci/cd pipeline before creating the schedule
-  job: azureml:{% endraw %}{{ __aml_project_code}}{% raw %}_experiment
+  job: azureml:{% endraw %}{{ aml_project_code}}{% raw %}_experiment
   # set experiment name explicitly, docs state that schedule name will be used if not specified, but that is not true
   # this will be the experiment name for all scheduled jobs
-  experiment_name: {% endraw %}{{ __aml_project_code}}{% raw %}_experiment
+  experiment_name: {% endraw %}{{ aml_project_code}}{% raw %}_experiment
   # runtime settings
   settings:
     default_compute: azureml:cpu001-compute

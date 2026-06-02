@@ -1,43 +1,17 @@
 # Copier template for Raptor
 # Generates either a project repo or a package repo
 
-_subdirectory: ""
-_exclude:
-  - copier.yaml
-  - .copier-answers.yml
-  - .envrc
-  - .gitignore
-  - .gitattributes
-  - .gitmodules
-  - .pre-commit-config.yaml
-  - LICENSE
-  - README.md
-  - azure-pipelines.yml
-  - changelog.md
-  - pyproject.toml
-  - raptor_logo.png
-  - uv.lock
-  - .azuredevops
-  - .github_raptor
-  - .mypy_cache
-  - .ruff_cache
-  - .taskfile
-  - .venv
-  - /aml_deployments
-  - /devops_pipelines
-  - /docs
-  - /src
-  - /tests
-  - .env.example
+_subdirectory: "{{ repo_type }}"
+
 _env_vars:
   - COPIER_NO_INPUT
 
-project_type:
+repo_type:
   type: str
   help: What kind of repo do you want to create?
   choices:
-    - project
-    - package
+    - project_repo
+    - package_repo
 
 repo_name:
   type: str
@@ -120,13 +94,13 @@ publish_package_on_public_pypi:
   type: bool
   help: Publish package on public PyPI?
   default: false
-  when: "{{ ci_cd == 'GitHub' and project_type == 'package' }}"
+  when: "{{ ci_cd == 'GitHub' and repo_type == 'package_repo' }}"
 
 create_aml_environment_in_cicd:
   type: bool
   help: Create AML environment in CI/CD?
   default: false
-  when: "{{ ci_cd == 'GitHub' and project_type == 'package' }}"
+  when: "{{ ci_cd == 'GitHub' and repo_type == 'package_repo' }}"
 
 # --- DevOps package-specific ---
 
@@ -134,7 +108,7 @@ package_feed:
   type: str
   help: Package feed name
   default: package_feed
-  when: "{{ ci_cd == 'DevOps' and project_type == 'package' }}"
+  when: "{{ ci_cd == 'DevOps' and repo_type == 'package_repo' }}"
 
 # --- Package-specific questions ---
 
@@ -142,13 +116,13 @@ package_name:
   type: str
   help: Package name (alphanumeric + underscores)
   default: package_name
-  when: "{{ project_type == 'package' }}"
+  when: "{{ repo_type == 'package_repo' }}"
 
 project_name:
   type: str
   help: Project name (for PyPI / package feed)
   default: project_name
-  when: "{{ project_type == 'package' }}"
+  when: "{{ repo_type == 'package_repo' }}"
 
 # --- Project-specific questions ---
 
@@ -161,7 +135,7 @@ type_deployment:
     - online
     - scheduled-pipeline
   default: none
-  when: "{{ project_type == 'project' }}"
+  when: "{{ repo_type == 'project_repo' }}"
 
 # --- Computed variables ---
 
@@ -171,15 +145,15 @@ __raptor_template_version: "2.1.0"
 
 # --- Post-generation tasks ---
 
-_tasks:
-  - |
-    export COPIER_PROJECT_TYPE="{{ project_type }}"
-    export COPIER_CI_CD="{{ ci_cd }}"
-    export COPIER_REPO_NAME="{{ repo_name }}"
-    export COPIER_PACKAGE_NAME="{{ package_name }}"
-    export COPIER_AUTHOR_NAME="{{ author_name }}"
-    export COPIER_AUTHOR_EMAIL="{{ author_email }}"
-    {{ _copier_python }} {{ _copier_conf.src_path }}/scripts/post_gen.py
+# _tasks:
+#   - |
+#     export COPIER_repo_type="{{ repo_type }}"
+#     export COPIER_CI_CD="{{ ci_cd }}"
+#     export COPIER_REPO_NAME="{{ repo_name }}"
+#     export COPIER_PACKAGE_NAME="{{ package_name }}"
+#     export COPIER_AUTHOR_NAME="{{ author_name }}"
+#     export COPIER_AUTHOR_EMAIL="{{ author_email }}"
+#     {{ _copier_python }} {{ _copier_conf.src_path }}/scripts/post_gen.py
 
 # --- Migrations ---
 

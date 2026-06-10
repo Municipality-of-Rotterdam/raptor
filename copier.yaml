@@ -3,9 +3,6 @@
 
 _subdirectory: "{{ repo_type }}"
 
-_env_vars:
-  - COPIER_NO_INPUT
-
 repo_type:
   type: str
   help: What kind of repo do you want to create?
@@ -22,11 +19,19 @@ author_name:
   type: str
   help: Author name
   placeholder: Your Name
+  validator: >-
+    {% if not (author_name | regex_search('([A-Za-z]+ )+[A-Za-z]+$')) %}
+    author_name should be like "Name [tussenvoegsel] Surname".
+    {% endif %}
 
 author_email:
   type: str
   help: Author email
   placeholder: your@email.com
+  validator: >-
+    {% if not (author_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
+    author_email should be like "nameornumber.nameornumber@my.domain".
+    {% endif %}
 
 description:
   type: str
@@ -145,15 +150,14 @@ __raptor_template_version: "2.1.0"
 
 # --- Post-generation tasks ---
 
-# _tasks:
-#   - |
-#     export COPIER_repo_type="{{ repo_type }}"
-#     export COPIER_CI_CD="{{ ci_cd }}"
-#     export COPIER_REPO_NAME="{{ repo_name }}"
-#     export COPIER_PACKAGE_NAME="{{ package_name }}"
-#     export COPIER_AUTHOR_NAME="{{ author_name }}"
-#     export COPIER_AUTHOR_EMAIL="{{ author_email }}"
-#     {{ _copier_python }} {{ _copier_conf.src_path }}/scripts/post_gen.py
+_tasks:
+  - |
+    export COPIER_repo_type="{{ repo_type }}"
+    export COPIER_CI_CD="{{ ci_cd }}"
+    export COPIER_REPO_NAME="{{ repo_name }}"
+    export COPIER_PACKAGE_NAME="{{ package_name }}"
+    export COPIER_AUTHOR_NAME="{{ author_name }}"
+    export COPIER_AUTHOR_EMAIL="{{ author_email }}"
 
 # --- Migrations ---
 

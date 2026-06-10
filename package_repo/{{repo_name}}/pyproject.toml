@@ -59,7 +59,7 @@ default-groups = [
 {% if ci_cd.lower() == "devops" %}
 [[tool.uv.index]]
 name = "{{ package_feed}}"
-url = "https://pkgs.dev.azure.com/{{ organisation_name}}/{{ project_name}}/_packaging/{{ package_feed}}/pypi/simple/"
+url = "https://pkgs.dev.azure.com/{{ devops_organisation_name }}/{{ devops_project_name }}/_packaging/{{ package_feed}}/pypi/simple/"
 explicit = true
 {% endif %}
 

@@ -8,4 +8,4 @@ dependencies:
     - example_package==0.0.1
     - >-
       --extra-index-url
-      https://pkgs.dev.azure.com/{{ organisation_name}}/{{ project_name}}/_packaging/{{ package_feed}}@#{feed_view}#/pypi/simple/
+      https://pkgs.dev.azure.com/{{ devops_organisation_name }}/{{ devops_project_name }}/_packaging/{{ package_feed}}@#{feed_view}#/pypi/simple/

@@ -1,11 +1,11 @@
 
 variables:
-  pythonVersion: {{ python_version}}
-  uvVersion: {{ uv_version}}
+  pythonVersion: {{ python_version }}
+  uvVersion: {{ uv_version }}
   pre_commit_version: 2.19.0
-  devops_organisation: {{ organisation_name}}
-  devops_project: {{ project_name}}
-  sh_agent_pool_name: {{ private_agent_name}}
+  devops_organisation: {{ devops_organisation_name }}
+  devops_project: {{ devops_project_name }}
+  sh_agent_pool_name: {{ private_agent_name }}
   # Create booleans for branches we want to build.
   isMain: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
   isDev: $[eq(variables['Build.SourceBranch'], 'refs/heads/develop')]

@@ -27,7 +27,7 @@ jobs:
     with:
       PYTHON_VERSION: {% endraw %}{{ python_version}}{% raw %}
       PACKAGE_NAME: {% endraw %}{{ package_name}}{% raw %}
-      PROJECT_NAME: {% endraw %}{{ project_name}}{% raw %}
+      PROJECT_NAME: {% endraw %}{{devops_project_name}}{% raw %}
 
   {% endraw %}{% if create_aml_environment_in_cicd|lower in ["y", "yes", "true"] %}{% raw %}
   Register:

@@ -10,10 +10,40 @@ repo_type:
     - project_repo
     - package_repo
 
+# repo_name is computed below based on repo_type
+
+# --- Package-specific questions ---
+
+package_name:
+  type: str
+  help: Package name (alphanumeric + underscores)
+  default: package_name
+  when: "{{ repo_type == 'package_repo' }}"
+
+# --- Project-specific questions ---
+
+project_name:
+  type: str
+  help: Project name
+  placeholder: my_project
+  when: "{{ repo_type == 'project_repo' }}"
+
+type_deployment:
+  type: str
+  help: Type of deployment
+  choices:
+    - none
+    - batch
+    - online
+    - scheduled-pipeline
+  default: none
+  when: "{{ repo_type == 'project_repo' }}"
+
+# --- Back to generic questions (that are less important than the specific questions above) ---
+
 repo_name:
   type: str
-  help: Repository name
-  placeholder: my_repo
+  default: "{{ 'pkg_' + (package_name or '') if repo_type == 'package_repo' else (project_name or '') }}"
 
 author_name:
   type: str
@@ -35,7 +65,7 @@ author_email:
 
 description:
   type: str
-  help: Short description
+  help: Short description of the package/project
   default: A short description.
 
 python_version:
@@ -63,10 +93,16 @@ ci_cd:
 
 # --- DevOps-specific questions ---
 
-organisation_name:
+devops_organisation_name:
   type: str
-  help: DevOps organisation name
-  default: organisation_name
+  help: DevOps organisation name, as in https://dev.azure.com/devops_organisation_name
+  default: devops_organisation_name
+  when: "{{ ci_cd == 'DevOps' }}"
+
+devops_project_name:
+  type: str
+  help: DevOps project name, as in https://dev.azure.com/devops_organisation_name/devops_project_name
+  default: devops_project_name
   when: "{{ ci_cd == 'DevOps' }}"
 
 private_agent_name:
@@ -115,33 +151,6 @@ package_feed:
   default: package_feed
   when: "{{ ci_cd == 'DevOps' and repo_type == 'package_repo' }}"
 
-# --- Package-specific questions ---
-
-package_name:
-  type: str
-  help: Package name (alphanumeric + underscores)
-  default: package_name
-  when: "{{ repo_type == 'package_repo' }}"
-
-project_name:
-  type: str
-  help: Project name (for PyPI / package feed)
-  default: project_name
-  when: "{{ repo_type == 'package_repo' }}"
-
-# --- Project-specific questions ---
-
-type_deployment:
-  type: str
-  help: Type of deployment
-  choices:
-    - none
-    - batch
-    - online
-    - scheduled-pipeline
-  default: none
-  when: "{{ repo_type == 'project_repo' }}"
-
 # --- Computed variables ---
 
 __aml_project_code: "{{ repo_name.lower().replace(' ', '_').replace('-', '_') }}"
@@ -150,14 +159,7 @@ __raptor_template_version: "2.1.0"
 
 # --- Post-generation tasks ---
 
-_tasks:
-  - |
-    export COPIER_repo_type="{{ repo_type }}"
-    export COPIER_CI_CD="{{ ci_cd }}"
-    export COPIER_REPO_NAME="{{ repo_name }}"
-    export COPIER_PACKAGE_NAME="{{ package_name }}"
-    export COPIER_AUTHOR_NAME="{{ author_name }}"
-    export COPIER_AUTHOR_EMAIL="{{ author_email }}"
+_tasks: []
 
 # --- Migrations ---
 

@@ -2,7 +2,7 @@
 name: Raptor Project Repo CICD
 
 env:
-  PROJECT_NAME: {% endraw %}{{ project_name}}{% raw %}  # set this to your project name
+  PROJECT_NAME: {% endraw %}{{devops_project_name}}{% raw %}  # set this to your project name
   PYTHON_VERSION: {% endraw %}{{ python_version}}{% raw %} # set this to the Python version to use
   PRE_COMMIT_VERSION: 2.19.0 # set this to your pre-commit version
   AZURE_CLI_VERSION: 2.64.0 # set this to your Azure CLI version

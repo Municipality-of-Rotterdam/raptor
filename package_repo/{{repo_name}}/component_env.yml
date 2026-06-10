@@ -9,4 +9,4 @@ dependencies:
     - {{ package_name }}==X.X.X
     - >-
       --extra-index-url
-      https://pkgs.dev.azure.com/${org_name}/{{ project_name}}/_packaging/${feed_view}/pypi/simple/
+      https://pkgs.dev.azure.com/{{ devops_organisation_name }}/{{ devops_project_name }}/_packaging/${feed_view}/pypi/simple/

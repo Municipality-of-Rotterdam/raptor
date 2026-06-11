@@ -7,8 +7,8 @@ repo_type:
   type: str
   help: What kind of repo do you want to create?
   choices:
-    - project_repo
     - package_repo
+    - project_repo
 
 # repo_name is computed below based on repo_type
 
@@ -159,7 +159,18 @@ __raptor_template_version: "2.1.0"
 
 # --- Post-generation tasks ---
 
-_tasks: []
+_tasks:
+  - command: 'git config --global --add safe.directory "$(pwd)"'
+    # working_directory relative to dst, so becomes dst/repo_name
+    working_directory : "{{ repo_name }}"
+  - command: "git init"
+    working_directory : "{{ repo_name }}"
+  - command: "git add ."
+    working_directory : "{{ repo_name }}"
+  - command: "git commit -m init"
+    working_directory : "{{ repo_name }}"
+  - command: "git checkout -b develop"
+    working_directory : "{{ repo_name }}"
 
 # --- Migrations ---
 

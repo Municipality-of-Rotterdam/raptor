@@ -52,19 +52,19 @@ tasks:
       - task: setup_compute_instance:setup_ssh
       - task: setup_compute_instance:install_direnv
       - task: setup_compute_instance:set_git_default_branch
-      - task: setup_compute_instance:install_cookiecutter
-      - task: setup_compute_instance:setup_cookiecutter_config
+      - task: setup_compute_instance:install_copier
+      - task: setup_compute_instance:setup_copier_config
       - task: setup_compute_instance:conda_init
       - task: setup_compute_instance:install_uv
       - task: setup_compute_instance:setup_git_maintenance
       - task: setup_compute_instance:install_vscode
       - task: setup_compute_instance:enable_code_tunnel_service
 
-  # create new git repo based on raptor cookiecutter
+  # create new git repo based on raptor copier
   create_new_repo:
     vars:
       REPO_TYPE: '{{.REPO_TYPE | default "package_repo"}}'
-      COOKIECUTTER_URL: '{{.COOKIECUTTER_URL | default "https://github.com/Municipality-of-Rotterdam/raptor.git"}}'
+      COPIER_URL: '{{.COPIER_URL | default "https://github.com/Municipality-of-Rotterdam/raptor.git"}}'
       GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS | default "your git service provicer (github/devops)"}}'
       REPO_NAME_DIRTY: '{{if .REPO_TYPE | contains "package"}}pkg_{{end}}{{.PKG_NAME}}'
       REPO_NAME: '{{.REPO_NAME_DIRTY | lower | replace " " "" | replace "-" ""}}'
@@ -77,15 +77,15 @@ tasks:
           enum: [package_repo, project_repo]
     cmds:
       # two preconditions, steps from setup_compute_instance, will skip if already satisfied
-      - task: setup_compute_instance:install_cookiecutter
-      - task: setup_compute_instance:setup_cookiecutter_config
+      - task: setup_compute_instance:install_copier
+      - task: setup_compute_instance:setup_copier_config
       # continue
-      - task: create_new_repo:cookiecutter_check
+      - task: create_new_repo:copier_check
         vars:
           REPO_NAME: '{{.REPO_NAME}}'
-      - task: create_new_repo:cookiecutter
+      - task: create_new_repo:copier
         vars:
-          COOKIECUTTER_URL: '{{.COOKIECUTTER_URL}}'
+          COPIER_URL: '{{.COPIER_URL}}'
           NAME: '{{.PKG_NAME}}'
           REPO_TYPE: '{{.REPO_TYPE}}'
           REPO_NAME: '{{.REPO_NAME}}'

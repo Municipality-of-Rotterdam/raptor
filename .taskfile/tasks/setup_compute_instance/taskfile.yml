@@ -69,23 +69,23 @@ tasks:
     cmds:
       - git config --global init.defaultBranch main
 
-  install_cookiecutter:
+  install_copier:
     cmds:
-      - pip install cookiecutter
+      - pip install copier
     status:
-      - cookiecutter --version
-  
-  setup_cookiecutter_config:
+      - copier --version
+
+  setup_copier_config:
     cmds:
-      - task: create_cookiecutter_config
-      - echo 'export COOKIECUTTER_CONFIG=~/raptor_config.yml' >> ~/.bashrc
+      - task: create_copier_config
+      - echo 'export COPIER_ANSWERS_FILE=~/raptor_config.yml' >> ~/.bashrc
     status:
-      - '[ -n "${COOKIECUTTER_CONFIG}" ]'
-  
-  create_cookiecutter_config:
+      - '[ -n "${COPIER_ANSWERS_FILE}" ]'
+
+  create_copier_config:
     vars:
-      COOKIECUTTER_CONFIG: '{{.COOKIECUTTER_CONFIG | default "https://github.com/Municipality-of-Rotterdam/raptor?tab=readme-ov-file#32-create-the-repo-using-the-raptors-url-its-recommended-to-use-ssh"}}'
-    prompt: For simplicity, first setup a cookiecutter config.yml, see {{.COOKIECUTTER_CONFIG}}. Copy the default_context block, paste it in the next window and save with ctrl+x, Y, enter. Did you copy the default_context?
+      COPIER_CONFIG: '{{.COPIER_CONFIG | default "https://github.com/Municipality-of-Rotterdam/raptor?tab=readme-ov-file#32-create-the-repo-using-the-raptors-url-its-recommended-to-use-ssh"}}'
+    prompt: For simplicity, first setup a copier config.yml, see {{.COPIER_CONFIG}}. Copy the default_data block, paste it in the next window and save with ctrl+x, Y, enter. Did you copy the default_data?
     cmds:
       - nano ~/raptor_config.yml
     interactive: true

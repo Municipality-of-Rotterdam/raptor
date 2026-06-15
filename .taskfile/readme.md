@@ -3,7 +3,7 @@
 This is a taskfile containing a collection of commands for various tasks, such as:
 
 - Setting up a new compute instance
-- Creating a new repository based on cookiecutter
+- Creating a new repository based on copier
 - Setting up a repository for use (including setting up the python environment)
 
 Compared to following the confluence documentation, this taskfile will automates as many tasks as possible.
@@ -39,8 +39,8 @@ To set some default values to be used in the tasks from this repo, create a task
 
 For now the following variables can be set:
 
-- COOKIECUTTER_URL: the url pointing to the cookiecutter url (defaults to [raptor](https://github.com/Municipality-of-Rotterdam/raptor)).
-- COOKIECUTTER_CONFIG: url pointing to cookiecutter config instructions (defaults to [raptor](https://github.com/Municipality-of-Rotterdam/raptor) readme).
+- COPIER_URL: the url pointing to the copier url (defaults to [raptor](https://github.com/Municipality-of-Rotterdam/raptor)).
+- COPIER_CONFIG: url pointing to copier config instructions (defaults to [raptor](https://github.com/Municipality-of-Rotterdam/raptor) readme).
 - GIT_ROOT_HTTPS: url to git provider, with organisation/project names, without trailing slash. Example: https://dev.azure.com/ORGANISATION/PROJECT.
 - GIT_ROOT: base https/ssh url without trailing slash. Example: git@ssh.dev.azure.com:v3/ORGANISATION/PROJECT.
 - GIT_PUBLIC_KEY_URL: url on git provider to add public keys. Example: https://dev.azure.com/ORGANISATION/_usersSettings/keys.
@@ -50,8 +50,8 @@ Only GIT_ROOT is required, the others have defaults (but some steps might be ski
 Full example:
 
 ```
-COOKIECUTTER_URL=https://github.com/Municipality-of-Rotterdam/raptor  # link to cookiecutter repo
-COOKIECUTTER_CONFIG=https://github.com/Municipality-of-Rotterdam/raptor  # link to cookiecutter config file for your team
+COPIER_URL=https://github.com/Municipality-of-Rotterdam/raptor  # link to copier repo
+COPIER_CONFIG=https://github.com/Municipality-of-Rotterdam/raptor  # link to copier config file for your team
 GIT_ROOT_HTTPS=https://dev.azure.com/ORGANISATION/PROJECT  # git root https url (including organisation/project)
 GIT_ROOT=git@ssh.dev.azure.com:v3/ORGANISATION/PROJECT  # git root ssh url (including organisation/project), without trailing slash
 GIT_PUBLIC_KEY_URL=https://dev.azure.com/ORGANISATION/_usersSettings/keys  # git https url to page for adding new public keys
@@ -90,7 +90,7 @@ Arguments:
 Setup the current git repo: creating python environment, installing precommit, etc.
 Should be run in the repo itself using the following:
 
-1. When using an older raptor-based repo based on poetry, copy https://github.com/Municipality-of-Rotterdam/raptor/blob/develop/package_repo/%7B%7B%20cookiecutter.repo_name%20%7D%7D/taskfile.yml into your repo.
+1. When using an older raptor-based repo based on poetry, copy https://github.com/Municipality-of-Rotterdam/raptor/blob/develop/package_repo/%7B%7B%20repo_name%20%7D%7D/taskfile.yml into your repo.
 2. Open the taskfile.yml in the repo and check all vars values!
 3. Then run 'task setup_repo' in your terminal, while in your repo directory.
 

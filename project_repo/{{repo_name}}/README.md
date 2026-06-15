@@ -22,7 +22,7 @@ Give a installation guide here, or provide one via a link.
 
 <!-- Replace the installation_guide_link to the installation guide of your repository -->
 For example:
-* Use [Installation guide](installation_guide_link) to setup your repository using this cookiecutter template.
+* Use [Installation guide](installation_guide_link) to setup your repository using this copier template.
 
 ## Documentation
 

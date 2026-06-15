@@ -4,7 +4,7 @@ version: '3'
 
 tasks:
 
-  cookiecutter_check:
+  copier_check:
     dir: '{{.USER_WORKING_DIR}}'
     prompt: There is already a folder with repo_name '{{.REPO_NAME}}' within directory {{.USER_WORKING_DIR}}. Continue git setup on this repo?
     cmds:
@@ -13,13 +13,13 @@ tasks:
     status:
       - test -d {{.REPO_NAME}} && exit 1 || exit 0
   
-  cookiecutter:
+  copier:
     dir: '{{.USER_WORKING_DIR}}'
     prompt: 'This will setup a {{.REPO_TYPE}} with {{if .REPO_TYPE | contains "package"}}package_name={{.NAME}} and {{end}}repo_name={{.REPO_NAME}} within directory {{.USER_WORKING_DIR}}. Is this correct?'
     cmds:
-      - cmd: echo "Follow the raptor cookiecutter steps"
+      - cmd: echo "Follow the raptor copier steps"
         silent: true
-      - cmd: cookiecutter {{.COOKIECUTTER_URL}} --directory {{.REPO_TYPE}} {{if .REPO_TYPE | contains "package"}}package_name={{.NAME}}{{end}} repo_name={{.REPO_NAME}}
+      - cmd: uv run copier copy {{.COPIER_URL}} --directory {{.REPO_TYPE}} {{if .REPO_TYPE | contains "package"}}package_name={{.NAME}}{{end}} repo_name={{.REPO_NAME}}
     status:
       - test -d {{.REPO_NAME}}
 

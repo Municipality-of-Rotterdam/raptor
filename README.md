@@ -7,7 +7,7 @@
 
 # RAPToR – Rapid Analytics Product Template of Rotterdam
 
-This repository is a cookiecutter template to be used for projects in Azure Machine Learning.
+This repository is a copier template to be used for projects in Azure Machine Learning.
 
 
 # Table of Content
@@ -118,41 +118,41 @@ For setting up an SSH connection on github, click
 
 #### 3.2. Create the repo, using the raptor's url (it's recommended to use SSH)
 
-Optionally, if cookiecutter is not yet installed in the base environment, run
+Optionally, if copier is not yet installed in the base environment, run
 ```bash
-pip install cookiecutter
+uv tool install copier
 ```
-Using your terminal, navigate to your user folder within the compute instance (home/azureuser/cloudfiles/code/Users/<username>)
-There are two types of repos, as outlined in the Introduction above. You can either create a package repo or a project repo.
+Using your terminal, navigate to your user folder within the compute instance (home/azureuser/cloudfiles/code/Users/<username>).
+Go to the folder in which you want to create the new repo (copier will create a subdirectory for the repo in this directory).
 Create the repo (when using SSH, copy in the SSH clone URL), in this example a package repository:
 ```bash
-cookiecutter <raptor_repo_url> --directory package_repo
+copier copy <raptor_repo_url> .
 ```
 If you want to create a repo from a specific raptor branch or tag, run e.g.
 ```bash
-cookiecutter <raptor_repo_url> -c <branch or tag name> --directory package_repo
+copier copy --vcs-ref <branch or tag name> <raptor_repo_url> .
 ```
-You can also supply a user config .yaml file with default values being set. 
-You should set env variable COOKIECUTTER_CONFIG to your configuration file:
+By default copier uses the latest release version (using sorted git tags), also when referring to a git directory! If you really want to use your local directory, run e.g.
 ```bash
-export COOKIECUTTER_CONFIG=path/to/config.yml
-```
-with schema e.g.
-```yaml
-default_context: 
-    organisation_name: "MyOrg"
-    package_feed: "MyFeed"
-    additional_prompts: "devops"
+copier copy --vcs-ref HEAD <raptor_directory> .
 ```
 
-If you want to run noninteractively, run
-```bash
-COOKIECUTTER_NO_INPUT=1 cookiecutter <raptor_repo_url> --no-input --directory package_repo
+You can also supply a user config .yml file with default values being set.
+Create a file `~/.config/copier/settings.yml`
+with schema e.g.
+```yaml
+defaults:
+    devops_organisation_name: "devops_organisation_name"
+    devops_project_name: "devops_project_name"
+    package_feed: "package_feed"
+    private_agent_name: "private_agent_name"
+    ci_cd: "DevOps"
+    author_name: "Team name"
+    author_email: "team@organisation.com"
+    user_name: "User Name"
+    user_email: "user@organisation.com"
 ```
-Extra input args can be set like this (e.g. specifying to use the github variant and setting the repo_name):
-```bash
-COOKIECUTTER_NO_INPUT=1 cookiecutter <raptor_repo_url> --no-input --directory package_repo additional_prompts=Github repo_name=myrepo
-```
+
 ##### Prompts Explained
 ---
 
@@ -358,7 +358,7 @@ uv run pytest
 #### 4.5. Installing private packages
 In this section, we will explain how to use other private packages within your repository. This is very useful for re-using generic code from colleagues.
 ##### 4.5.1 Installing private packages from artifacts feed
-With the cookiecutter setup, we can install private packages from a private artifacts feed in our environment using uv.
+With the copier setup, we can install private packages from a private artifacts feed in our environment using uv.
 This is the preferred way to use private code from other repos in our current repository. It can be used in all different CI/CD locations: locally in VS Code, remotely in the devops agent, and as a dependency in an AML environment.
 
 **DevOps**
@@ -482,7 +482,7 @@ files you may need to deal with (`.coveragerc` for local tests and `.coveragerc_
 ## Writing code
 
 #### 6.1 Using the API functionality
-Our cookiecutter template is designed with simplicity and effectiveness in mind, especially for new users. It includes two key Python files: __version__.py and _api.py, each serving a distinct purpose.
+Our copier template is designed with simplicity and effectiveness in mind, especially for new users. It includes two key Python files: __version__.py and _api.py, each serving a distinct purpose.
 The __version__.py helps with providing single-sourcing of the package version. Whereas the _api.py file acts as the primary interface for the core functionalities of the package. It is the outward-facing part of your code, meant to be used by the end-users of your package. Here's how you can use it:
 The __version__.py file contains a __version__ attribute. This is useful for keeping track of the package you are working with. You can access it as follows:
 ```python

@@ -5,23 +5,21 @@ steps:
       uv run copier copy -d repo_type=package_repo -d ci_cd=DevOps -d package_name=package_name_ado -d user_name="Ci Cd" -d user_email=cicd@devops.com -f --vcs-ref HEAD --trust . ..
     displayName: 'Call copier on package_repo (DevOps variant)'
   - script: |
-      cd ./pkg_package_name_ado
-      git add .
+      cd ../pkg_package_name_ado
       uv run --group precommit pre-commit run --all-files --show-diff-on-failure
     displayName: 'Run pre-commit on package_repo (DevOps variant)'
   - script: |
-      cd ./pkg_package_name_ado
+      cd ../pkg_package_name_ado
       uv run --group test pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
     displayName: 'Run pytest on package_repo (DevOps variant)'
   - script: |
       uv run copier copy -d repo_type=package_repo -d ci_cd=GitHub -d package_name=package_name_gh -d user_name="Ci Cd" -d user_email=cicd@devops.com -f --vcs-ref HEAD --trust . ..
     displayName: 'Call copier on package_repo (Github variant)'
   - script: |
-      cd ./pkg_package_name_gh
-      git add .
+      cd ../pkg_package_name_gh
       uv run --group precommit pre-commit run --all-files --show-diff-on-failure
     displayName: 'Run pre-commit on package_repo (Github variant)'
   - script: |
-      cd ./pkg_package_name_gh
+      cd ../pkg_package_name_gh
       uv run --group test pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
     displayName: 'Run pytest on package_repo (Github variant)'

@@ -3,7 +3,7 @@ name = "{{ package_name}}"
 description = "{{ description }}"
 version = "0.0.1"
 readme = "README.md"
-authors = [{name = "{{ user_name }}", email = "{{ user_email }}"}]
+authors = [{name = "{{ author_name }}", email = "{{ author_email }}"}]
 requires-python = ">={{ python_version}},<4.0"
 dependencies = [
     "python-dotenv>=0.21.1,<0.22.0",

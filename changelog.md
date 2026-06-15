@@ -9,8 +9,12 @@ Change from cookiecutter to copier
 ### **Changed**
 - Moved from cookiecutter to copier template
 - Easier prompt templating, merging of package and project prompts
+
+### **Added**
+- Use user_name and user_email for git (still use author_name and author_email for package)
+
+### **Removed**
 - Removed pre/post hooks, now use built-in prompt validators and tasks
-- Use user_name and user_email instead of author_* as per [copier guidelines](https://copier.readthedocs.io/en/stable/settings/)
 
 ## [2.3.0] - 2026-07-17
 Added pre-commit schema checks on most yaml files.

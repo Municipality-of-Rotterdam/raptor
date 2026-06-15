@@ -47,20 +47,38 @@ repo_name:
 
 user_name:
   type: str
-  help: Author name
-  placeholder: Your Name
+  help: User name (used for git)
+  placeholder: Firstname [optional middle name] Surname
   validator: >-
     {% if not (user_name | regex_search('([A-Za-z]+ )+[A-Za-z]+$')) %}
-    user_name should be like "Name [tussenvoegsel] Surname".
+    user_name should be like "Firstname [optional middle name] Surname".
     {% endif %}
 
 user_email:
   type: str
-  help: Author email
+  help: User email (used for git)
   placeholder: your@email.com
   validator: >-
     {% if not (user_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
-    user_email should be like "nameornumber.nameornumber@my.domain".
+    user_email should be like "nameornumber[.nameornumber]@my.domain".
+    {% endif %}
+    
+author_name:
+  type: str
+  help: Author name (used for package details)
+  default: "{{ user_name }}"
+  validator: >-
+    {% if not (author_name | regex_search('([A-Za-z]+ )+[A-Za-z]+$')) %}
+    author_name should be like "Firstname [middle name] Surname".
+    {% endif %}
+
+author_email:
+  type: str
+  help: Author email (used for package details)
+  default: "{{ autor_name }}"
+  validator: >-
+    {% if not (author_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
+    author_email should be like "nameornumber[.nameornumber]@my.domain".
     {% endif %}
 
 description:
@@ -160,6 +178,10 @@ __raptor_template_version: "2.1.0"
 # --- Post-generation tasks ---
 
 _tasks:
+  - command: "git config user.email '{{ user_email }}'"
+    working_directory : "{{ repo_name }}"
+  - command: "git add ."
+    working_directory : "{{ repo_name }}"
   - command: 'git config --global --add safe.directory "$(pwd)"'
     # working_directory relative to dst, so becomes dst/repo_name
     working_directory : "{{ repo_name }}"

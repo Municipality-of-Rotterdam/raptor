@@ -75,7 +75,7 @@ author_name:
 author_email:
   type: str
   help: Author email (used for package details)
-  default: "{{ autor_name }}"
+  default: "{{ user_email }}"
   validator: >-
     {% if not (author_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
     author_email should be like "nameornumber[.nameornumber]@my.domain".

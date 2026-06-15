@@ -4,6 +4,7 @@ exclude:
         .*/.*/notebooks/|
         .*/.*/src/|
         .*/.*/devops_pipelines/|
+        .*/\{%.*devops_pipelines.*%\}/|
         .*/.*/lib/|
         .*/.*/aml_deployments/|
         .*/.*/components/|

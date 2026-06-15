@@ -19,3 +19,6 @@ test = [
     "pytest==7.1.2",
     "pytest-cov",
 ]
+
+[tool.mypy]
+ignore_missing_imports = true

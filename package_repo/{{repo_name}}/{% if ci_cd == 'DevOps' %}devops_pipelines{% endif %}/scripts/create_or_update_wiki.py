@@ -30,23 +30,39 @@ logger.setLevel(logging.INFO)
 
 parser = ArgumentParser()
 parser.add_argument(
-    "-f", "--filepath", dest="md_filepath", help="Path to the directory containing all docfiles in md format"
+    "-f",
+    "--filepath",
+    dest="md_filepath",
+    help="Path to the directory containing all docfiles in md format",
 )
 parser.add_argument(
-    "-p", "--project", dest="dvo_project_name", help="The name of the devops project in which the wiki (will) reside"
+    "-p",
+    "--project",
+    dest="dvo_project_name",
+    help="The name of the devops project in which the wiki (will) reside",
 )
 parser.add_argument("-n", "--name", dest="dvo_wiki_name", help="Name of the wiki")
 parser.add_argument(
-    "-b", "--branch", dest="dvo_branch_name", help="The name of the branch on which the wiki will be based off of"
+    "-b",
+    "--branch",
+    dest="dvo_branch_name",
+    help="The name of the branch on which the wiki will be based off of",
 )
 parser.add_argument("-s", "--clientsecret", dest="client_secret", help="Client Secret")
 parser.add_argument("-i", "--clientid", dest="client_id", help="Client Id")
 parser.add_argument(
-    "-t", "--tenant", dest="tenant_name", help="The tenant name used to access the Azure Devops services"
+    "-t",
+    "--tenant",
+    dest="tenant_name",
+    help="The tenant name used to access the Azure Devops services",
 )
 parser.add_argument(
-    "-o", "--organisation", dest="organisation", help="The organisation used to access the Azure Devops services"
+    "-o",
+    "--organisation",
+    dest="organisation",
+    help="The organisation used to access the Azure Devops services",
 )
+
 
 @dataclass
 class WikiConfig:
@@ -58,7 +74,9 @@ class WikiConfig:
     root_page: str = "/Technische documentatie"
 
 
-def get_clients(client_id: str, token: Dict[str, str], organization_url: str) -> ClientFactoryV7_1:
+def get_clients(
+    client_id: str, token: Dict[str, str], organization_url: str
+) -> ClientFactoryV7_1:
     """Initialize connection to devops and return the client instantiator which can be used
     to retrieve clients such as: WikiClient, GitClient and so on.
     Currently based on the 7.1 version of the devops rest api
@@ -78,7 +96,11 @@ def get_clients(client_id: str, token: Dict[str, str], organization_url: str) ->
 
 
 def _get_page(
-    wiki_client: WikiClient, wiki_config: WikiConfig, path: str, recursion_level: int = 1, get_content: bool = False
+    wiki_client: WikiClient,
+    wiki_config: WikiConfig,
+    path: str,
+    recursion_level: int = 1,
+    get_content: bool = False,
 ) -> WikiPageResponse:
     """Get a page from an existing wiki in Azure Devops.
 
@@ -108,7 +130,11 @@ def _get_page(
 
 
 def _create_or_update_page(
-    wiki_client: WikiClient, wiki_config: WikiConfig, content: str, upload_path: str, page_etag: Optional[object] = None
+    wiki_client: WikiClient,
+    wiki_config: WikiConfig,
+    content: str,
+    upload_path: str,
+    page_etag: Optional[object] = None,
 ) -> WikiPageResponse:
     """Create or update a page from an existing wiki in Azure Devops.
 
@@ -135,7 +161,9 @@ def _create_or_update_page(
     )
 
 
-def get_existing_pages(wiki_client: WikiClient, wiki_config: WikiConfig) -> Dict[Any, Dict[str, str]]:
+def get_existing_pages(
+    wiki_client: WikiClient, wiki_config: WikiConfig
+) -> Dict[Any, Dict[str, str]]:
     """Check for existing pages in a given existing wiki at a specified root path.
 
     Args:
@@ -154,7 +182,12 @@ def get_existing_pages(wiki_client: WikiClient, wiki_config: WikiConfig) -> Dict
         # Iterate through the subpages of the root page
         for page in root_page.page.sub_pages:
             val = {"content": "", "eTag": "", "path": ""}
-            subpage = _get_page(wiki_client=wiki_client, wiki_config=wiki_config, path=page.path, get_content=True)
+            subpage = _get_page(
+                wiki_client=wiki_client,
+                wiki_config=wiki_config,
+                path=page.path,
+                get_content=True,
+            )
             val["content"] = subpage.page.content
             val["eTag"] = subpage.eTag
             val["path"] = subpage.page.path
@@ -192,7 +225,10 @@ def get_md_content(md_dir_location: str) -> Dict[str, str]:
 
 
 def create_or_update_pages(
-    wiki_client, wiki_config: WikiConfig, pages_to_upload: Dict[str, str], existing_pages: Dict[Any, Dict[str, str]]
+    wiki_client,
+    wiki_config: WikiConfig,
+    pages_to_upload: Dict[str, str],
+    existing_pages: Dict[Any, Dict[str, str]],
 ) -> bool:
     """Check for existing pages in a given existing wiki at a specified root path.
 
@@ -208,7 +244,11 @@ def create_or_update_pages(
     """
     for page, content in pages_to_upload.items():
         upload_path = f"{wiki_config.root_page}/{page}"
-        logger.debug("designated upload path: %s, will search in: %s", upload_path, existing_pages)
+        logger.debug(
+            "designated upload path: %s, will search in: %s",
+            upload_path,
+            existing_pages,
+        )
 
         if upload_path in existing_pages:
             ep_val = existing_pages.get(upload_path)
@@ -217,7 +257,9 @@ def create_or_update_pages(
                 logger.info("page: %s exists and is already up-to-date", upload_path)
                 continue
             logger.info("page: %s exists.. updating with new docs", upload_path)
-            _create_or_update_page(wiki_client, wiki_config, content, upload_path, ep_val["eTag"])
+            _create_or_update_page(
+                wiki_client, wiki_config, content, upload_path, ep_val["eTag"]
+            )
         else:
             logger.info("creating new page: %s and adding docs", upload_path)
             _create_or_update_page(wiki_client, wiki_config, content, upload_path)
@@ -259,7 +301,9 @@ def delete_unneeded_pages(
                     path=page_path,
                     comment=f"Deleting page {page} from automated CI step",
                     version_descriptor=GitVersionDescriptor(
-                        version=wiki_config.branch_name, version_options=None, version_type="branch"
+                        version=wiki_config.branch_name,
+                        version_options=None,
+                        version_type="branch",
                     ),
                 )
             )
@@ -308,7 +352,9 @@ def create_or_verify_wiki(wiki_client, core_client, git_client, wiki_config) -> 
         WikiV2: Response instance for a wiki
     """
     try:
-        found_wiki = wiki_client.get_wiki(wiki_config.wiki_name, project=wiki_config.project_name)
+        found_wiki = wiki_client.get_wiki(
+            wiki_config.wiki_name, project=wiki_config.project_name
+        )
         logger.info("wiki found: %s", wiki_config.wiki_name)
         return found_wiki
     except AzureDevOpsServiceError:
@@ -318,10 +364,14 @@ def create_or_verify_wiki(wiki_client, core_client, git_client, wiki_config) -> 
                 mapped_path="/docs",
                 name=wiki_config.wiki_name,
                 project_id=get_project_id(core_client, wiki_config.project_name),
-                repository_id=get_repository_id(git_client, wiki_config.project_name, wiki_config.wiki_name),
+                repository_id=get_repository_id(
+                    git_client, wiki_config.project_name, wiki_config.wiki_name
+                ),
                 type="codewiki",
                 version=GitVersionDescriptor(
-                    version=wiki_config.branch_name, version_options=None, version_type="branch"
+                    version=wiki_config.branch_name,
+                    version_options=None,
+                    version_type="branch",
                 ),
             ),
             project=wiki_config.project_name,
@@ -346,7 +396,6 @@ def retrieve_auth_app(config: Dict[str, str]) -> ConfidentialClientApplication:
 
 
 if __name__ == "__main__":
-
     args = parser.parse_args()
 
     wiki_config = WikiConfig(
@@ -380,12 +429,15 @@ if __name__ == "__main__":
 
     result_token = authenticated_app.acquire_token_for_client(scopes=config["scope"])
     if "access_token" not in result_token:
-        logger.error("was not able to retrieve access token for service principal with Id: %s", {config["client_id"]})
+        logger.error(
+            "was not able to retrieve access token for service principal with Id: %s",
+            {config["client_id"]},
+        )
         sys.exit(1)
 
-
-
-    clients = get_clients(client_id=args.client_id, token=result_token, organization_url=ORGANIZATION_URL)
+    clients = get_clients(
+        client_id=args.client_id, token=result_token, organization_url=ORGANIZATION_URL
+    )
 
     wiki_client = clients.get_wiki_client()
     core_client = clients.get_core_client()
@@ -395,7 +447,9 @@ if __name__ == "__main__":
 
     pages_to_upload = get_md_content(md_dir_location=args.md_filepath)
 
-    existing_pages = get_existing_pages(wiki_client=wiki_client, wiki_config=wiki_config)
+    existing_pages = get_existing_pages(
+        wiki_client=wiki_client, wiki_config=wiki_config
+    )
 
     create_or_update_pages(wiki_client, wiki_config, pages_to_upload, existing_pages)
 

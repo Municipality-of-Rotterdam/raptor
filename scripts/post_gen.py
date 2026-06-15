@@ -25,26 +25,36 @@ author_email = os.environ.get("COPIER_AUTHOR_EMAIL", "")
 if project_type == "package":
     PACKAGE_NAME_REGEX = r"^[a-zA-Z0-9_]+$"
     if not re.match(PACKAGE_NAME_REGEX, package_name):
-        print(f"ERROR: package name '{package_name}' is not valid. Use only alphanumeric characters and underscores.")
+        print(
+            f"ERROR: package name '{package_name}' is not valid. Use only alphanumeric characters and underscores."
+        )
         sys.exit(1)
 
     AUTHORREGEX = r"([A-Za-z]+ )+[A-Za-z]+$"
     EMAILREGEX = r"[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$"
     if not re.match(AUTHORREGEX, author_name):
-        print(f"ERROR: author name '{author_name}' is not valid. Should be like: Name Surname")
+        print(
+            f"ERROR: author name '{author_name}' is not valid. Should be like: Name Surname"
+        )
         sys.exit(1)
     if not re.match(EMAILREGEX, author_email):
-        print(f"ERROR: author email '{author_email}' is not valid. Should be like: name@my.domain")
+        print(
+            f"ERROR: author email '{author_email}' is not valid. Should be like: name@my.domain"
+        )
         sys.exit(1)
 
 if project_type == "project":
     MODULE_REGEX = r"^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$"
     aml_base_deployment_name = repo_name.lower().replace(" ", "-").replace("_", "-")
     if not re.match(MODULE_REGEX, aml_base_deployment_name):
-        print(f"ERROR: AML base name '{aml_base_deployment_name}' should only consist of letters, dashes and numbers, starting with a letter.")
+        print(
+            f"ERROR: AML base name '{aml_base_deployment_name}' should only consist of letters, dashes and numbers, starting with a letter."
+        )
         sys.exit(1)
     if not (3 <= len(aml_base_deployment_name) <= 20):
-        print(f"ERROR: AML base name '{aml_base_deployment_name}' should be 3-20 characters.")
+        print(
+            f"ERROR: AML base name '{aml_base_deployment_name}' should be 3-20 characters."
+        )
         sys.exit(1)
 
 # ===========================
@@ -105,7 +115,9 @@ elif ci_cd == "DevOps":
 # Git repo config
 # ===========================
 
-subprocess.call(["git", "config", "--global", "--add", "safe.directory", target_repo_dir])
+subprocess.call(
+    ["git", "config", "--global", "--add", "safe.directory", target_repo_dir]
+)
 subprocess.call(["git", "init"])
 subprocess.call(["git", "add", "."])
 print("committing initialized repo")

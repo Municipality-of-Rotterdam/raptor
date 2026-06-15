@@ -1,7 +1,8 @@
 # Copier template for Raptor
 # Generates either a project repo or a package repo
 
-_subdirectory: "{{ repo_type }}"
+# disable suffix, so we do not need to end files where we use template variables to .jinja
+_templates_suffix: ""
 
 repo_type:
   type: str
@@ -9,6 +10,8 @@ repo_type:
   choices:
     - package_repo
     - project_repo
+
+_subdirectory: "{{ repo_type }}"
 
 # repo_name is computed below based on repo_type
 

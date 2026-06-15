@@ -3,6 +3,15 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.0.0] - TBD
+Change from cookiecutter to copier
+
+### **Changed**
+- Moved from cookiecutter to copier template
+- Easier prompt templating, merging of package and project prompts
+- Removed pre/post hooks, now use built-in prompt validators and tasks
+- Use user_name and user_email instead of author_* as per [copier guidelines](https://copier.readthedocs.io/en/stable/settings/)
+
 ## [2.3.0] - 2026-07-17
 Added pre-commit schema checks on most yaml files.
 

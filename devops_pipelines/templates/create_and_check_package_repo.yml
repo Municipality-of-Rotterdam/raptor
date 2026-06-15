@@ -2,7 +2,7 @@
 steps:
   - template: /devops_pipelines/templates/install_and_configure_python.yml
   - script: |
-      uv run copier copy -d repo_type=package_repo -d ci_cd=DevOps -d package_name=package_name_ado -f --vcs-ref HEAD --trust . ..
+      uv run copier copy -d repo_type=package_repo -d ci_cd=DevOps -d package_name=package_name_ado -d user_name=cicd -d user_email=cicd@devops.com -f --vcs-ref HEAD --trust . ..
     displayName: 'Call copier on package_repo (DevOps variant)'
   - script: |
       cd ./pkg_package_name_ado
@@ -14,7 +14,7 @@ steps:
       uv run --group test pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
     displayName: 'Run pytest on package_repo (DevOps variant)'
   - script: |
-      uv run copier copy -d repo_type=package_repo -d ci_cd=GitHub -d package_name=package_name_gh -f --vcs-ref HEAD --trust . ..
+      uv run copier copy -d repo_type=package_repo -d ci_cd=GitHub -d package_name=package_name_gh -d user_name=cicd -d user_email=cicd@devops.com -f --vcs-ref HEAD --trust . ..
     displayName: 'Call copier on package_repo (Github variant)'
   - script: |
       cd ./pkg_package_name_gh

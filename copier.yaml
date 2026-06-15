@@ -45,22 +45,22 @@ repo_name:
   type: str
   default: "{{ 'pkg_' + (package_name or '') if repo_type == 'package_repo' else (project_name or '') }}"
 
-author_name:
+user_name:
   type: str
   help: Author name
   placeholder: Your Name
   validator: >-
-    {% if not (author_name | regex_search('([A-Za-z]+ )+[A-Za-z]+$')) %}
-    author_name should be like "Name [tussenvoegsel] Surname".
+    {% if not (user_name | regex_search('([A-Za-z]+ )+[A-Za-z]+$')) %}
+    user_name should be like "Name [tussenvoegsel] Surname".
     {% endif %}
 
-author_email:
+user_email:
   type: str
   help: Author email
   placeholder: your@email.com
   validator: >-
-    {% if not (author_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
-    author_email should be like "nameornumber.nameornumber@my.domain".
+    {% if not (user_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
+    user_email should be like "nameornumber.nameornumber@my.domain".
     {% endif %}
 
 description:

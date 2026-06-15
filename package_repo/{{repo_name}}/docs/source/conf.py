@@ -9,9 +9,9 @@
 from typing import List
 
 project = "{{ repo_name}}"
-copyright = "{{ author_name }}"
+copyright = "{{ user_name }}"
 description = "{{ description }}"
-author = "{{ author_name }}"
+author = "{{ user_name }}"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

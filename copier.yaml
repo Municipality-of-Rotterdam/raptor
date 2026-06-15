@@ -7,6 +7,7 @@ _templates_suffix: ""
 repo_type:
   type: str
   help: What kind of repo do you want to create?
+  qmark: "🔀"
   choices:
     - package_repo
     - project_repo
@@ -20,6 +21,7 @@ _subdirectory: "{{ repo_type }}"
 package_name:
   type: str
   help: Package name (alphanumeric + underscores)
+  qmark: "📦"
   default: package_name
   when: "{{ repo_type == 'package_repo' }}"
 
@@ -28,12 +30,14 @@ package_name:
 project_name:
   type: str
   help: Project name
+  qmark: "🏷️"
   placeholder: my_project
   when: "{{ repo_type == 'project_repo' }}"
 
 type_deployment:
   type: str
   help: Type of deployment
+  qmark: "🚀"
   choices:
     - none
     - batch
@@ -46,11 +50,13 @@ type_deployment:
 
 repo_name:
   type: str
+  qmark: "📂"
   default: "{{ 'pkg_' + (package_name or '') if repo_type == 'package_repo' else (project_name or '') }}"
 
 user_name:
   type: str
   help: User name (used for git)
+  qmark: "👤"
   placeholder: Firstname [optional middle name] Surname
   validator: >-
     {% if not (user_name | regex_search('([A-Za-z]+ )+[A-Za-z]+$')) %}
@@ -60,6 +66,7 @@ user_name:
 user_email:
   type: str
   help: User email (used for git)
+  qmark: "📧"
   placeholder: your@email.com
   validator: >-
     {% if not (user_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
@@ -69,6 +76,7 @@ user_email:
 author_name:
   type: str
   help: Author name (used for package details)
+  qmark: "✍️"
   default: "{{ user_name }}"
   validator: >-
     {% if not (author_name | regex_search('([A-Za-z]+ )+[A-Za-z]+$')) %}
@@ -78,6 +86,7 @@ author_name:
 author_email:
   type: str
   help: Author email (used for package details)
+  qmark: "✉️"
   default: "{{ user_email }}"
   validator: >-
     {% if not (author_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
@@ -87,26 +96,31 @@ author_email:
 description:
   type: str
   help: Short description of the package/project
+  qmark: "📝"
   default: A short description.
 
 python_version:
   type: str
   help: Python version
+  qmark: "🐍"
   default: "3.11"
 
 uv_version:
   type: str
   help: uv version
+  qmark: "⚡"
   default: "0.10.6"
 
 precommit_version:
   type: str
   help: Pre-commit version
+  qmark: "🛡️"
   default: "3.4.0"
 
 ci_cd:
   type: str
   help: CI/CD platform
+  qmark: "🔄"
   choices:
     - DevOps
     - GitHub
@@ -117,24 +131,28 @@ ci_cd:
 devops_organisation_name:
   type: str
   help: DevOps organisation name, as in https://dev.azure.com/devops_organisation_name
+  qmark: "🏢"
   default: devops_organisation_name
   when: "{{ ci_cd == 'DevOps' }}"
 
 devops_project_name:
   type: str
   help: DevOps project name, as in https://dev.azure.com/devops_organisation_name/devops_project_name
+  qmark: "📋"
   default: devops_project_name
   when: "{{ ci_cd == 'DevOps' }}"
 
 private_agent_name:
   type: str
   help: DevOps private agent name
+  qmark: "🤖"
   default: private_agent_name
   when: "{{ ci_cd == 'DevOps' }}"
 
 github_service_connection:
   type: str
   help: DevOps service connection for GitHub
+  qmark: "🔗"
   default: github-ci-templates
   when: "{{ ci_cd == 'DevOps' }}"
 
@@ -143,24 +161,28 @@ github_service_connection:
 azure_resource_group:
   type: str
   help: Azure resource group
+  qmark: "☁️"
   default: default_resource_group
   when: "{{ ci_cd == 'GitHub' }}"
 
 azureml_workspace:
   type: str
   help: Azure ML workspace
+  qmark: "🗂️"
   default: default_workspace
   when: "{{ ci_cd == 'GitHub' }}"
 
 publish_package_on_public_pypi:
   type: bool
   help: Publish package on public PyPI?
+  qmark: "🌐"
   default: false
   when: "{{ ci_cd == 'GitHub' and repo_type == 'package_repo' }}"
 
 create_aml_environment_in_cicd:
   type: bool
   help: Create AML environment in CI/CD?
+  qmark: "🏗️"
   default: false
   when: "{{ ci_cd == 'GitHub' and repo_type == 'package_repo' }}"
 
@@ -169,6 +191,7 @@ create_aml_environment_in_cicd:
 package_feed:
   type: str
   help: Package feed name
+  qmark: "📰"
   default: package_feed
   when: "{{ ci_cd == 'DevOps' and repo_type == 'package_repo' }}"
 

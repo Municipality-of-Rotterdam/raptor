@@ -8,10 +8,6 @@ parameters:
 - name: uv_index_name
   type: string
   default: ''
-- name: pat_username
-  type: string
-- name: pat
-  type: string
 
 steps:
   - checkout: self
@@ -37,8 +33,9 @@ steps:
   - task: PowerShell@2
     displayName: 'Generate AI review comments'
     env:
-      AZURE_DEVOPS_ORG: $(AZURE_DEVOPS_ORG)
-      AZURE_DEVOPS_PAT: $(AZURE_DEVOPS_PAT)
+      url_env: $(url_env)
+      api_key: $(api_key)
+      model_name: $(model_name)
     inputs:
       targetType: 'inline'
       script: |
@@ -193,85 +190,87 @@ steps:
         
         Write-Host "Preparing LLM request"
         
-        # Call Mistral API
-        $mistralUrl = $env:url_env
-        $mistralApiKey = $env:api_key
-        
-        if (-not $mistralUrl -or -not $mistralApiKey) {
-            throw "Environment variables url_env and api_key must be set"
+        # Call the LLM (OpenAI-compatible Azure ML endpoint)
+        $llmUrl = $env:url_env
+        $llmApiKey = $env:api_key
+        $llmModel = $env:model_name
+
+        if (-not $llmUrl -or -not $llmApiKey -or -not $llmModel) {
+            throw "Environment variables url_env, api_key and model_name must be set"
         }
         
         # System prompt defined as raw text to avoid YAML parsing issues
         $systemPrompt = @"
-You are a code-review assistant. You receive a JSON object where each key is a file path and each value contains:
-- change_type
-- diff (unified diff format)
+        You are a code-review assistant. You receive a JSON object where each key is a file path and each value contains:
+        - change_type
+        - diff (unified diff format)
 
-Your task: analyze the diff and output structured JSON that can be used to post PR comments in Azure DevOps.
+        Your task: analyze the diff and output structured JSON that can be used to post PR comments in Azure DevOps.
 
-### PRIORITY ORDER
-1) correctness / bugs
-2) security issues
-3) maintainability / architecture
-4) performance
-5) readability / style
+        ### PRIORITY ORDER
+        1) correctness / bugs
+        2) security issues
+        3) maintainability / architecture
+        4) performance
+        5) readability / style
 
-### OUTPUT FORMAT
-Return a single JSON object:
+        ### OUTPUT FORMAT
+        Return a single JSON object:
 
-{
-  "<file_path>": {
-    "summary": "Short description of what changed.",
-    "comments": [
-    {
-      "message": "Description of the issue.",
-      "proposed_solution": "Clear and actionable fix.",
-      "category": "bug|security|maintainability|performance|style",
-      "severity": "high|medium|low",
+        {
+          "<file_path>": {
+            "summary": "Short description of what changed.",
+            "comments": [
+            {
+              "message": "Description of the issue.",
+              "proposed_solution": "Clear and actionable fix.",
+              "category": "bug|security|maintainability|performance|style",
+              "severity": "high|medium|low",
 
-      "line_info": {
-        "original_line": int | null,
-        "new_line": int | null
-      }
-    }
-    ]
-  }
-}
+              "line_info": {
+                "original_line": int | null,
+                "new_line": int | null
+              }
+            }
+            ]
+          }
+        }
 
-### LINE NUMBER RULES
-Extract line numbers from diff hunks using these rules:
+        ### LINE NUMBER RULES
+        Extract line numbers from diff hunks using these rules:
 
-- Each hunk starts with: @@ -X,Y +A,B @@
-- X = starting line in the original file
-- Y = number of lines in the original file hunk
-- A = starting line in the new file
-- B = number of lines in the new file hunk
+        - Each hunk starts with: @@ -X,Y +A,B @@
+        - X = starting line in the original file
+        - Y = number of lines in the original file hunk
+        - A = starting line in the new file
+        - B = number of lines in the new file hunk
 
-- For each line in the hunk:
-- Lines starting with '+' -> increment new_line only
-- Lines starting with '-' -> increment original_line only
-- Lines starting with ' ' -> increment both original_line and new_line
+        - For each line in the hunk:
+        - Lines starting with '+' -> increment new_line only
+        - Lines starting with '-' -> increment original_line only
+        - Lines starting with ' ' -> increment both original_line and new_line
 
-- For added or edited lines: set new_line to the line number in the new file
-- For removed lines: set new_line to null, but attach the comment to the **start of the removed block** (original_line)
+        - For added or edited lines: set new_line to the line number in the new file
+        - For removed lines: set new_line to null, but attach the comment to the **start of the removed block** (original_line)
 
-### COMMENT LINE MATCHING
-- When suggesting a comment, first check if the target line **exactly matches a line in the diff**.
-- If no exact match is found:
-1) Use the snippet or surrounding context to locate the **closest line in the full file from the PR**.
-2) Attach the comment to that line.
+        ### COMMENT LINE MATCHING
+        - When suggesting a comment, first check if the target line **exactly matches a line in the diff**.
+        - If no exact match is found:
+        1) Use the snippet or surrounding context to locate the **closest line in the full file from the PR**.
+        2) Attach the comment to that line.
 
-### REQUIREMENTS
-- Only generate comments for real, meaningful issues.
-- Keep messages short and suitable for PR review.
-- proposed_solution must be specific and realistic.
-- Output must be valid JSON and contain nothing else.
-"@
+        ### REQUIREMENTS
+        - Only generate comments for real, meaningful issues.
+        - Keep messages short and suitable for PR review.
+        - proposed_solution must be specific and realistic.
+        - Output must be valid JSON and contain nothing else.
+        "@
 
         $promptJson = $llmInput | ConvertTo-Json -Depth 10
-        Write-Host "Sending prompt to Mistral API"
-        
+        Write-Host "Sending prompt to LLM endpoint ($llmModel)"
+
         $body = @{
+            model = $llmModel
             messages = @(
                 @{ role = "system"; content = $systemPrompt },
                 @{ role = "user"; content = $promptJson }
@@ -279,18 +278,18 @@ Extract line numbers from diff hunks using these rules:
             temperature = 0.4
             response_format = @{ type = "json_object" }
         } | ConvertTo-Json -Depth 20
-        
+
         $headers = @{
             "Content-Type" = "application/json"
-            "Authorization" = "Bearer $mistralApiKey"
+            "Authorization" = "Bearer $llmApiKey"
         }
-        
+
         try {
-            $response = Invoke-RestMethod -Uri $mistralUrl -Method Post -Headers $headers -Body $body -ErrorAction Stop
+            $response = Invoke-RestMethod -Uri $llmUrl -Method Post -Headers $headers -Body $body -ErrorAction Stop
             $resultStr = $response.choices[0].message.content
-            Write-Host "Received response from Mistral API"
+            Write-Host "Received response from LLM endpoint"
         } catch {
-            Write-Host "Mistral API call failed: $_" -ForegroundColor Red
+            Write-Host "LLM API call failed: $_" -ForegroundColor Red
             $commentsJson = "[]"
             Set-Content -Path "pr_comments.json" -Value $commentsJson
             exit 0

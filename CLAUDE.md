@@ -40,10 +40,14 @@ Documented the AI reviewer feature under [Unreleased] section.
 ## Environment Variables Required
 
 Azure DevOps Pipeline Variables (configure per project):
-- `AZURE_DEVOPS_ORG` - Azure DevOps organization URL
-- `AZURE_DEVOPS_PAT` - Personal access token with repo permissions
-- `url_env` - Mistral API endpoint (e.g., `https://api.mistral.ai/v1/chat/completions`)
-- `api_key` - Mistral API key
+- `url_env` - LLM chat-completions endpoint (OpenAI-compatible). For the self-hosted Azure ML
+  endpoint this is the base URL plus `/chat/completions`, e.g.
+  `https://qwen-endpoint.westeurope.inference.ml.azure.com/v1/chat/completions`
+- `api_key` - API key for the endpoint (sent as `Authorization: Bearer <api_key>`)
+- `model_name` - Model identifier sent in the request body, e.g. `/models/xxx`
+
+PR comment posting uses the build's `System.AccessToken` (OAuth) — enable
+"Allow scripts to access the OAuth token" on the job/pipeline. No PAT is required.
 
 ## PowerShell Implementation Details
 
@@ -51,7 +55,7 @@ The `ai_reviewer.yml` template now uses PowerShell for:
 
 1. **Git Diff Retrieval**: Uses `git diff` command to get changes between branches
 2. **Diff Parsing**: Parses unified diff format to extract file paths and changes
-3. **Mistral API Calls**: Uses `Invoke-RestMethod` to call Mistral LLM
+3. **LLM API Calls**: Uses `Invoke-RestMethod` to call the OpenAI-compatible Azure ML endpoint (Qwen)
 4. **PR Comment Posting**: Uses Azure DevOps REST API to post review comments
 
 All logic is self-contained in the YAML template - no external scripts needed.

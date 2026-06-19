@@ -6,14 +6,15 @@ and this repo adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 
 ### **Added**
-- AI code reviewer integration for Azure DevOps PRs via Mistral API
+- AI code reviewer integration for Azure DevOps PRs via an OpenAI-compatible LLM endpoint (self-hosted Qwen on an Azure ML endpoint)
 - New `.azuredevops/templates/ai_reviewer.yml` template for generating and posting AI review comments (pure YAML/PowerShell, no Python dependency)
 - New `AIReview` stage in CI pipeline that runs non-blocking on PRs
-- PowerShell implementation for git diff parsing, Mistral API calls, and PR comment posting
+- PowerShell implementation for git diff parsing, LLM API calls, and PR comment posting
+- `model_name` pipeline variable to select the model sent to the OpenAI-compatible endpoint
 
 ### **Changed**
 - Moved AI reviewer logic from `package_repo/devops_pipelines/scripts/ai_reviewer.py` to `.azuredevops/templates/ai_reviewer.yml`
-- AI reviewer now uses PowerShell for git diff, Mistral API calls, and PR comment posting
+- AI reviewer now uses PowerShell for git diff, LLM API calls, and PR comment posting
 - Removed `azure-devops` and `requests` from `[dependency-groups]` in both `test` and `docs` (no longer needed for AI reviewer)
 - AI reviewer updates automatically with raptor template changes (no need to regenerate repos)
 - CI template now uses only `python_version`, `uv_version`, and `uv_index_name` parameters (removed `pat_username` and `pat`)

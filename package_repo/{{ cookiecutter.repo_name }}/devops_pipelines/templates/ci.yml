@@ -12,6 +12,9 @@ variables:
   # Load shared config
   - template: config.yml
 
+  # AI reviewer LLM endpoint config (url_env, api_key, model_name)
+  - group: AmlDevGroup
+
   # PR target checks
   - name: toMain
     value: $[eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main')]

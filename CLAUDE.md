@@ -39,7 +39,8 @@ Documented the AI reviewer feature under [Unreleased] section.
 
 ## Environment Variables Required
 
-Azure DevOps Pipeline Variables (configure per project):
+These live in the **`AmlDevGroup`** variable group (Project Settings → Pipelines →
+Library), which `ci.yml` links via `- group: AmlDevGroup`:
 - `url_env` - LLM chat-completions endpoint (OpenAI-compatible). For the self-hosted Azure ML
   endpoint this is the base URL plus `/chat/completions`, e.g.
   `https://qwen-endpoint.westeurope.inference.ml.azure.com/v1/chat/completions`

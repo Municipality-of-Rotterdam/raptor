@@ -12,8 +12,8 @@ variables:
   # Load shared config
   - template: config.yml
 
-  # AI reviewer LLM endpoint config (url_env, api_key, model_name)
-  - group: AmlDevGroup
+  # AI reviewer LLM endpoint config (llm_url_env, llm_api_key, llm_model_name)
+  - group: {% endraw %}{{ cookiecutter.ai_reviewer_variable_group }}{% raw %}
 
   # PR target checks
   - name: toMain

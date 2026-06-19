@@ -39,9 +39,11 @@ Documented the AI reviewer feature under [Unreleased] section.
 
 ## Environment Variables Required
 
-These live in the **`AmlDevGroup`** variable group (Project Settings → Pipelines →
-Library), which `ci.yml` links via `- group: AmlDevGroup`. The template maps them
-to the env vars the script reads (`llm_url_env` → `url_env`, etc.):
+These live in a variable group (Project Settings → Pipelines → Library) whose name is
+set at generation time by the `ai_reviewer_variable_group` cookiecutter variable
+(default `AmlDevGroup`); `ci.yml` links it via `- group: {{ cookiecutter.ai_reviewer_variable_group }}`.
+The template maps the group's variables to the env vars the script reads
+(`llm_url_env` → `url_env`, etc.):
 - `llm_url_env` - LLM chat-completions endpoint (OpenAI-compatible). For the self-hosted Azure ML
   endpoint this is the base URL plus `/chat/completions`, e.g.
   `https://qwen-endpoint.westeurope.inference.ml.azure.com/v1/chat/completions`

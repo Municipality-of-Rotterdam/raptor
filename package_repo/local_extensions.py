@@ -62,6 +62,7 @@ DEFAULT_VALUES = {
     "python_version": "3.11",
     "uv_version": "0.10.6",
     "precommit_version": "3.4.0",
+    "ai_reviewer_variable_group": "AmlDevGroup",
 }
 
 # Prompt labels
@@ -76,6 +77,7 @@ ADDITIONAL_PROMPTS = {
     "python_version": "Python version",
     "uv_version": "uv version",
     "precommit_version": "Pre-commit version",
+    "ai_reviewer_variable_group": "AI reviewer variable group (supplies llm_url_env, llm_api_key, llm_model_name)",
 }
 
 class AdditionalPrompts(Extension):

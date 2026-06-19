@@ -11,7 +11,7 @@ and this repo adheres to [Semantic Versioning](http://semver.org/).
 - New `AIReview` stage in CI pipeline that runs non-blocking on PRs
 - PowerShell implementation for git diff parsing, LLM API calls, and PR comment posting
 - `model_name` pipeline variable to select the model sent to the OpenAI-compatible endpoint
-- `AmlDevGroup` variable group linked in `ci.yml` to supply `llm_url_env`, `llm_api_key`, and `llm_model_name`
+- `ai_reviewer_variable_group` cookiecutter variable (default `AmlDevGroup`) naming the variable group linked in `ci.yml` that supplies `llm_url_env`, `llm_api_key`, and `llm_model_name`
 
 ### **Changed**
 - Moved AI reviewer logic from `package_repo/devops_pipelines/scripts/ai_reviewer.py` to `.azuredevops/templates/ai_reviewer.yml`

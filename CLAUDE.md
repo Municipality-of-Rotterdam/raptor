@@ -40,12 +40,13 @@ Documented the AI reviewer feature under [Unreleased] section.
 ## Environment Variables Required
 
 These live in the **`AmlDevGroup`** variable group (Project Settings → Pipelines →
-Library), which `ci.yml` links via `- group: AmlDevGroup`:
-- `url_env` - LLM chat-completions endpoint (OpenAI-compatible). For the self-hosted Azure ML
+Library), which `ci.yml` links via `- group: AmlDevGroup`. The template maps them
+to the env vars the script reads (`llm_url_env` → `url_env`, etc.):
+- `llm_url_env` - LLM chat-completions endpoint (OpenAI-compatible). For the self-hosted Azure ML
   endpoint this is the base URL plus `/chat/completions`, e.g.
   `https://qwen-endpoint.westeurope.inference.ml.azure.com/v1/chat/completions`
-- `api_key` - API key for the endpoint (sent as `Authorization: Bearer <api_key>`)
-- `model_name` - Model identifier sent in the request body, e.g. `/models/xxx`
+- `llm_api_key` - API key for the endpoint (sent as `Authorization: Bearer <api_key>`)
+- `llm_model_name` - Model identifier sent in the request body, e.g. `/models/xxx`
 
 PR comment posting uses the build's `System.AccessToken` (OAuth) — enable
 "Allow scripts to access the OAuth token" on the job/pipeline. No PAT is required.

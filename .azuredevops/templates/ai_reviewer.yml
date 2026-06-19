@@ -33,9 +33,9 @@ steps:
   - task: PowerShell@2
     displayName: 'Generate AI review comments'
     env:
-      url_env: $(url_env)
-      api_key: $(api_key)
-      model_name: $(model_name)
+      url_env: $(llm_url_env)
+      api_key: $(llm_api_key)
+      model_name: $(llm_model_name)
     inputs:
       targetType: 'inline'
       script: |

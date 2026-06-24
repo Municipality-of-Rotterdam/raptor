@@ -280,6 +280,9 @@ steps:
             $response = Invoke-RestMethod -Uri $llmUrl -Method Post -Headers $headers -Body $body -TimeoutSec 60 -ErrorAction Stop
             $resultStr = $response.choices[0].message.content
             Write-Host "Received response from LLM endpoint"
+            Write-Host "----- LLM raw response -----"
+            Write-Host $resultStr
+            Write-Host "----------------------------"
         } catch {
             # Endpoint unreachable / errored: skip the review without failing the build,
             # but surface a pipeline warning so it is visible in the run summary.
@@ -289,10 +292,14 @@ steps:
             exit 0
         }
         
-        # Parse LLM output
+        # Parse LLM output. Strip any markdown code fences the model may wrap around the JSON.
+        $cleanResult = $resultStr.Trim()
+        if ($cleanResult -match '^```') {
+            $cleanResult = $cleanResult -replace '^```[a-zA-Z]*\s*', '' -replace '\s*```$', ''
+        }
         try {
-            $reviewOutput = $resultStr | ConvertFrom-Json
-            Write-Host "Parsed $($reviewOutput.PSObject.Properties.Count) files from LLM output"
+            $reviewOutput = $cleanResult | ConvertFrom-Json
+            Write-Host "Parsed $($reviewOutput.PSObject.Properties.Count) top-level keys from LLM output"
         } catch {
             Write-Host "Failed to parse LLM output as JSON: $_" -ForegroundColor Red
             $reviewOutput = @{}

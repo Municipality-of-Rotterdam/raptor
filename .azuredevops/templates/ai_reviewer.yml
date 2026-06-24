@@ -196,7 +196,10 @@ steps:
         $llmModel = $env:model_name
 
         if (-not $llmUrl -or -not $llmApiKey -or -not $llmModel) {
-            throw "Environment variables url_env, api_key and model_name must be set"
+            # Not configured (e.g. variable group not linked): skip rather than fail the PR build.
+            Write-Host "##vso[task.logissue type=warning]AI reviewer: llm_url_env, llm_api_key and llm_model_name are not all set. Skipping AI review."
+            Set-Content -Path "pr_comments.json" -Value "[]"
+            exit 0
         }
         
         # System prompt defined as raw text to avoid YAML parsing issues
@@ -285,11 +288,13 @@ steps:
         }
 
         try {
-            $response = Invoke-RestMethod -Uri $llmUrl -Method Post -Headers $headers -Body $body -ErrorAction Stop
+            $response = Invoke-RestMethod -Uri $llmUrl -Method Post -Headers $headers -Body $body -TimeoutSec 60 -ErrorAction Stop
             $resultStr = $response.choices[0].message.content
             Write-Host "Received response from LLM endpoint"
         } catch {
-            Write-Host "LLM API call failed: $_" -ForegroundColor Red
+            # Endpoint unreachable / errored: skip the review without failing the build,
+            # but surface a pipeline warning so it is visible in the run summary.
+            Write-Host "##vso[task.logissue type=warning]AI reviewer: could not reach LLM endpoint ($llmUrl). Skipping AI review. $($_.Exception.Message)"
             $commentsJson = "[]"
             Set-Content -Path "pr_comments.json" -Value $commentsJson
             exit 0

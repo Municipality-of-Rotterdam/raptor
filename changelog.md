@@ -14,6 +14,7 @@ and this repo adheres to [Semantic Versioning](http://semver.org/).
 - `ai_reviewer_variable_group` cookiecutter variable (default `AmlDevGroup`) naming the variable group linked in `ci.yml` that supplies `llm_url_env`, `llm_api_key`, and `llm_model_name`
 
 ### **Changed**
+- AI reviewer skips gracefully (pipeline warning, no build failure) when the LLM endpoint is unreachable or its config variables are unset; added a 60s request timeout
 - Moved AI reviewer logic from `package_repo/devops_pipelines/scripts/ai_reviewer.py` to `.azuredevops/templates/ai_reviewer.yml`
 - AI reviewer now uses PowerShell for git diff, LLM API calls, and PR comment posting
 - Removed `azure-devops` and `requests` from `[dependency-groups]` in both `test` and `docs` (no longer needed for AI reviewer)

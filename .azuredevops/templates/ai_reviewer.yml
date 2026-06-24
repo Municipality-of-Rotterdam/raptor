@@ -75,8 +75,10 @@ steps:
         # Get git diff. git writes one array element per line; join into a single
         # newline-delimited string so the (?m) regex section/body parsing below works
         # (otherwise only the hunk header survives and the code changes are lost).
+        # Use -U3 (a few context lines) so the model can see the surrounding structure
+        # (e.g. which job/block an added line belongs to) and avoid false positives.
         Write-Host "Fetching git diff between $targetRef and $sourceRef"
-        $diffOutput = (git diff "$targetRef...$sourceRef" -U0 2>&1) -join "`n"
+        $diffOutput = (git diff "$targetRef...$sourceRef" -U3 2>&1) -join "`n"
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to get git diff: $diffOutput"
         }
@@ -234,6 +236,10 @@ steps:
         - Only generate comments for real, meaningful issues.
         - Keep messages short and suitable for PR review.
         - proposed_solution must be specific and realistic.
+        - Reserve "high" severity for definite correctness or security bugs; use "low" for
+          style and minor maintainability notes.
+        - You only see the diff with limited surrounding context. Do not assert structural
+          problems (e.g. wrong indentation/placement) that depend on code outside the diff.
         - Output must be valid JSON and contain nothing else.
         "@
 

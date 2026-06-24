@@ -19,6 +19,7 @@ and this repo adheres to [Semantic Versioning](http://semver.org/).
 - AI reviewer accepts either the base LLM URL or the full chat-completions URL (appends `/chat/completions` when missing)
 - Removed the Python/uv setup, pre-commit install, and test-dependency sync from the AIReview stage (pure PowerShell needs none of them), and dropped the now-unused template parameters — significantly faster stage
 - AI reviewer dedupes comments against existing `[PR-BOT]` threads (by file+line), so re-runs and new commits no longer repost duplicates
+- AI reviewer sends only the diff (dropped full file contents) — smaller payload, faster, and avoids a Windows PowerShell `ConvertTo-Json` hang; added per-task timeouts (`continueOnError`) and `max_tokens` so a slow endpoint can never hang the pipeline
 - Moved AI reviewer logic from `package_repo/devops_pipelines/scripts/ai_reviewer.py` to `.azuredevops/templates/ai_reviewer.yml`
 - AI reviewer now uses PowerShell for git diff, LLM API calls, and PR comment posting
 - Removed `azure-devops` and `requests` from `[dependency-groups]` in both `test` and `docs` (no longer needed for AI reviewer)

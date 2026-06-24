@@ -139,43 +139,15 @@ steps:
             exit 0
         }
         
-        # Prepare LLM input
-        $llmInput = @{
-            diff = @{}
-            file_contents = @{
-                new_files = @{}
-                existing_files = @{}
-                removed_files = @{}
-            }
-        }
-        
+        # Prepare LLM input: send only the diff, keyed by file path (matches the system
+        # prompt). Full file contents bloat the payload and Windows PowerShell's
+        # ConvertTo-Json chokes on the large nested object; the diff already contains the
+        # changed code with line numbers.
+        $llmInput = @{}
         foreach ($path in $fileDiffs.Keys) {
-            $diffInfo = $fileDiffs[$path]
-            $llmInput["diff"][$path] = $diffInfo
-            
-            $absPath = Join-Path $PWD $path
-            $changeType = $diffInfo["change_type"]
-            
-            if ($changeType -eq "add" -or $changeType -eq "modify") {
-                if (Test-Path $absPath) {
-                    $content = Get-Content -Path $absPath -Raw -ErrorAction SilentlyContinue
-                    if ($changeType -eq "add") {
-                        $llmInput["file_contents"]["new_files"][$path] = $content
-                    } else {
-                        $llmInput["file_contents"]["existing_files"][$path] = $content
-                    }
-                } else {
-                    if ($changeType -eq "add") {
-                        $llmInput["file_contents"]["new_files"][$path] = $null
-                    } else {
-                        $llmInput["file_contents"]["existing_files"][$path] = $null
-                    }
-                }
-            } elseif ($changeType -eq "delete") {
-                $llmInput["file_contents"]["removed_files"][$path] = $null
-            }
+            $llmInput[$path] = $fileDiffs[$path]
         }
-        
+
         Write-Host "Preparing LLM request"
         
         # Call the LLM (OpenAI-compatible Azure ML endpoint)

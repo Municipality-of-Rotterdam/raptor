@@ -30,10 +30,14 @@ steps:
         Write-Host "Source branch: $sourceBranch"
         Write-Host "Target branch: $targetBranch"
         
-        # Normalize branches
+        # Normalize branches.
+        # rev-parse is expected to fail for refs that don't exist; on Windows
+        # PowerShell, native stderr under ErrorActionPreference=Stop becomes a
+        # terminating error, so silence it locally and rely on the exit code.
         function Test-BranchExists {
             param([string]$branch)
-            $result = git rev-parse --verify $branch 2>$null
+            $ErrorActionPreference = 'SilentlyContinue'
+            git rev-parse --verify --quiet $branch *> $null
             return $LASTEXITCODE -eq 0
         }
         
@@ -360,6 +364,10 @@ steps:
           exit 1
         }
         
+        if (-not (Test-Path "pr_comments.json")) {
+          Write-Host "pr_comments.json not found (review step produced no output). Skipping."
+          exit 0
+        }
         $commentsJson = Get-Content "pr_comments.json" -Raw
         if ([string]::IsNullOrWhiteSpace($commentsJson)) {
           Write-Host "No comments found in pr_comments.json. Skipping."

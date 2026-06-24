@@ -67,13 +67,15 @@ steps:
         
         Write-Host "Normalized: Source=$sourceRef, Target=$targetRef"
         
-        # Get git diff
+        # Get git diff. git writes one array element per line; join into a single
+        # newline-delimited string so the (?m) regex section/body parsing below works
+        # (otherwise only the hunk header survives and the code changes are lost).
         Write-Host "Fetching git diff between $targetRef and $sourceRef"
-        $diffOutput = git diff "$targetRef...$sourceRef" -U0 2>&1
+        $diffOutput = (git diff "$targetRef...$sourceRef" -U0 2>&1) -join "`n"
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to get git diff: $diffOutput"
         }
-        
+
         Write-Host "Diff retrieved, length: $($diffOutput.Length)"
         
         # Parse diff into file changes

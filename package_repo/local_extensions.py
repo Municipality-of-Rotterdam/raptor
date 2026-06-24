@@ -62,7 +62,7 @@ DEFAULT_VALUES = {
     "python_version": "3.11",
     "uv_version": "0.10.6",
     "precommit_version": "3.4.0",
-    "ai_reviewer_variable_group": "AmlDevGroup",
+    "ai_reviewer_variable_group": "ai-reviewer-config",
 }
 
 # Prompt labels

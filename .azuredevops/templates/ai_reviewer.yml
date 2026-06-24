@@ -150,7 +150,7 @@ steps:
 
         Write-Host "Preparing LLM request"
         
-        # Call the LLM (OpenAI-compatible Azure ML endpoint)
+        # Call the LLM (OpenAI-compatible chat-completions endpoint)
         $llmUrl = $env:url_env
         $llmApiKey = $env:api_key
         $llmModel = $env:model_name

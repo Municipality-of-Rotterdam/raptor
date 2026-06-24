@@ -6,28 +6,11 @@ and this repo adheres to [Semantic Versioning](http://semver.org/).
 ## [2.2.0] - 2026-06-24
 
 ### **Added**
-- AI code reviewer integration for Azure DevOps PRs via an OpenAI-compatible LLM endpoint (self-hosted Qwen on an Azure ML endpoint)
-- New `.azuredevops/templates/ai_reviewer.yml` template for generating and posting AI review comments (pure YAML/PowerShell, no Python dependency)
-- New `AIReview` stage in CI pipeline that runs non-blocking on PRs
-- PowerShell implementation for git diff parsing, LLM API calls, and PR comment posting
-- `model_name` pipeline variable to select the model sent to the OpenAI-compatible endpoint
-- `ai_reviewer_variable_group` cookiecutter variable (default `AmlDevGroup`) naming the variable group linked in `ci.yml` that supplies `llm_url_env`, `llm_api_key`, and `llm_model_name`
+- AI code reviewer: a non-blocking `AIReview` stage for pull requests that diffs the PR, sends it to an OpenAI-compatible LLM endpoint, and posts review comments. Implemented entirely in PowerShell (`.azuredevops/templates/ai_reviewer.yml`) — no Python dependency in generated repos.
+- `ai_reviewer_variable_group` cookiecutter variable naming the variable group that supplies the reviewer's `llm_url_env`, `llm_api_key`, and `llm_model_name`.
 
 ### **Changed**
-- AI reviewer skips gracefully (pipeline warning, no build failure) when the LLM endpoint is unreachable or its config variables are unset; added a 60s request timeout
-- AIReview job runs on the self-hosted pool (`sh_agent_pool_name`) so it can reach network-restricted Azure ML endpoints
-- AI reviewer accepts either the base LLM URL or the full chat-completions URL (appends `/chat/completions` when missing)
-- Removed the Python/uv setup, pre-commit install, and test-dependency sync from the AIReview stage (pure PowerShell needs none of them), and dropped the now-unused template parameters — significantly faster stage
-- AI reviewer dedupes comments against existing `[PR-BOT]` threads (by file+line), so re-runs and new commits no longer repost duplicates
-- AI reviewer sends only the diff (dropped full file contents) — smaller payload, faster, and avoids a Windows PowerShell `ConvertTo-Json` hang; added per-task timeouts (`continueOnError`) and `max_tokens` so a slow endpoint can never hang the pipeline
-- Moved AI reviewer logic from `package_repo/devops_pipelines/scripts/ai_reviewer.py` to `.azuredevops/templates/ai_reviewer.yml`
-- AI reviewer now uses PowerShell for git diff, LLM API calls, and PR comment posting
-- Removed `azure-devops` and `requests` from `[dependency-groups]` in both `test` and `docs` (no longer needed for AI reviewer)
-- AI reviewer updates automatically with raptor template changes (no need to regenerate repos)
-- CI template now uses only `python_version`, `uv_version`, and `uv_index_name` parameters (removed `pat_username` and `pat`)
-
-### **Removed**
-- `package_repo/devops_pipelines/scripts/ai_reviewer.py` (logic moved to PowerShell template)
+- AI reviewer dedupes against existing review comments and skips with a pipeline warning (never failing the build) when the endpoint is unreachable or unconfigured.
 
 ## [2.1.0] - 2026-05-06
 Added taskfiles to simplify compute and repo creation/setup.

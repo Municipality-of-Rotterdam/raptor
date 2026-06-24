@@ -171,7 +171,6 @@ steps:
         
         # System prompt defined as raw text to avoid YAML parsing issues
         $systemPrompt = @"
-        /no_think
         You are a code-review assistant. You receive a JSON object where each key is a file path and each value contains:
         - change_type
         - diff (unified diff format)
@@ -248,7 +247,7 @@ steps:
                 @{ role = "user"; content = $promptJson }
             )
             temperature = 0.4
-            max_tokens = 4000
+            max_tokens = 8000
             response_format = @{ type = "json_object" }
         } | ConvertTo-Json -Depth 20
 
@@ -260,10 +259,7 @@ steps:
         try {
             $response = Invoke-RestMethod -Uri $llmUrl -Method Post -Headers $headers -Body $body -TimeoutSec 60 -ErrorAction Stop
             $resultStr = $response.choices[0].message.content
-            Write-Host "Received response from LLM endpoint"
-            Write-Host "----- LLM raw response -----"
-            Write-Host $resultStr
-            Write-Host "----------------------------"
+            Write-Host "Received response from LLM endpoint ($($resultStr.Length) chars)"
         } catch {
             # Endpoint unreachable / errored: skip the review without failing the build,
             # but surface a pipeline warning so it is visible in the run summary.
@@ -299,6 +295,12 @@ steps:
                     }
                 }
             }
+            # Prefer the last candidate that looks like a review (mentions "comments"),
+            # so a JSON fragment drafted inside the model's thinking can't win.
+            for ($j = $candidates.Count - 1; $j -ge 0; $j--) {
+                if ($candidates[$j] -notmatch '"comments"') { continue }
+                try { return ($candidates[$j] | ConvertFrom-Json) } catch { }
+            }
             for ($j = $candidates.Count - 1; $j -ge 0; $j--) {
                 try { return ($candidates[$j] | ConvertFrom-Json) } catch { }
             }
@@ -321,6 +323,9 @@ steps:
             $reviewOutput = [PSCustomObject]@{}
         } else {
             Write-Host "Parsed $($reviewOutput.PSObject.Properties.Count) top-level keys from LLM output"
+            Write-Host "----- Extracted review JSON -----"
+            Write-Host ($reviewOutput | ConvertTo-Json -Depth 10)
+            Write-Host "---------------------------------"
         }
         
         # Generate PR comments array

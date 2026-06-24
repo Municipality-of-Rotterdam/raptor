@@ -11,8 +11,9 @@ steps:
   - task: PowerShell@2
     displayName: 'Generate AI review comments'
     # Hard backstop: never let a slow/hung LLM call block the pipeline, and keep the
-    # advisory stage non-blocking if it times out or errors.
-    timeoutInMinutes: 5
+    # advisory stage non-blocking if it times out or errors. Kept above the 240s
+    # request timeout so the in-script timeout/catch handles a slow endpoint first.
+    timeoutInMinutes: 6
     continueOnError: true
     env:
       url_env: $(llm_url_env)
@@ -257,7 +258,7 @@ steps:
         }
 
         try {
-            $response = Invoke-RestMethod -Uri $llmUrl -Method Post -Headers $headers -Body $body -TimeoutSec 60 -ErrorAction Stop
+            $response = Invoke-RestMethod -Uri $llmUrl -Method Post -Headers $headers -Body $body -TimeoutSec 240 -ErrorAction Stop
             $resultStr = $response.choices[0].message.content
             Write-Host "Received response from LLM endpoint ($($resultStr.Length) chars)"
         } catch {

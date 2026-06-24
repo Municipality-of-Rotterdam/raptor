@@ -15,11 +15,11 @@ The AI reviewer logic has been moved from `package_repo/devops_pipelines/scripts
 
 #### 1. `.azuredevops/templates/ai_reviewer.yml` (Updated)
 Azure DevOps pipeline template that:
-- Configures Python environment with uv (for pre-commit)
-- Uses **PowerShell** to:
+- Checks out the repo (full history) and uses **PowerShell** to:
   - Fetch git diffs between PR branches
-  - Call Mistral API for code analysis
+  - Call the LLM endpoint for code analysis
   - Post PR comments via Azure DevOps REST API
+- Needs no Python/uv toolchain or dependency sync (pure PowerShell), so it takes no parameters
 - Runs as non-blocking stage on PRs
 - No longer requires `ai_reviewer.py` in generated repos
 

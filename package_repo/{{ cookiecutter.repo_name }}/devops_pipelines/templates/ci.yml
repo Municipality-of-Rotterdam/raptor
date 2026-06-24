@@ -60,10 +60,6 @@ stages:
     pool: ${{ variables.sh_agent_pool_name }}
     steps:
     - template: .azuredevops/templates/ai_reviewer.yml@raptor
-      parameters:
-        python_version: ${{ variables.pythonVersion }}
-        uv_version: ${{ variables.uvVersion }}
-        uv_index_name: ${{ variables.uvIndexName }}
 
 - stage: UnitTest
   displayName: Unit tests

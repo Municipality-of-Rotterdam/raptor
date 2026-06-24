@@ -1,34 +1,12 @@
 # /.azuredevops/templates/ai_reviewer.yml
 
-parameters:
-- name: python_version
-  type: string
-- name: uv_version
-  type: string
-- name: uv_index_name
-  type: string
-  default: ''
-
+# The AI reviewer is pure PowerShell (git diff + REST calls), so it needs no
+# Python/uv toolchain or dependency sync — only a full-history checkout for the diff.
 steps:
   - checkout: self
     persistCredentials: true
     clean: true
     fetchDepth: 0
-
-  - template: configure_python.yml
-    parameters:
-      python_version: '${{ parameters.python_version }}'
-      uv_version: '${{ parameters.uv_version }}'
-
-  - script: uv run --only-group precommit pre-commit install
-    displayName: 'Install pre-commit hooks'
-
-  - script: uv sync --group test
-    env:
-      ${{ if ne(parameters.uv_index_name, '') }}:
-        UV_INDEX_${{ parameters.uv_index_name }}_USERNAME: VssSessionToken
-        UV_INDEX_${{ parameters.uv_index_name }}_PASSWORD: $(System.AccessToken)
-    displayName: 'Sync test dependencies'
 
   - task: PowerShell@2
     displayName: 'Generate AI review comments'

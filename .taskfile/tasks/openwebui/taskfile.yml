@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+
+  setup_openwebui_devtunnel:
+    cmds:
+      - task: reverse_proxy_setup
+      - task: devtunnel_install
+      - task: devtunnel_login
+      - echo "IMPORTANT open the https://xxx-3000.euw.devtunnels.ms link, the :3000 link won't work."
+      - devtunnel host -p 3000
+
+  reverse_proxy_setup:
+    internal: true
+    cmds:
+      - |
+        docker run -d -p 3000:3000 \
+        --name openwebui_tunnel \
+        --restart unless-stopped \
+        -v caddy_conf:/etc/caddy \
+        -v caddy_data:/data \
+        caddy:2.10.0-alpine \
+        caddy reverse-proxy --from :3000 --to http://10.245.21.72:3000
+    status:
+      - sh -c '[ "$(docker ps --filter 'name=openwebui_tunnel' --format '{{.Names}}')" != "" ]'
+
+  devtunnel_install:
+    internal: true
+    cmds:
+      - curl -sL https://aka.ms/DevTunnelCliInstall | bash
+    status:
+      - devtunnel --version
+
+  devtunnel_login:
+    internal: true
+    cmds:
+      - devtunnel user login -g -d
+    status:
+      - sh -c '[ "$(devtunnel user show)" != "Not logged in." ]'

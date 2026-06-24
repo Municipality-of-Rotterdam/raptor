@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+# this parent taskfile does not contain tasks but imports them from the child taskfile
+
+version: '3'
+
+# you could overwrite UV_INSTALL_DIR, CONDA_ENV_DIR and/or UV_VENV_DIR, shouldn't be necessary
+{% raw %}
+dotenv:
+  - '{{.HOME}}/taskfile.env'
+  - '.env'
+{% endraw %}
+
+includes:
+  aa:
+    taskfile: https://github.com/Municipality-of-Rotterdam/raptor.git//.taskfile/taskfile_main.yml?ref=develop
+    flatten: true
+
+# for setting up the repo (environment, precommit), run `task setup_repo` (after following setup instructions from https://github.com/Municipality-of-Rotterdam/raptor/blob/develop/.taskfile/readme.md)
+
+vars:
+  PYTHON_VERSION: {{cookiecutter.python_version}}
+  # use conda for python environment (will use uv venv otherwise). Must be true when using poetry instead of uv!
+  USE_CONDA: false
+  # list of submodule locations, relative to root project directory
+  # SUBMODULES: ["lib/aa_streetnetwork_preparation"]
+  # extra arguments to uv sync command, for example extra or optional dependency groups
+  # UV_SYNC_EXTRA: "--extra submodules"
+  # name of environment
+  ENV_NAME: {{ cookiecutter.package_name }}

@@ -24,6 +24,17 @@ and this repo adheres to [Semantic Versioning](http://semver.org/).
 ### **Removed**
 - `package_repo/devops_pipelines/scripts/ai_reviewer.py` (logic moved to PowerShell template)
 
+## [2.1.0] - 2026-05-06
+Added taskfiles to simplify compute and repo creation/setup.
+
+### **Added**
+- Added taskfile for setting up compute instance in azureml.
+- Added taskfile for creating new repo (with raptor), including azure devops setup instructions.
+- Added taskfile for setting up a new repo, for example setting up the environment.
+- Added taskfiles in package and project repo that load the latest taskfiles from github.
+- Added taskfile readme in .taskfile/readme.md
+- Added .envrc for raptor itself.
+
 ## [2.0.0] - 2026-03-05
 Migrated from Poetry to uv.
 

@@ -48,6 +48,14 @@ docs = [
     "msal>=1.32.3",
 ]
 
+[tool.uv]
+package=true
+default-groups = [
+    "dev",
+    "precommit",
+    "test",
+]
+
 {% if cookiecutter.additional_prompts.lower() == "devops" %}
 [[tool.uv.index]]
 name = "{{cookiecutter.package_feed}}"

@@ -390,17 +390,45 @@ steps:
         }
         
         $baseUri = "$orgUrl/$project/_apis/git/repositories/$repoId/pullRequests/$prId/threads?api-version=7.1"
-        
+
+        # Dedup: collect file+line of [PR-BOT] comments already on this PR so we don't
+        # repost them on every push. Match on location only, since the model's wording
+        # varies between runs. If the fetch fails, warn and post anyway (don't block).
+        $botMarker = "[PR-BOT]"
+        $existing = New-Object System.Collections.Generic.HashSet[string]
+        try {
+          $existingThreads = Invoke-RestMethod -Uri $baseUri -Method Get -Headers @{ Authorization = "Bearer $token" } -ErrorAction Stop
+          foreach ($t in $existingThreads.value) {
+            $ctx = $t.threadContext
+            if (-not $ctx -or -not $ctx.filePath -or -not $ctx.rightFileStart) { continue }
+            $firstContent = [string]$t.comments[0].content
+            if (-not $firstContent -or -not $firstContent.Contains($botMarker)) { continue }
+            [void]$existing.Add("$($ctx.filePath)|$($ctx.rightFileStart.line)")
+          }
+          Write-Host "Found $($existing.Count) existing AI review thread(s) on this PR."
+        } catch {
+          Write-Host "##vso[task.logissue type=warning]Could not fetch existing PR threads for dedup: $($_.Exception.Message). Posting without dedup."
+        }
+
+        $posted = 0
+        $skipped = 0
         foreach ($c in $comments) {
           $filePath = [string]$c.file_path
           $filePath = $filePath -replace '\\', '/'
-          
+
           if (-not $filePath.StartsWith("/")) {
             $filePath = "/" + $filePath
           }
           $line     = [int]$c.line
           $message  = [string]$c.message
-          
+
+          $key = "$filePath|$line"
+          if ($existing.Contains($key)) {
+            Write-Host "Skipping duplicate AI review comment on ${filePath}:${line}"
+            $skipped++
+            continue
+          }
+
           $bodyObj = @{
             comments = @(
               @{
@@ -434,7 +462,9 @@ steps:
             -Headers @{ Authorization = "Bearer $token" } `
             -ContentType "application/json" `
             -Body $body
+          [void]$existing.Add($key)
+          $posted++
         }
-        
-        Write-Host "Posted $($comments.Count) AI review comments."
+
+        Write-Host "Posted $posted AI review comment(s), skipped $skipped duplicate(s)."
     condition: always()

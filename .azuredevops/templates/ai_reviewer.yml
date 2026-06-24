@@ -10,6 +10,10 @@ steps:
 
   - task: PowerShell@2
     displayName: 'Generate AI review comments'
+    # Hard backstop: never let a slow/hung LLM call block the pipeline, and keep the
+    # advisory stage non-blocking if it times out or errors.
+    timeoutInMinutes: 5
+    continueOnError: true
     env:
       url_env: $(llm_url_env)
       api_key: $(llm_api_key)
@@ -260,6 +264,7 @@ steps:
         - Output must be valid JSON and contain nothing else.
         "@
 
+        Write-Host "Serializing LLM request..."
         $promptJson = $llmInput | ConvertTo-Json -Depth 10
         Write-Host "Sending prompt to LLM endpoint ($llmModel)"
 
@@ -270,6 +275,7 @@ steps:
                 @{ role = "user"; content = $promptJson }
             )
             temperature = 0.4
+            max_tokens = 2000
             response_format = @{ type = "json_object" }
         } | ConvertTo-Json -Depth 20
 
@@ -350,6 +356,8 @@ steps:
 
   - task: PowerShell@2
     displayName: 'Post AI review comments to PR'
+    timeoutInMinutes: 3
+    continueOnError: true
     env:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
     inputs:

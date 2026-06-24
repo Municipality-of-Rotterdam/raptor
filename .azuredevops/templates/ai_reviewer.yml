@@ -171,6 +171,7 @@ steps:
         
         # System prompt defined as raw text to avoid YAML parsing issues
         $systemPrompt = @"
+        /no_think
         You are a code-review assistant. You receive a JSON object where each key is a file path and each value contains:
         - change_type
         - diff (unified diff format)
@@ -247,7 +248,7 @@ steps:
                 @{ role = "user"; content = $promptJson }
             )
             temperature = 0.4
-            max_tokens = 2000
+            max_tokens = 4000
             response_format = @{ type = "json_object" }
         } | ConvertTo-Json -Depth 20
 
@@ -272,17 +273,54 @@ steps:
             exit 0
         }
         
-        # Parse LLM output. Strip any markdown code fences the model may wrap around the JSON.
+        # Parse LLM output. Reasoning models may prepend chain-of-thought text and/or
+        # wrap the JSON in markdown fences, so a direct parse can fail. Fall back to
+        # extracting the last balanced JSON object from the raw response (string-aware,
+        # so braces inside string values don't confuse the scan).
+        function Get-LastJsonObject {
+            param([string]$text)
+            $candidates = New-Object System.Collections.Generic.List[string]
+            $depth = 0; $start = -1; $inStr = $false; $esc = $false
+            for ($i = 0; $i -lt $text.Length; $i++) {
+                $ch = $text[$i]
+                if ($inStr) {
+                    if ($esc) { $esc = $false }
+                    elseif ($ch -eq '\') { $esc = $true }
+                    elseif ($ch -eq '"') { $inStr = $false }
+                } elseif ($ch -eq '"') { $inStr = $true }
+                elseif ($ch -eq '{') { if ($depth -eq 0) { $start = $i }; $depth++ }
+                elseif ($ch -eq '}') {
+                    if ($depth -gt 0) {
+                        $depth--
+                        if ($depth -eq 0 -and $start -ge 0) {
+                            $candidates.Add($text.Substring($start, $i - $start + 1))
+                            $start = -1
+                        }
+                    }
+                }
+            }
+            for ($j = $candidates.Count - 1; $j -ge 0; $j--) {
+                try { return ($candidates[$j] | ConvertFrom-Json) } catch { }
+            }
+            return $null
+        }
+
         $cleanResult = $resultStr.Trim()
         if ($cleanResult -match '^```') {
             $cleanResult = $cleanResult -replace '^```[a-zA-Z]*\s*', '' -replace '\s*```$', ''
         }
+        $reviewOutput = $null
         try {
             $reviewOutput = $cleanResult | ConvertFrom-Json
-            Write-Host "Parsed $($reviewOutput.PSObject.Properties.Count) top-level keys from LLM output"
         } catch {
-            Write-Host "Failed to parse LLM output as JSON: $_" -ForegroundColor Red
-            $reviewOutput = @{}
+            Write-Host "Direct JSON parse failed; extracting JSON object from response."
+            $reviewOutput = Get-LastJsonObject $resultStr
+        }
+        if ($null -eq $reviewOutput) {
+            Write-Host "##vso[task.logissue type=warning]AI reviewer: could not parse JSON from LLM response. Skipping."
+            $reviewOutput = [PSCustomObject]@{}
+        } else {
+            Write-Host "Parsed $($reviewOutput.PSObject.Properties.Count) top-level keys from LLM output"
         }
         
         # Generate PR comments array

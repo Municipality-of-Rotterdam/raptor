@@ -436,6 +436,7 @@ steps:
 
         $posted = 0
         $skipped = 0
+        $failed = 0
         foreach ($c in $comments) {
           $filePath = [string]$c.file_path
           $filePath = $filePath -replace '\\', '/'
@@ -480,15 +481,27 @@ steps:
           $body = $bodyObj | ConvertTo-Json -Depth 10
           
           Write-Host "Posting AI review comment to ${filePath}:${line}"
-          Invoke-RestMethod `
-            -Uri $baseUri `
-            -Method Post `
-            -Headers @{ Authorization = "Bearer $token" } `
-            -ContentType "application/json" `
-            -Body $body
-          [void]$existing.Add($key)
-          $posted++
+          try {
+            Invoke-RestMethod `
+              -Uri $baseUri `
+              -Method Post `
+              -Headers @{ Authorization = "Bearer $token" } `
+              -ContentType "application/json" `
+              -Body $body `
+              -ErrorAction Stop | Out-Null
+            [void]$existing.Add($key)
+            $posted++
+          } catch {
+            $failed++
+            $err = "$($_.Exception.Message)"
+            Write-Host "##vso[task.logissue type=warning]AI reviewer: failed to post comment to ${filePath}:${line}: $err"
+            # A permissions problem affects every comment; stop retrying and give guidance.
+            if ($err -match 'PullRequestContribute|GitNeedsPermissionException|TF401027|403') {
+              Write-Host "##vso[task.logissue type=warning]AI reviewer: the build service identity needs the 'Contribute to pull requests' permission on this repository. Skipping remaining comments."
+              break
+            }
+          }
         }
 
-        Write-Host "Posted $posted AI review comment(s), skipped $skipped duplicate(s)."
+        Write-Host "Posted $posted AI review comment(s), skipped $skipped duplicate(s), failed $failed."
     condition: always()

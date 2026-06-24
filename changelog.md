@@ -3,7 +3,7 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [2.2.0] - 2026-06-24
 
 ### **Added**
 - AI code reviewer integration for Azure DevOps PRs via an OpenAI-compatible LLM endpoint (self-hosted Qwen on an Azure ML endpoint)

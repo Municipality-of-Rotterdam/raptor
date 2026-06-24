@@ -57,6 +57,7 @@ stages:
   jobs:
   - job: ExecuteAIReview
     displayName: 'Generate and post AI review comments'
+    pool: ${{ variables.sh_agent_pool_name }}
     steps:
     - template: .azuredevops/templates/ai_reviewer.yml@raptor
       parameters:

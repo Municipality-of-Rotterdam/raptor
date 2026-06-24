@@ -201,6 +201,13 @@ steps:
             Set-Content -Path "pr_comments.json" -Value "[]"
             exit 0
         }
+
+        # Accept either the base URL (e.g. .../v1) or the full chat-completions URL;
+        # append the OpenAI-compatible path when it is missing.
+        if ($llmUrl -notmatch '/chat/completions/?$') {
+            $llmUrl = $llmUrl.TrimEnd('/') + '/chat/completions'
+        }
+        Write-Host "Using LLM endpoint: $llmUrl"
         
         # System prompt defined as raw text to avoid YAML parsing issues
         $systemPrompt = @"

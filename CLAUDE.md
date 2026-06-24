@@ -44,9 +44,11 @@ set at generation time by the `ai_reviewer_variable_group` cookiecutter variable
 (default `AmlDevGroup`); `ci.yml` links it via `- group: {{ cookiecutter.ai_reviewer_variable_group }}`.
 The template maps the group's variables to the env vars the script reads
 (`llm_url_env` → `url_env`, etc.):
-- `llm_url_env` - LLM chat-completions endpoint (OpenAI-compatible). For the self-hosted Azure ML
-  endpoint this is the base URL plus `/chat/completions`, e.g.
-  `https://qwen-endpoint.westeurope.inference.ml.azure.com/v1/chat/completions`
+- `llm_url_env` - LLM endpoint (OpenAI-compatible). Either the base URL (e.g.
+  `https://qwen-endpoint.westeurope.inference.ml.azure.com/v1`) or the full
+  chat-completions URL; the template appends `/chat/completions` when missing.
+  Note: the AIReview job runs on the self-hosted pool (`sh_agent_pool_name`) so it can
+  reach network-restricted Azure ML endpoints.
 - `llm_api_key` - API key for the endpoint (sent as `Authorization: Bearer <api_key>`)
 - `llm_model_name` - Model identifier sent in the request body, e.g. `/models/xxx`
 

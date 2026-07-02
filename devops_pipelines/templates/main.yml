@@ -44,8 +44,8 @@ stages:
   - stage: tag_release
     dependsOn:
     - cookiecutter_self
-    - package_pipeline
-    - project_pipeline
+    - cookiecutter_package
+    - cookiecutter_project
     jobs:
     - job: RunTagRelease
       displayName: Tagging latest release

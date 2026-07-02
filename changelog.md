@@ -7,7 +7,7 @@ and this repo adheres to [Semantic Versioning](http://semver.org/).
 
 ### **Added**
 - AI code reviewer: a non-blocking `AIReview` stage for pull requests that diffs the PR, sends it to an OpenAI-compatible LLM endpoint, and posts review comments. Implemented entirely in PowerShell (`.azuredevops/templates/ai_reviewer.yml`) — no Python dependency in generated repos.
-- `ai_reviewer_variable_group` cookiecutter variable naming the variable group that supplies the reviewer's `llm_url_env`, `llm_api_key`, and `llm_model_name`.
+- The AI reviewer uses the existing `AmlDevGroup` variable group for `llm_url_env`, `llm_api_key`, and `llm_model_name`.
 
 ### **Changed**
 - AI reviewer dedupes against existing review comments and skips with a pipeline warning (never failing the build) when the endpoint is unreachable or unconfigured.

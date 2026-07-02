@@ -13,7 +13,7 @@ variables:
   - template: config.yml
 
   # AI reviewer LLM endpoint config (llm_url_env, llm_api_key, llm_model_name)
-  - group: {% endraw %}{{ cookiecutter.ai_reviewer_variable_group }}{% raw %}
+  - group: AmlDevGroup
 
   # PR target checks
   - name: toMain

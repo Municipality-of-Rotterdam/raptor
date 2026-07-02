@@ -9,6 +9,7 @@ variables:
              
 stages:
   - stage: cookiecutter_self
+    dependsOn: []
     jobs:
       - job: self_precommit
         displayName: 'Validate YAML files and check for merge conflicts'
@@ -21,6 +22,7 @@ stages:
             displayName: 'Run pre-commit on raptor repo'
 
   - stage: cookiecutter_package
+    dependsOn: []
     jobs:
       - job: package_pipeline
         displayName: 'Call cookiecutter on package_repo and run pre-commit'
@@ -30,6 +32,7 @@ stages:
           - template: /devops_pipelines/templates/create_and_check_package_repo.yml
 
   - stage: cookiecutter_project
+    dependsOn: []
     jobs:
       - job: project_pipeline
         displayName: 'Call cookiecutter on project_repo and run pre-commit'
@@ -39,7 +42,10 @@ stages:
           - template: /devops_pipelines/templates/create_and_check_project_repo.yml
 
   - stage: tag_release
-    dependsOn: cookiecutter_self
+    dependsOn:
+    - cookiecutter_self
+    - package_pipeline
+    - project_pipeline
     jobs:
     - job: RunTagRelease
       displayName: Tagging latest release

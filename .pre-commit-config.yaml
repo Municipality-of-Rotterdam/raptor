@@ -44,6 +44,7 @@ repos:
     rev: 0.37.4
     hooks:
     -   id: check-azure-pipelines
+    -   id: check-github-workflows
     -   id: check-jsonschema
         name: validate pyproject.toml
         files: ^pyproject\.toml$

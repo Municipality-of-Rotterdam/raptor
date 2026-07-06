@@ -13,7 +13,7 @@ repos:
    -  id: check-yaml
 
 -   repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.33.2
+    rev: 0.37.4
     hooks:
     -   id: check-azure-pipelines
     -   id: check-jsonschema

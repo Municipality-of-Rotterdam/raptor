@@ -15,11 +15,29 @@ repos:
 -   repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.33.2
     hooks:
+    -   id: check-azure-pipelines
     -   id: check-jsonschema
         name: validate pyproject.toml
         files: ^pyproject\.toml$
         types: [toml]
         args: ["--schemafile", "https://json.schemastore.org/pyproject.json"]
+    -   id: check-jsonschema
+        name: check azureml environment schemas
+        files: environment.yml
+        args: ["--schemafile", "https://azuremlschemas.azureedge.net/latest/environment.schema.json"]
+    -   id: check-jsonschema
+        name: check azureml component schemas
+        files: component.yml
+        args: ["--schemafile", "https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json"]
+    -   id: check-jsonschema
+        name: check azureml pipeline schemas
+        files: pipeline_job.yml
+        args: ["--schemafile", "https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json"]
+    # looks like there is an error in the microsoft schema
+    # create_job property not allowed, but it is a crucial part, also according to all other documentation
+    # -   id: check-jsonschema
+    #     files: schedule.yml
+    #     args: ["--schemafile", "https://azuremlschemas.azureedge.net/latest/schedule.schema.json"]
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0

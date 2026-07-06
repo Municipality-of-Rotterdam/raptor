@@ -7,7 +7,7 @@ name: $(Date:yyyyMMdd)-$(Rev:r)
 parameters:
 - name: force_deploy
   type: boolean
-  default: false
+  default: 'false'
 
 trigger:
   branches:

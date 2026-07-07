@@ -238,6 +238,15 @@ Navigate to branches and then set the following for the main and develop branch:
 
 #TODO Github variant
 
+##### AI code review
+
+The CI pipeline in DevOps includes a non-blocking AI code review stage that analyses pull request changes and posts review comments. To enable it:
+
+- Add the keys `llm_url_env`, `llm_api_key`, and `llm_model_name` to the `AmlDevGroup` variable group for your OpenAI-compatible LLM endpoint.
+- Grant the pipeline's build service identity the **Contribute to pull requests** permission on the repository (Project Settings → Repos → your repository → Security), so it can post review comments.
+
+If any of these are missing, the stage skips with a warning instead of failing the build.
+
 
 #### 3.5. ML deployments (project repo)
 

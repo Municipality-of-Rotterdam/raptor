@@ -12,6 +12,9 @@ variables:
   # Load shared config
   - template: config.yml
 
+  # AI reviewer LLM endpoint config (llm_url_env, llm_api_key, llm_model_name)
+  - group: AmlDevGroup
+
   # PR target checks
   - name: toMain
     value: $[eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/main')]
@@ -45,6 +48,16 @@ stages:
         python_version: ${{ variables.pythonVersion }}
         uv_version: ${{ variables.uvVersion }}
         uv_index_name: ${{ variables.uvIndexName }}
+
+- stage: AIReview
+  displayName: AI code review
+  dependsOn: [] 
+  jobs:
+  - job: ExecuteAIReview
+    displayName: 'Generate and post AI review comments'
+    pool: ${{ variables.sh_agent_pool_name }}
+    steps:
+    - template: .azuredevops/templates/ai_reviewer.yml@raptor
 
 - stage: UnitTest
   displayName: Unit tests

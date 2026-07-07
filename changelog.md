@@ -3,6 +3,15 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [2.2.0] - 2026-06-24
+
+### **Added**
+- AI code reviewer: a non-blocking `AIReview` stage for pull requests that diffs the PR, sends it to an OpenAI-compatible LLM endpoint, and posts review comments. Implemented entirely in PowerShell (`.azuredevops/templates/ai_reviewer.yml`) — no Python dependency in generated repos.
+- The AI reviewer uses the existing `AmlDevGroup` variable group for `llm_url_env`, `llm_api_key`, and `llm_model_name`.
+
+### **Changed**
+- AI reviewer dedupes against existing review comments and skips with a pipeline warning (never failing the build) when the endpoint is unreachable or unconfigured.
+
 ## [2.1.0] - 2026-05-06
 Added taskfiles to simplify compute and repo creation/setup.
 

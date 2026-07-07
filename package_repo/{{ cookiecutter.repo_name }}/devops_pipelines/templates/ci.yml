@@ -39,7 +39,6 @@ stages:
 - stage: PreCommit
   displayName: Pre-commit checks
   dependsOn: [] 
-  condition: eq(variables['Build.Reason'], 'PullRequest')
   jobs:
   - job: ExecutePreCommit
     displayName: 'Perform pre-commit checks'
@@ -53,7 +52,6 @@ stages:
 - stage: AIReview
   displayName: AI code review
   dependsOn: [] 
-  condition: eq(variables['Build.Reason'], 'PullRequest')
   jobs:
   - job: ExecuteAIReview
     displayName: 'Generate and post AI review comments'

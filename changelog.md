@@ -3,6 +3,18 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [2.3.0] - 2026-07-17
+Added pre-commit schema checks on most yaml files.
+
+### **Added**
+- Added pre-commit schema checks on devops yml files.
+- Added pre-commit schema checks on github yml files.
+- Added pre-commit schema checks on most azureml yml files (schedule schema seems wrong).
+
+### **Fixed**
+- Removed invalid option from package repo github ci.yml.
+- Changed project_repo force_deploy value from bool to string (matching schema).
+
 ## [2.2.0] - 2026-06-24
 
 ### **Added**

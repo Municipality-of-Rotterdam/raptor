@@ -39,3 +39,14 @@ repos:
     -   id: ruff-format
         types_or: [ python, pyi, jupyter ]
         args: [--config=./pyproject.toml]
+
+-   repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.37.4
+    hooks:
+    -   id: check-azure-pipelines
+    -   id: check-github-workflows
+    -   id: check-jsonschema
+        name: validate pyproject.toml
+        files: ^pyproject\.toml$
+        types: [toml]
+        args: ["--schemafile", "https://json.schemastore.org/pyproject.json"]

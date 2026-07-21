@@ -225,32 +225,28 @@ git config --global --add safe.directory PATH/TO/REPO
 
 #### 3.4. CI/CD
 
-The build pipelines are for now limited to a single CI pipeline, a CD pipeline and a release pipeline. 
-If you are using DevOps, you will manually have to add these pipelines. Github will add the workflows automatically. 
+To add Continuous Integration, Continuous Delivery (CI/CD) in DevOps, go to the repository and click "set up build".
 
-To add the pipelines in DevOps: 
-- Navigate to pipelines in your DevOps project.
-- Click 'New Pipeline'
-- Select Azure Repos Git
-- Select your new repository
-- Choose 'Existing Azure Pipelines YAML file'
-- Select the 'Main' branch then Under Path, choose 'devops_pipelines/templates/ci.yml', click continue.
-- Under Run, choose 'Save'. 
+It will automatically use the azure-pipelines.yml from the root of the repository.
+Click, under "run", on "save".
+Now we have created a pipeline, which will be triggered when there are changes in specified folders (in principle package folder and tests folder) on specified branches (in principle main, develop and release branches).
+Now we need to set branch policies (by default we only have the main and develop branch, and others need to be created). 
 
-You have now succesfully added the CI pipeline. You will have to repeat this proces for the CD pipeline (cd.yml) and the release pipeline (release.yml).
-Note that the pipelines will appear under the same name, for convenience, you may give theme unique names to your preference. 
+Navigate to branches and then set the following for the main and develop branch:
+  - Require a minimum number of reviewers (2)
+  - Build validation -> add build policy -> select the pipeline we just created -> save.
 
-Note that the CI pipeline will also serve as a branch protection policy, which under DevOps you will have to set manually. 
-To do this, navigate to your new repository, then: 
-- Select 'Branches' in the left pane browser. 
-- Select the three dots to the far right of 'Develop' and click 'Branch Policies'.
-- Under 'Build Validation', click '+' and select the CI pipeline you have added through the steps above. 
-- Set the policy requirement to 'Required' and the Build expiration to 'Immediately when develop is updated'. 
-- Click save.
+#TODO Github variant
 
-Note that this only applies to the Develop branch, and you will have to repeat the above steps for the Main branch. 
+##### AI code review
 
-You have now succesfully added the three main pipelines to your Azure DevOps repository and are good to go.
+The CI pipeline in DevOps includes a non-blocking AI code review stage that analyses pull request changes and posts review comments. To enable it:
+
+- Add the keys `llm_url_env`, `llm_api_key`, and `llm_model_name` to the `AmlDevGroup` variable group for your OpenAI-compatible LLM endpoint.
+- Grant the pipeline's build service identity the **Contribute to pull requests** permission on the repository (Project Settings → Repos → your repository → Security), so it can post review comments.
+
+If any of these are missing, the stage skips with a warning instead of failing the build.
+
 
 #### 3.5. ML deployments (project repo)
 

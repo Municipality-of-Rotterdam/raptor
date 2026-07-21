@@ -9,6 +9,7 @@ variables:
              
 stages:
   - stage: cookiecutter_self
+    dependsOn: []
     jobs:
       - job: self_precommit
         displayName: 'Validate YAML files and check for merge conflicts'
@@ -20,17 +21,8 @@ stages:
               uv run pre-commit run --all-files --show-diff-on-failure
             displayName: 'Run pre-commit on raptor repo'
 
-  - stage: tag_release
-    dependsOn: cookiecutter_self
-    jobs:
-    - job: RunTagRelease
-      displayName: Tagging latest release
-      steps:
-      - template: /.azuredevops/templates/tag_release.yml
-        parameters:
-          tag_branch: develop
-
   - stage: cookiecutter_package
+    dependsOn: []
     jobs:
       - job: package_pipeline
         displayName: 'Call cookiecutter on package_repo and run pre-commit'
@@ -40,6 +32,7 @@ stages:
           - template: /devops_pipelines/templates/create_and_check_package_repo.yml
 
   - stage: cookiecutter_project
+    dependsOn: []
     jobs:
       - job: project_pipeline
         displayName: 'Call cookiecutter on project_repo and run pre-commit'
@@ -47,3 +40,16 @@ stages:
           - checkout: self
             path: $(project_name)
           - template: /devops_pipelines/templates/create_and_check_project_repo.yml
+
+  - stage: tag_release
+    dependsOn:
+    - cookiecutter_self
+    - cookiecutter_package
+    - cookiecutter_project
+    jobs:
+    - job: RunTagRelease
+      displayName: Tagging latest release
+      steps:
+      - template: /.azuredevops/templates/tag_release.yml
+        parameters:
+          tag_branch: develop

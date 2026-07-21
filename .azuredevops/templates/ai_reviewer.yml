@@ -1,0 +1,517 @@
+# /.azuredevops/templates/ai_reviewer.yml
+
+# The AI reviewer is pure PowerShell (git diff + REST calls), so it needs no
+# Python/uv toolchain or dependency sync — only a full-history checkout for the diff.
+steps:
+  - checkout: self
+    persistCredentials: true
+    clean: true
+    fetchDepth: 0
+
+  - task: PowerShell@2
+    displayName: 'Generate AI review comments'
+    # Hard backstop: never let a slow/hung LLM call block the pipeline, and keep the
+    # advisory stage non-blocking if it times out or errors. Kept above the 240s
+    # request timeout so the in-script timeout/catch handles a slow endpoint first.
+    timeoutInMinutes: 6
+    continueOnError: true
+    env:
+      url_env: $(llm_url_env)
+      api_key: $(llm_api_key)
+      model_name: $(llm_model_name)
+    inputs:
+      targetType: 'inline'
+      script: |
+        $ErrorActionPreference = "Stop"
+        
+        # Get PR metadata
+        $prId = $env:SYSTEM_PULLREQUEST_PULLREQUESTID
+        $sourceBranch = $env:SYSTEM_PULLREQUEST_SOURCEBRANCH
+        $targetBranch = $env:SYSTEM_PULLREQUEST_TARGETBRANCH
+        $project = $env:SYSTEM_TEAMPROJECT
+        $orgUrl = $env:SYSTEM_COLLECTIONURI.TrimEnd('/')
+        
+        Write-Host "PR ID: $prId"
+        Write-Host "Source branch: $sourceBranch"
+        Write-Host "Target branch: $targetBranch"
+        
+        # Normalize branches.
+        # rev-parse is expected to fail for refs that don't exist; on Windows
+        # PowerShell, native stderr under ErrorActionPreference=Stop becomes a
+        # terminating error, so silence it locally and rely on the exit code.
+        function Test-BranchExists {
+            param([string]$branch)
+            $ErrorActionPreference = 'SilentlyContinue'
+            git rev-parse --verify --quiet $branch *> $null
+            return $LASTEXITCODE -eq 0
+        }
+        
+        function Get-BranchRef {
+            param([string]$branch, [string]$prId)
+            
+            if (Test-BranchExists $branch) {
+                return $branch
+            }
+            
+            $short = $branch -replace "refs/heads/", ""
+            $remoteRef = "remotes/origin/$short"
+            if (Test-BranchExists $remoteRef) {
+                return $remoteRef
+            }
+            
+            $mergeRef = "remotes/pull/$prId/merge"
+            if (Test-BranchExists $mergeRef) {
+                return $mergeRef
+            }
+            
+            throw "Branch $branch not found locally"
+        }
+        
+        $sourceRef = Get-BranchRef $sourceBranch $prId
+        $targetRef = Get-BranchRef $targetBranch $prId
+        
+        Write-Host "Normalized: Source=$sourceRef, Target=$targetRef"
+        
+        # Get git diff. git writes one array element per line; join into a single
+        # newline-delimited string so the (?m) regex section/body parsing below works
+        # (otherwise only the hunk header survives and the code changes are lost).
+        # Use -U3 (a few context lines) so the model can see the surrounding structure
+        # (e.g. which job/block an added line belongs to) and avoid false positives.
+        Write-Host "Fetching git diff between $targetRef and $sourceRef"
+        $diffOutput = (git diff "$targetRef...$sourceRef" -U3 2>&1) -join "`n"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to get git diff: $diffOutput"
+        }
+
+        Write-Host "Diff retrieved, length: $($diffOutput.Length)"
+        
+        # Parse diff into file changes
+        $fileDiffs = @{}
+        $ignoreExtensions = @(".ipynb", ".lock")
+        
+        $diffSections = $diffOutput -split '(?m)^diff --git ' | ForEach-Object {
+            if ($_ -and $_.Trim()) { $_ }
+        }
+        
+        foreach ($section in $diffSections) {
+            $lines = $section -split "`n"
+            $headerLine = $lines[0]
+            $parts = $headerLine -split ' '
+            
+            if ($parts.Count -lt 2) { continue }
+            
+            $bPath = $parts[1]
+            if ($bPath.StartsWith("b/")) {
+                $bPath = $bPath.Substring(2)
+            }
+            
+            $path = $bPath
+            $ext = [System.IO.Path]::GetExtension($path)
+            
+            if ($ignoreExtensions -contains $ext) { continue }
+            
+            $changeType = "modify"
+            if ($section -match "new file mode") {
+                $changeType = "add"
+            } elseif ($section -match "deleted file mode") {
+                $changeType = "delete"
+            } elseif ($section -match "similarity index") {
+                $changeType = "rename"
+            }
+            
+            # Extract diff body
+            $diffBodyMatch = $section -match '(?m)^@@.*'
+            if (-not $diffBodyMatch) { continue }
+            
+            $diffBodyStart = [regex]::Match($section, '(?m)^@@.*').Index
+            $diffBody = $section.Substring($diffBodyStart)
+            
+            if (-not $diffBody.Trim()) { continue }
+            
+            $fileDiffs[$path] = @{
+                change_type = $changeType
+                diff = $diffBody
+            }
+        }
+        
+        Write-Host "Found $($fileDiffs.Count) file changes"
+        if ($fileDiffs.Count -eq 0) {
+            Write-Host "No relevant changes found, skipping AI review"
+            $commentsJson = "[]"
+            Set-Content -Path "pr_comments.json" -Value $commentsJson
+            exit 0
+        }
+        
+        # Prepare LLM input: send only the diff, keyed by file path (matches the system
+        # prompt). Full file contents bloat the payload and Windows PowerShell's
+        # ConvertTo-Json chokes on the large nested object; the diff already contains the
+        # changed code with line numbers.
+        $llmInput = @{}
+        foreach ($path in $fileDiffs.Keys) {
+            $llmInput[$path] = $fileDiffs[$path]
+        }
+
+        Write-Host "Preparing LLM request"
+        
+        # Call the LLM (OpenAI-compatible chat-completions endpoint)
+        $llmUrl = $env:url_env
+        $llmApiKey = $env:api_key
+        $llmModel = $env:model_name
+
+        if (-not $llmUrl -or -not $llmApiKey -or -not $llmModel) {
+            # Not configured (e.g. variable group not linked): skip rather than fail the PR build.
+            Write-Host "##vso[task.logissue type=warning]AI reviewer: llm_url_env, llm_api_key and llm_model_name are not all set. Skipping AI review."
+            Set-Content -Path "pr_comments.json" -Value "[]"
+            exit 0
+        }
+
+        # Accept either the base URL (e.g. .../v1) or the full chat-completions URL;
+        # append the OpenAI-compatible path when it is missing.
+        if ($llmUrl -notmatch '/chat/completions/?$') {
+            $llmUrl = $llmUrl.TrimEnd('/') + '/chat/completions'
+        }
+        Write-Host "Using LLM endpoint: $llmUrl"
+        
+        # System prompt defined as raw text to avoid YAML parsing issues
+        $systemPrompt = @"
+        You are a code-review assistant. You receive a JSON object where each key is a file path and each value contains:
+        - change_type
+        - diff (unified diff format)
+
+        Your task: analyze the diff and output structured JSON that can be used to post PR comments in Azure DevOps.
+
+        ### PRIORITY ORDER
+        1) correctness / bugs
+        2) security issues
+        3) maintainability / architecture
+        4) performance
+        5) readability / style
+
+        ### OUTPUT FORMAT
+        Return a single JSON object:
+
+        {
+          "<file_path>": {
+            "summary": "Short description of what changed.",
+            "comments": [
+            {
+              "message": "Description of the issue.",
+              "proposed_solution": "Clear and actionable fix.",
+              "category": "bug|security|maintainability|performance|style",
+              "severity": "high|medium|low",
+
+              "line_info": {
+                "original_line": int | null,
+                "new_line": int | null
+              }
+            }
+            ]
+          }
+        }
+
+        ### LINE NUMBER RULES
+        Extract line numbers from diff hunks using these rules:
+
+        - Each hunk starts with: @@ -X,Y +A,B @@
+        - X = starting line in the original file
+        - Y = number of lines in the original file hunk
+        - A = starting line in the new file
+        - B = number of lines in the new file hunk
+
+        - For each line in the hunk:
+        - Lines starting with '+' -> increment new_line only
+        - Lines starting with '-' -> increment original_line only
+        - Lines starting with ' ' -> increment both original_line and new_line
+
+        - For added or edited lines: set new_line to the line number in the new file
+        - For removed lines: set new_line to null, but attach the comment to the **start of the removed block** (original_line)
+
+        ### COMMENT LINE MATCHING
+        - When suggesting a comment, first check if the target line **exactly matches a line in the diff**.
+        - If no exact match is found:
+        1) Use the snippet or surrounding context to locate the **closest line in the full file from the PR**.
+        2) Attach the comment to that line.
+
+        ### REQUIREMENTS
+        - Only generate comments for real, meaningful issues.
+        - Keep messages short and suitable for PR review.
+        - proposed_solution must be specific and realistic.
+        - Reserve "high" severity for definite correctness or security bugs; use "low" for
+          style and minor maintainability notes.
+        - You only see the diff with limited surrounding context. Do not assert structural
+          problems (e.g. wrong indentation/placement) that depend on code outside the diff.
+        - Output must be valid JSON and contain nothing else.
+        "@
+
+        Write-Host "Serializing LLM request..."
+        $promptJson = $llmInput | ConvertTo-Json -Depth 10
+        Write-Host "Sending prompt to LLM endpoint ($llmModel)"
+
+        $body = @{
+            model = $llmModel
+            messages = @(
+                @{ role = "system"; content = $systemPrompt },
+                @{ role = "user"; content = $promptJson }
+            )
+            temperature = 0.4
+            max_tokens = 16000
+            response_format = @{ type = "json_object" }
+        } | ConvertTo-Json -Depth 20
+
+        $headers = @{
+            "Content-Type" = "application/json"
+            "Authorization" = "Bearer $llmApiKey"
+        }
+
+        try {
+            $response = Invoke-RestMethod -Uri $llmUrl -Method Post -Headers $headers -Body $body -TimeoutSec 240 -ErrorAction Stop
+            $finishReason = $response.choices[0].finish_reason
+            $resultStr = $response.choices[0].message.content
+            Write-Host "Received response from LLM endpoint ($($resultStr.Length) chars, finish_reason: $finishReason)"
+            if ($finishReason -eq "length") {
+                Write-Host "##vso[task.logissue type=warning]AI reviewer: LLM response hit max_tokens limit. The response may be truncated, causing JSON parsing to fail. Consider reducing PR diff size or increasing max_tokens."
+            }
+        } catch {
+            # Endpoint unreachable / errored: skip the review without failing the build,
+            # but surface a pipeline warning so it is visible in the run summary.
+            Write-Host "##vso[task.logissue type=warning]AI reviewer: could not reach LLM endpoint ($llmUrl). Skipping AI review. $($_.Exception.Message)"
+            $commentsJson = "[]"
+            Set-Content -Path "pr_comments.json" -Value $commentsJson
+            exit 0
+        }
+        
+        # Parse LLM output. Reasoning models may prepend chain-of-thought text and/or
+        # wrap the JSON in markdown fences, so a direct parse can fail. Fall back to
+        # extracting the last balanced JSON object from the raw response (string-aware,
+        # so braces inside string values don't confuse the scan).
+        function Get-LastJsonObject {
+            param([string]$text)
+            $candidates = New-Object System.Collections.Generic.List[string]
+            $depth = 0; $start = -1; $inStr = $false; $esc = $false
+            for ($i = 0; $i -lt $text.Length; $i++) {
+                $ch = $text[$i]
+                if ($inStr) {
+                    if ($esc) { $esc = $false }
+                    elseif ($ch -eq '\') { $esc = $true }
+                    elseif ($ch -eq '"') { $inStr = $false }
+                } elseif ($ch -eq '"') { $inStr = $true }
+                elseif ($ch -eq '{') { if ($depth -eq 0) { $start = $i }; $depth++ }
+                elseif ($ch -eq '}') {
+                    if ($depth -gt 0) {
+                        $depth--
+                        if ($depth -eq 0 -and $start -ge 0) {
+                            $candidates.Add($text.Substring($start, $i - $start + 1))
+                            $start = -1
+                        }
+                    }
+                }
+            }
+            # Prefer the last candidate that looks like a review (mentions "comments"),
+            # so a JSON fragment drafted inside the model's thinking can't win.
+            for ($j = $candidates.Count - 1; $j -ge 0; $j--) {
+                if ($candidates[$j] -notmatch '"comments"') { continue }
+                try { return ($candidates[$j] | ConvertFrom-Json) } catch { }
+            }
+            for ($j = $candidates.Count - 1; $j -ge 0; $j--) {
+                try { return ($candidates[$j] | ConvertFrom-Json) } catch { }
+            }
+            return $null
+        }
+
+        $cleanResult = $resultStr.Trim()
+        if ($cleanResult -match '^```') {
+            $cleanResult = $cleanResult -replace '^```[a-zA-Z]*\s*', '' -replace '\s*```$', ''
+        }
+        $reviewOutput = $null
+        try {
+            $reviewOutput = $cleanResult | ConvertFrom-Json
+        } catch {
+            Write-Host "Direct JSON parse failed; extracting JSON object from response."
+            $reviewOutput = Get-LastJsonObject $resultStr
+        }
+        if ($null -eq $reviewOutput) {
+            Write-Host "##vso[task.logissue type=warning]AI reviewer: could not parse JSON from LLM response. Skipping."
+            $reviewOutput = [PSCustomObject]@{}
+        } else {
+            Write-Host "Parsed $($reviewOutput.PSObject.Properties.Count) top-level keys from LLM output"
+            Write-Host "----- Extracted review JSON -----"
+            Write-Host ($reviewOutput | ConvertTo-Json -Depth 10)
+            Write-Host "---------------------------------"
+        }
+        
+        # Generate PR comments array
+        $prComments = @()
+        
+        foreach ($fileData in $reviewOutput.PSObject.Properties) {
+            $filePath = $fileData.Name
+            $fileComments = $fileData.Value
+            
+            foreach ($comment in $fileComments.comments) {
+                $lineInfo = $comment.line_info
+                $newLine = $lineInfo.new_line
+                $originalLine = $lineInfo.original_line
+                
+                $commentLine = if ($newLine -ne $null) { $newLine } else { $originalLine }
+                
+                $severity = $comment.severity
+                $category = $comment.category
+                $messageText = $comment.message
+                $proposedSolution = $comment.proposed_solution
+                
+                $fullMessage = "[PR-BOT]: [Severity: $severity], [Category: $category]`n$messageText`nSuggested fix: $proposedSolution"
+                if ($newLine -eq $null -and $originalLine -ne $null) {
+                    $fullMessage += "`n(Note: line was removed starting at original line $originalLine)"
+                }
+                
+                $prComment = @{
+                    file_path = $filePath
+                    line = $commentLine
+                    message = $fullMessage
+                }
+                $prComments += $prComment
+            }
+        }
+        
+        Write-Host "Generated $($prComments.Count) comments"
+        
+        # Write comments to JSON file
+        $commentsJson = $prComments | ConvertTo-Json -Depth 10
+        Set-Content -Path "pr_comments.json" -Value $commentsJson
+        
+        Write-Host "Comments written to pr_comments.json"
+
+  - task: PowerShell@2
+    displayName: 'Post AI review comments to PR'
+    timeoutInMinutes: 3
+    continueOnError: true
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+    inputs:
+      targetType: 'inline'
+      script: |
+        $ErrorActionPreference = "Stop"
+        
+        $prId    = $env:SYSTEM_PULLREQUEST_PULLREQUESTID
+        $orgUrl  = $env:SYSTEM_COLLECTIONURI.TrimEnd('/')
+        $project = $env:SYSTEM_TEAMPROJECT
+        $repoId  = $env:BUILD_REPOSITORY_ID
+        $token   = $env:SYSTEM_ACCESSTOKEN
+        
+        if (-not $prId) {
+          Write-Host "No PR ID (SYSTEM_PULLREQUEST_PULLREQUESTID is empty). Skipping comment posting."
+          exit 0
+        }
+        
+        if (-not $token) {
+          Write-Error "SYSTEM_ACCESSTOKEN is empty. Enable 'Allow scripts to access OAuth token'."
+          exit 1
+        }
+        
+        if (-not (Test-Path "pr_comments.json")) {
+          Write-Host "pr_comments.json not found (review step produced no output). Skipping."
+          exit 0
+        }
+        $commentsJson = Get-Content "pr_comments.json" -Raw
+        if ([string]::IsNullOrWhiteSpace($commentsJson)) {
+          Write-Host "No comments found in pr_comments.json. Skipping."
+          exit 0
+        }
+        
+        $comments = $commentsJson | ConvertFrom-Json
+        if ($comments.Count -eq 0) {
+          Write-Host "No comments to post from AI reviewer."
+          exit 0
+        }
+        
+        $baseUri = "$orgUrl/$project/_apis/git/repositories/$repoId/pullRequests/$prId/threads?api-version=7.1"
+
+        # Dedup: collect file+line of [PR-BOT] comments already on this PR so we don't
+        # repost them on every push. Match on location only, since the model's wording
+        # varies between runs. If the fetch fails, warn and post anyway (don't block).
+        $botMarker = "[PR-BOT]"
+        $existing = New-Object System.Collections.Generic.HashSet[string]
+        try {
+          $existingThreads = Invoke-RestMethod -Uri $baseUri -Method Get -Headers @{ Authorization = "Bearer $token" } -ErrorAction Stop
+          foreach ($t in $existingThreads.value) {
+            $ctx = $t.threadContext
+            if (-not $ctx -or -not $ctx.filePath -or -not $ctx.rightFileStart) { continue }
+            $firstContent = [string]$t.comments[0].content
+            if (-not $firstContent -or -not $firstContent.Contains($botMarker)) { continue }
+            [void]$existing.Add("$($ctx.filePath)|$($ctx.rightFileStart.line)")
+          }
+          Write-Host "Found $($existing.Count) existing AI review thread(s) on this PR."
+        } catch {
+          Write-Host "##vso[task.logissue type=warning]Could not fetch existing PR threads for dedup: $($_.Exception.Message). Posting without dedup."
+        }
+
+        $posted = 0
+        $skipped = 0
+        $failed = 0
+        foreach ($c in $comments) {
+          $filePath = [string]$c.file_path
+          $filePath = $filePath -replace '\\', '/'
+
+          if (-not $filePath.StartsWith("/")) {
+            $filePath = "/" + $filePath
+          }
+          $line     = [int]$c.line
+          $message  = [string]$c.message
+
+          $key = "$filePath|$line"
+          if ($existing.Contains($key)) {
+            Write-Host "Skipping duplicate AI review comment on ${filePath}:${line}"
+            $skipped++
+            continue
+          }
+
+          $bodyObj = @{
+            comments = @(
+              @{
+                parentCommentId = 0
+                content         = $message
+                commentType     = "text"
+              }
+            )
+            status        = "active"
+            threadContext = @{
+              filePath       = $filePath
+              leftFileStart  = $null
+              leftFileEnd    = $null
+              rightFileStart = @{
+                line   = $line
+                offset = 1
+              }
+              rightFileEnd   = @{
+                line   = $line
+                offset = 200
+              }
+            }
+          }
+          
+          $body = $bodyObj | ConvertTo-Json -Depth 10
+          
+          Write-Host "Posting AI review comment to ${filePath}:${line}"
+          try {
+            Invoke-RestMethod `
+              -Uri $baseUri `
+              -Method Post `
+              -Headers @{ Authorization = "Bearer $token" } `
+              -ContentType "application/json" `
+              -Body $body `
+              -ErrorAction Stop | Out-Null
+            [void]$existing.Add($key)
+            $posted++
+          } catch {
+            $failed++
+            $err = "$($_.Exception.Message)"
+            Write-Host "##vso[task.logissue type=warning]AI reviewer: failed to post comment to ${filePath}:${line}: $err"
+            # A permissions problem affects every comment; stop retrying and give guidance.
+            if ($err -match 'PullRequestContribute|GitNeedsPermissionException|TF401027|403') {
+              Write-Host "##vso[task.logissue type=warning]AI reviewer: the build service identity needs the 'Contribute to pull requests' permission on this repository. Skipping remaining comments."
+              break
+            }
+          }
+        }
+
+        Write-Host "Posted $posted AI review comment(s), skipped $skipped duplicate(s), failed $failed."
+    condition: always()

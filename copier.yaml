@@ -207,18 +207,25 @@ _tasks:
   - command: 'git config --global --add safe.directory "$(pwd)"'
     # working_directory relative to dst, so becomes dst/repo_name
     working_directory : "{{ repo_name }}"
+    when: "{{ _copier_operation == 'copy' }}"
   - command: "git init"
     working_directory : "{{ repo_name }}"
+    when: "{{ _copier_operation == 'copy' }}"
   - command: "git config user.name '{{ user_name }}'"
     working_directory : "{{ repo_name }}"
+    when: "{{ _copier_operation == 'copy' }}"
   - command: "git config user.email '{{ user_email }}'"
     working_directory : "{{ repo_name }}"
+    when: "{{ _copier_operation == 'copy' }}"
   - command: "git add ."
     working_directory : "{{ repo_name }}"
+    when: "{{ _copier_operation == 'copy' }}"
   - command: "git commit -m init"
     working_directory : "{{ repo_name }}"
+    when: "{{ _copier_operation == 'copy' }}"
   - command: "git checkout -b develop"
     working_directory : "{{ repo_name }}"
+    when: "{{ _copier_operation == 'copy' }}"
 
 # --- Migrations ---
 

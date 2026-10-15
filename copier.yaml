@@ -52,6 +52,12 @@ repo_name:
   type: str
   qmark: "📂"
   default: "{{ 'pkg_' + (package_name or '') if repo_type == 'package_repo' else (project_name or '') }}"
+  # Fail early when the destination folder does not match (copier copy <template> <repo_name>).
+  # Skipped when the folder name is empty (destination ".", as in copier update) or a temporary folder
+  # of copier itself (copier update renders the old and new template versions in "copier._main.*" folders).
+  # The first task in _tasks is the backstop, e.g. for copier copy <template> .
+  validator: >-
+    {% if repo_name != _copier_conf.dst_path.name and _copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.') %}repo_name must equal the destination folder name '{{ _copier_conf.dst_path.name }}'. Use: copier copy <template> {{ repo_name }}{% endif %}
 
 user_name:
   type: str
@@ -202,29 +208,28 @@ __aml_base_deployment_name: "{{ __aml_project_code.replace('_', '-') }}"
 __raptor_template_version: "2.1.0"
 
 # --- Post-generation tasks ---
+# Tasks run in the destination folder, which is the new repo (copier copy raptor <repo_name>).
 
 _tasks:
+  # repo_name must match the destination folder (copier copy <template> <repo_name>), to follow naming guidelines.
+  # Backstop for the validator on repo_name, which cannot check a destination of ".".
+  - command: >-
+      test "$(basename "$(pwd)")" = "{{ repo_name }}" ||
+      { echo "ERROR: destination folder must be named '{{ repo_name }}'. Use: copier copy <template> {{ repo_name }}" >&2; exit 1; }
+    when: "{{ _copier_operation == 'copy' }}"
   - command: 'git config --global --add safe.directory "$(pwd)"'
-    # working_directory relative to dst, so becomes dst/repo_name
-    working_directory : "{{ repo_name }}"
     when: "{{ _copier_operation == 'copy' }}"
   - command: "git init"
-    working_directory : "{{ repo_name }}"
     when: "{{ _copier_operation == 'copy' }}"
   - command: "git config user.name '{{ user_name }}'"
-    working_directory : "{{ repo_name }}"
     when: "{{ _copier_operation == 'copy' }}"
   - command: "git config user.email '{{ user_email }}'"
-    working_directory : "{{ repo_name }}"
     when: "{{ _copier_operation == 'copy' }}"
   - command: "git add ."
-    working_directory : "{{ repo_name }}"
     when: "{{ _copier_operation == 'copy' }}"
   - command: "git commit -m init"
-    working_directory : "{{ repo_name }}"
     when: "{{ _copier_operation == 'copy' }}"
   - command: "git checkout -b develop"
-    working_directory : "{{ repo_name }}"
     when: "{{ _copier_operation == 'copy' }}"
 
 # --- Migrations ---

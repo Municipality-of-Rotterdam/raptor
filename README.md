@@ -123,19 +123,26 @@ Optionally, if copier is not yet installed in the base environment, run
 uv tool install copier
 ```
 Using your terminal, navigate to your user folder within the compute instance (home/azureuser/cloudfiles/code/Users/<username>).
-Go to the folder in which you want to create the new repo (copier will create a subdirectory for the repo in this directory).
-Create the repo (when using SSH, copy in the SSH clone URL), in this example a package repository:
+Go to the folder in which you want to create the new repo.
+Create the repo (when using SSH, copy in the SSH clone URL), in this example a package repository. The last argument is the folder of the new repo, which **must be equal to the `repo_name`** you will be asked for (for a package repo `pkg_<package_name>`); copier creates the folder and aborts if the names do not match:
 ```bash
-copier copy <raptor_repo_url> .
+copier copy --trust <raptor_repo_url> <repo_name>
 ```
 If you want to create a repo from a specific raptor branch or tag, run e.g.
 ```bash
-copier copy --vcs-ref <branch or tag name> <raptor_repo_url> .
+copier copy --trust --vcs-ref <branch or tag name> <raptor_repo_url> <repo_name>
 ```
 By default copier uses the latest release version (using sorted git tags), also when referring to a git directory! If you really want to use your local directory, run e.g.
 ```bash
-copier copy --vcs-ref HEAD <raptor_directory> .
+copier copy --trust --vcs-ref HEAD <absolute_path_to_raptor_directory> <repo_name>
 ```
+Use a URL or an absolute path as template source: copier stores it in `.copier-answers.yml` and a relative path would break `copier update`.
+
+To pull later raptor changes into an existing repo, run from the root of that repo (clean git working tree needed):
+```bash
+copier update --trust
+```
+Copier merges the template changes with your own changes. Tasks like `git init` only run when creating the repo, not on update.
 
 You can also supply a user config .yml file with default values being set.
 Create a file `~/.config/copier/settings.yml`

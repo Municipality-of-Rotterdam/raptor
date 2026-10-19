@@ -207,6 +207,7 @@ package_feed:
 
 # Questions with when: false are not asked, but are available in the templates.
 # No leading underscore in the name: copier ignores those keys, as they are settings.
+
 # Only used in project_repo, so project_name is not defined for a package_repo.
 
 aml_project_code:
@@ -218,7 +219,13 @@ aml_base_deployment_name:
   type: str
   when: false
   default: "{{ aml_project_code.replace('_', '-') }}"
-__raptor_template_version: "2.1.0"
+
+# Tag of the raptor repo that the generated workflows and pipelines refer to.
+# Must equal the version in pyproject.toml, this is checked by the check-template-version pre-commit hook.
+raptor_template_version:
+  type: str
+  when: false
+  default: "3.0.0"
 
 # --- Post-generation tasks ---
 # Tasks run in the destination folder, which is the new repo (copier copy raptor <repo_name>).

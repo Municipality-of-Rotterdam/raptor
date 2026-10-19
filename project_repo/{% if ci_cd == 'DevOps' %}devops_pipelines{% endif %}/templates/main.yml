@@ -20,7 +20,7 @@ variables:
   - name: aml_endpoint_name
     value: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-{% endraw %}{{ type_deployment}}{% raw %}-prod
   - name: environment
-    value: aml_{% endraw %}{{ repo_name}}{% raw %}_production
+    value: aml_{% endraw %}{{ aml_project_code}}{% raw %}_production
   - name: feed_view
     value: prod
   - group: AmlProdGroup
@@ -29,7 +29,7 @@ variables:
   - name: aml_endpoint_name
     value: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-{% endraw %}{{ type_deployment}}{% raw %}-dev
   - name: environment
-    value: aml_{% endraw %}{{ repo_name}}{% raw %}_development
+    value: aml_{% endraw %}{{ aml_project_code}}{% raw %}_development
   - name: feed_view
     value: dvlm
   - group: AmlDevGroup

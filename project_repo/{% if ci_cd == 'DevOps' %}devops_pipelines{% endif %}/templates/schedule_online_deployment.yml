@@ -6,7 +6,7 @@ pr: none
 
 schedules:
 - cron: '30 6 * * Mon-Fri'
-  displayName: {% endraw %}{{ repo_name}}{% raw %} deployment create
+  displayName: {% endraw %}{{ aml_project_code}}{% raw %} deployment create
   always: true
   branches:
     include:
@@ -14,7 +14,7 @@ schedules:
     - main
 
 - cron: '0 15 * * Mon-Fri'
-  displayName: {% endraw %}{{ repo_name}}{% raw %} deployment delete
+  displayName: {% endraw %}{{ aml_project_code}}{% raw %} deployment delete
   always: true
   branches:
     include:
@@ -41,7 +41,7 @@ variables:
 
 stages:
 - stage: Deploy
-  condition: eq(variables['Build.CronSchedule.DisplayName'], '{% endraw %}{{ repo_name}}{% raw %} deployment create')
+  condition: eq(variables['Build.CronSchedule.DisplayName'], '{% endraw %}{{ aml_project_code}}{% raw %} deployment create')
   jobs:
     - job: Deploy
       pool: ${{ variables.sh_agent_pool_name }}
@@ -143,7 +143,7 @@ stages:
 
 - stage: Destroy
   dependsOn: [] # Indicate this stage does not depend on the previous stage
-  condition: eq(variables['Build.CronSchedule.DisplayName'], '{% endraw %}{{ repo_name}}{% raw %} deployment delete')
+  condition: eq(variables['Build.CronSchedule.DisplayName'], '{% endraw %}{{ aml_project_code}}{% raw %} deployment delete')
   jobs:
     - job: Destroy
       pool: ${{ variables.sh_agent_pool_name }}

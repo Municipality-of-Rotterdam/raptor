@@ -19,7 +19,7 @@ _subdirectory: "{{ repo_type }}"
 
 repo_name:
   type: str
-  help: Repo name, must equal the destination folder (package repo is pkg_<package_name>)
+  help: "Repo name, taken from the destination folder, press Enter to accept{% if repo_type == 'package_repo' %} (convention for package repo is pkg_<package_name>){% endif %}"
   qmark: "📂"
   default: "{{ _copier_conf.dst_path.name if (_copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.')) else '' }}"
   # Fail early when the destination folder does not match (copier copy <template> <repo_name>).
@@ -27,7 +27,7 @@ repo_name:
   # of copier itself (copier update renders the old and new template versions in "copier._main.*" folders).
   # The first task in _tasks is the backstop, e.g. for copier copy <template> .
   validator: >-
-    {% if not repo_name %}repo_name cannot be empty. Use: copier copy <template> <repo_name>{% elif repo_name != _copier_conf.dst_path.name and _copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.') %}repo_name must equal the destination folder name '{{ _copier_conf.dst_path.name }}'. Use: copier copy <template> {{ repo_name }}{% endif %}
+    {% if not repo_name %}repo_name cannot be empty. Use: copier copy <template> <repo_name> (or, inside a folder named <repo_name>: copier copy <template> . --data repo_name=<repo_name>){% elif repo_name != _copier_conf.dst_path.name and _copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.') %}repo_name must equal the destination folder name '{{ _copier_conf.dst_path.name }}'. Use: copier copy <template> {{ repo_name }} (or, inside a folder named '{{ repo_name }}': copier copy <template> . --data repo_name={{ repo_name }}){% endif %}
 
 # --- Package-specific questions ---
 
@@ -205,8 +205,19 @@ package_feed:
 
 # --- Computed variables ---
 
-__aml_project_code: "{{ repo_name.lower().replace(' ', '_').replace('-', '_') }}"
-__aml_base_deployment_name: "{{ __aml_project_code.replace('_', '-') }}"
+# Questions with when: false are not asked, but are available in the templates.
+# No leading underscore in the name: copier ignores those keys, as they are settings.
+# Only used in project_repo, so project_name is not defined for a package_repo.
+
+aml_project_code:
+  type: str
+  when: false
+  default: "{{ project_name.lower().replace(' ', '_').replace('-', '_') if repo_type == 'project_repo' else '' }}"
+
+aml_base_deployment_name:
+  type: str
+  when: false
+  default: "{{ aml_project_code.replace('_', '-') }}"
 __raptor_template_version: "2.1.0"
 
 # --- Post-generation tasks ---
@@ -217,7 +228,7 @@ _tasks:
   # Backstop for the validator on repo_name, which cannot check a destination of ".".
   - command: >-
       test "$(basename "$(pwd)")" = "{{ repo_name }}" ||
-      { echo "ERROR: destination folder must be named '{{ repo_name }}'. Use: copier copy <template> {{ repo_name }}" >&2; exit 1; }
+      { echo "ERROR: destination folder must be named '{{ repo_name }}'. Use: copier copy <template> {{ repo_name }} (or, inside a folder named '{{ repo_name }}': copier copy <template> . --data repo_name={{ repo_name }})" >&2; exit 1; }
     when: "{{ _copier_operation == 'copy' }}"
   - command: 'git config --global --add safe.directory "$(pwd)"'
     when: "{{ _copier_operation == 'copy' }}"

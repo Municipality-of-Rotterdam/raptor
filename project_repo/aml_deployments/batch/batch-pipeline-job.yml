@@ -1,7 +1,7 @@
 {% raw %}
 $schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
 type: pipeline
-experiment_name: {% endraw %}{{ repo_name}}{% raw %}
+experiment_name: {% endraw %}{{ aml_project_code}}{% raw %}
 
 settings:
   # force_rerun: True

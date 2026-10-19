@@ -11,7 +11,7 @@ env:
   AML_DEPLOYMENT_NAME: {% endraw %}{{ aml_base_deployment_name}}-{{ type_deployment}}-deployment{% raw %}-${{ github.run_number }}
   AML_MIRROR_TRAFFIC: 10 # set this to % mirror traffic
   # https://github.com/william-liebenberg/github-gated-deployments/tree/main?tab=readme-ov-file
-  ENVIRONMENT_NAME: aml_{% endraw %}{{ repo_name}}{% raw %}
+  ENVIRONMENT_NAME: aml_{% endraw %}{{ aml_project_code}}{% raw %}
   RG_NAME: {% endraw %}{{ azure_resource_group}}{% raw %} # set this to your Azure resource group name
   WS_NAME: {% endraw %}{{ azureml_workspace}}{% raw %} # set this to your Azure ML workspace name
 

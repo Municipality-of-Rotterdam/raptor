@@ -1,8 +1,8 @@
 {% raw %}
 $schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.schema.json
-name: {% endraw %}{{ repo_name}}{% raw %}-deployment
-endpoint_name: {% endraw %}{{ repo_name}}{% raw %}-online
-model: azureml:{% endraw %}{{ repo_name}}{% raw %}:1
+name: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-deployment
+endpoint_name: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-online
+model: azureml:{% endraw %}{{ aml_project_code}}{% raw %}:1
 code_configuration:
   code: ../../aml_deployments/components/package_c
   scoring_script: package_c_script.py

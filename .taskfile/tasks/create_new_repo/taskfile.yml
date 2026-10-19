@@ -15,11 +15,11 @@ tasks:
   
   copier:
     dir: '{{.USER_WORKING_DIR}}'
-    prompt: 'This will setup a {{.REPO_TYPE}} with {{if .REPO_TYPE | contains "package"}}package_name={{.NAME}} and {{end}}repo_name={{.REPO_NAME}} within directory {{.USER_WORKING_DIR}}. Is this correct?'
+    prompt: 'This will setup a {{.REPO_TYPE}} with repo_name={{.REPO_NAME}} within directory {{.USER_WORKING_DIR}}. Is this correct?'
     cmds:
       - cmd: echo "Follow the raptor copier steps"
         silent: true
-      - cmd: uv run copier copy {{.COPIER_URL}} --directory {{.REPO_TYPE}} {{if .REPO_TYPE | contains "package"}}package_name={{.NAME}}{{end}} repo_name={{.REPO_NAME}}
+      - cmd: uv run copier copy --trust {{.COPIER_URL}} {{.REPO_NAME}} --data repo_type={{.REPO_TYPE}}
     status:
       - test -d {{.REPO_NAME}}
 

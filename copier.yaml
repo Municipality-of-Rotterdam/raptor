@@ -14,15 +14,28 @@ repo_type:
 
 _subdirectory: "{{ repo_type }}"
 
-# repo_name is computed below based on repo_type
+# repo_name is taken from the destination folder: copier copy <template> <repo_name>
+# For a package repo, package_name is derived from it (pkg_<package_name>).
+
+repo_name:
+  type: str
+  help: Repo name, must equal the destination folder (package repo is pkg_<package_name>)
+  qmark: "📂"
+  default: "{{ _copier_conf.dst_path.name if (_copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.')) else '' }}"
+  # Fail early when the destination folder does not match (copier copy <template> <repo_name>).
+  # Skipped when the folder name is empty (destination ".", as in copier update) or a temporary folder
+  # of copier itself (copier update renders the old and new template versions in "copier._main.*" folders).
+  # The first task in _tasks is the backstop, e.g. for copier copy <template> .
+  validator: >-
+    {% if not repo_name %}repo_name cannot be empty. Use: copier copy <template> <repo_name>{% elif repo_name != _copier_conf.dst_path.name and _copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.') %}repo_name must equal the destination folder name '{{ _copier_conf.dst_path.name }}'. Use: copier copy <template> {{ repo_name }}{% endif %}
 
 # --- Package-specific questions ---
 
 package_name:
   type: str
-  help: Package name (alphanumeric + underscores)
+  help: "{% if not repo_name.startswith('pkg_') %}WARNING: repo_name '{{ repo_name }}' does not start with 'pkg_' (convention for package repos). {% endif %}Package name (alphanumeric + underscores), derived from repo_name by removing 'pkg_'"
   qmark: "📦"
-  default: package_name
+  default: "{{ (repo_name[4:] if repo_name.startswith('pkg_') else repo_name).replace('-', '_') }}"
   when: "{{ repo_type == 'package_repo' }}"
 
 # --- Project-specific questions ---
@@ -31,7 +44,7 @@ project_name:
   type: str
   help: Project name
   qmark: "🏷️"
-  placeholder: my_project
+  default: "{{ repo_name }}"
   when: "{{ repo_type == 'project_repo' }}"
 
 type_deployment:
@@ -47,17 +60,6 @@ type_deployment:
   when: "{{ repo_type == 'project_repo' }}"
 
 # --- Back to generic questions (that are less important than the specific questions above) ---
-
-repo_name:
-  type: str
-  qmark: "📂"
-  default: "{{ 'pkg_' + (package_name or '') if repo_type == 'package_repo' else (project_name or '') }}"
-  # Fail early when the destination folder does not match (copier copy <template> <repo_name>).
-  # Skipped when the folder name is empty (destination ".", as in copier update) or a temporary folder
-  # of copier itself (copier update renders the old and new template versions in "copier._main.*" folders).
-  # The first task in _tasks is the backstop, e.g. for copier copy <template> .
-  validator: >-
-    {% if repo_name != _copier_conf.dst_path.name and _copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.') %}repo_name must equal the destination folder name '{{ _copier_conf.dst_path.name }}'. Use: copier copy <template> {{ repo_name }}{% endif %}
 
 user_name:
   type: str

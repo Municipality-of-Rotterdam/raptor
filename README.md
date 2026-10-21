@@ -124,7 +124,7 @@ uv tool install copier
 ```
 Using your terminal, navigate to your user folder within the compute instance (home/azureuser/cloudfiles/code/Users/<username>).
 Go to the folder in which you want to create the new repo.
-Create the repo (when using SSH, copy in the SSH clone URL), in this example a package repository. The last argument is the folder of the new repo. Copier uses it as the default `repo_name` (press enter to accept; typing another name is rejected, as it must equal the folder). For a package repo the folder should be `pkg_<package_name>`: the default `package_name` is the folder name without the `pkg_` prefix, and a warning is shown at the `package_name` prompt if the prefix is missing. Copier creates the folder:
+Create the repo (when using SSH, copy in the SSH clone URL), in this example a package repository. The last argument is the folder of the new repo. Copier uses it as the default `repo_name` (press enter to accept). For a package repo the folder should be `pkg_<package_name>`: the default `package_name` is the folder name without the `pkg_` prefix, and a warning is shown at the `package_name` prompt if the prefix is missing. Copier creates the folder:
 ```bash
 copier copy --trust <raptor_repo_url> <repo_name>
 ```

@@ -14,20 +14,38 @@ repo_type:
 
 _subdirectory: "{{ repo_type }}"
 
-# repo_name is taken from the destination folder: copier copy <template> <repo_name>
+# Copying onto an existing git repo (e.g. converting a cookiecutter repo to copier) overwrites files there.
+# Ask first to confirm the repo is clean (a str question: copier does not validate bool questions interactively), so the changes of the template can be reviewed with git diff.
+# Copier cannot run git before copying: an existing repo is detected by reading .git/HEAD. Not asked in a repo
+# that already uses copier (.copier-answers.yml exists, e.g. copier update): _copier_operation is not available
+# in questions. _message_before_copy cannot be used, because _external_data is not available yet when it is shown.
+_external_data:
+  git_head: .git/HEAD
+  copier_answers: .copier-answers.yml
+
+existing_repo_clean:
+  type: str
+  # Short lines, so the help fits on the screen (copier keeps the line breaks).
+  help: |-
+    WARNING: this is an existing git repo, copier will overwrite files.
+    Make sure the working tree is clean (git status: nothing to commit),
+    so you can review the changes of the template with git diff.
+    Type yes to continue, or press Ctrl+C to abort
+  qmark: "⚠️"
+  when: "{{ true if (_external_data.git_head and not _external_data.copier_answers) else false }}"
+  validator: >-
+    {% if existing_repo_clean != 'yes' %}Type yes, or Ctrl+C to abort{% endif %}
+
+# repo_name defaults to the destination folder name: copier copy <template> <repo_name>
 # For a package repo, package_name is derived from it (pkg_<package_name>).
 
 repo_name:
   type: str
-  help: "Repo name, taken from the destination folder, press Enter to accept{% if repo_type == 'package_repo' %} (convention for package repo is pkg_<package_name>){% endif %}"
+  help: "Repo name, defaults to the destination folder name{% if repo_type == 'package_repo' %} (convention for package repo is pkg_<package_name>){% endif %}"
   qmark: "📂"
   default: "{{ _copier_conf.dst_path.name if (_copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.')) else '' }}"
-  # Fail early when the destination folder does not match (copier copy <template> <repo_name>).
-  # Skipped when the folder name is empty (destination ".", as in copier update) or a temporary folder
-  # of copier itself (copier update renders the old and new template versions in "copier._main.*" folders).
-  # The first task in _tasks is the backstop, e.g. for copier copy <template> .
   validator: >-
-    {% if not repo_name %}repo_name cannot be empty. Use: copier copy <template> <repo_name> (or, inside a folder named <repo_name>: copier copy <template> . --data repo_name=<repo_name>){% elif repo_name != _copier_conf.dst_path.name and _copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.') %}repo_name must equal the destination folder name '{{ _copier_conf.dst_path.name }}'. Use: copier copy <template> {{ repo_name }} (or, inside a folder named '{{ repo_name }}': copier copy <template> . --data repo_name={{ repo_name }}){% endif %}
+    {% if not repo_name %}repo_name cannot be empty. Use: copier copy <template> <repo_name> (or: copier copy <template> . --data repo_name=<repo_name>){% endif %}
 
 # --- Package-specific questions ---
 
@@ -231,25 +249,24 @@ raptor_template_version:
 # Tasks run in the destination folder, which is the new repo (copier copy raptor <repo_name>).
 
 _tasks:
-  # repo_name must match the destination folder (copier copy <template> <repo_name>), to follow naming guidelines.
-  # Backstop for the validator on repo_name, which cannot check a destination of ".".
-  - command: >-
-      test "$(basename "$(pwd)")" = "{{ repo_name }}" ||
-      { echo "ERROR: destination folder must be named '{{ repo_name }}'. Use: copier copy <template> {{ repo_name }} (or, inside a folder named '{{ repo_name }}': copier copy <template> . --data repo_name={{ repo_name }})" >&2; exit 1; }
+  - command: |-
+      git config --global --get-all safe.directory | grep -qxF "$(pwd)" ||
+        git config --global --add safe.directory "$(pwd)"
     when: "{{ _copier_operation == 'copy' }}"
-  - command: 'git config --global --add safe.directory "$(pwd)"'
-    when: "{{ _copier_operation == 'copy' }}"
-  - command: "git init"
-    when: "{{ _copier_operation == 'copy' }}"
-  - command: "git config user.name '{{ user_name }}'"
-    when: "{{ _copier_operation == 'copy' }}"
-  - command: "git config user.email '{{ user_email }}'"
-    when: "{{ _copier_operation == 'copy' }}"
-  - command: "git add ."
-    when: "{{ _copier_operation == 'copy' }}"
-  - command: "git commit -m init"
-    when: "{{ _copier_operation == 'copy' }}"
-  - command: "git checkout -b develop"
+  # Only set up git in a new repo. In an existing repo (e.g. converting a cookiecutter repo to copier),
+  # leave reviewing and committing the changes to the user.
+  # A literal block (|-) keeps the line breaks, so the shell gets one command per line.
+  - command: |-
+      if [ -e .git ]; then
+        echo "Existing git repo: review the changes (git status / git diff) and commit them yourself."
+      else
+        git init &&
+        git config user.name '{{ user_name }}' &&
+        git config user.email '{{ user_email }}' &&
+        git add . &&
+        git commit -m init &&
+        git checkout -b develop
+      fi
     when: "{{ _copier_operation == 'copy' }}"
 
 # --- Migrations ---

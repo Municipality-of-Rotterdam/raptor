@@ -102,9 +102,27 @@ was set up by hand:
 task create_new_repo:setup_build_policies_devops REPO_NAME=pkg_x GIT_ROOT_HTTPS=https://dev.azure.com/ORGANISATION/PROJECT
 ```
 
-With [Claude Code](https://claude.com/claude-code) the `new-repo` skill in `.claude/skills/new-repo` walks through
-these steps (and `setup_repo`), skipping what is done and asking before each change in Azure DevOps. To use it from any
-directory, link it once: `ln -s <raptor clone>/.claude/skills/new-repo ~/.claude/skills/new-repo`.
+An AI coding agent (Claude Code, Codex, GitHub Copilot, Cursor, ...) can walk through these steps (and `setup_repo`)
+with the `new-repo` skill in `skills/new-repo` ([Agent Skills](https://agentskills.io) format): it skips what is done
+and asks before each change in Azure DevOps. It runs the tasks of a local raptor clone. Install it for the agents you
+use (`-g`: for all your projects; `npx skills update` to update):
+
+```
+npx skills add https://dev.azure.com/GemeenteRotterdam/DAPR/_git/raptor -g
+```
+
+`npx` comes with Node.js. If `npx --version` fails, install Node.js with [nvm](https://github.com/nvm-sh/nvm) (no sudo
+needed):
+
+```
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash
+# open a new terminal (to load nvm), then:
+nvm install --lts
+```
+
+Or link it from your raptor clone, so it follows the checked-out branch, e.g.
+`ln -s <raptor clone>/skills/new-repo ~/.agents/skills/` (Codex, Copilot, ...) or `~/.claude/skills/` (Claude Code).
+Then ask the agent for a new repo.
 
 ### setup_repo
 

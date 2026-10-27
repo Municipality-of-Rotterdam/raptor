@@ -18,8 +18,9 @@ Change from cookiecutter to copier
   network mount or with conda
 - `.envrc` (package repo): only sets `UV_PROJECT_ENVIRONMENT` with conda or on a network mount, on local disk uv uses
   `.venv` in the repo, so `direnv allow` is safe on any disk; the package README describes this
-- Claude Code skill `new-repo` (`.claude/skills/new-repo`): creates a repo with copier and runs the setup_repo and
-  create_new_repo DevOps tasks, skipping what is done and asking before each change in Azure DevOps
+- Agent skill `new-repo` (`skills/new-repo`, Agent Skills format for any coding agent): creates a repo with copier and
+  runs the setup_repo and create_new_repo DevOps tasks, skipping what is done and asking before each change in Azure
+  DevOps
 
 ### **Fixed**
 - Taskfile create_new_repo: a project repo gets its main pipeline instead of ci, cd and release

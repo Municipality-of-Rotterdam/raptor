@@ -84,6 +84,27 @@ Arguments:
 - PKG_NAME: name of the python package (containing letters, numbers and underscores)
 - REPO_TYPE: package_repo (default), project_repo
 - GIT_ROOT: base https/ssh url without trailing slash. Example: git@ssh.dev.azure.com:v3/ORGANISATION/PROJECT.
+- GIT_ROOT_HTTPS: url to git provider, with organisation/project names. For Azure DevOps
+  (https://dev.azure.com/ORGANISATION/PROJECT) the DevOps steps below are automated with the
+  [azure devops cli](https://learn.microsoft.com/en-us/azure/devops/cli/), installed if needed (log in with `az login`).
+- COPIER_ARGS (optional): extra copier arguments, e.g. `--prereleases`.
+- PIPELINE_FOLDER (optional): DevOps folder for the pipelines, default `\`.
+
+On Azure DevOps it then asks before each step, and skips steps that are already done:
+create the repo, push all branches, create a pipeline per yml in `devops_pipelines/templates` (ci, cd and release for a
+package repo, main for a project repo), authorize these pipelines for the service connections, variable groups and
+agent pools in their yml, set the default branch (develop), set branch policies on develop and main (2 reviewers,
+comment resolution, build validation with the ci pipeline, or main for a project repo) and add the status badge to the
+README. These `create_new_repo:*_devops` tasks can also be run on their own, in the repo directory, e.g. for a repo that
+was set up by hand:
+
+```
+task create_new_repo:setup_build_policies_devops REPO_NAME=pkg_x GIT_ROOT_HTTPS=https://dev.azure.com/ORGANISATION/PROJECT
+```
+
+With [Claude Code](https://claude.com/claude-code) the `new-repo` skill in `.claude/skills/new-repo` walks through
+these steps (and `setup_repo`), skipping what is done and asking before each change in Azure DevOps. To use it from any
+directory, link it once: `ln -s <raptor clone>/.claude/skills/new-repo ~/.claude/skills/new-repo`.
 
 ### setup_repo
 
@@ -93,6 +114,10 @@ Should be run in the repo itself using the following:
 1. When using an older raptor-based repo based on poetry, copy https://github.com/Municipality-of-Rotterdam/raptor/blob/develop/package_repo/%7B%7B%20repo_name%20%7D%7D/taskfile.yml into your repo.
 2. Open the taskfile.yml in the repo and check all vars values!
 3. Then run 'task setup_repo' in your terminal, while in your repo directory.
+
+The environment location comes from `UV_PROJECT_ENVIRONMENT`, set by `.envrc` (direnv), which keeps it off a network
+mount such as `~/cloudfiles`. For a uv environment in a repo on local disk direnv is not needed: then the environment is
+uv's own `.venv` in the repo.
 
 Arguments:
 - REPO_TYPE: package_repo (default), project_repo

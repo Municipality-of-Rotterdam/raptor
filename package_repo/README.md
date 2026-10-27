@@ -21,17 +21,17 @@ Give a description of your repository here.
 
 ## Installation
 
-This project uses [uv](https://github.com/astral-sh/uv) for Python package management, optionally combined with [conda](https://docs.conda.io/) for system-level libraries, and [direnv](https://direnv.net/) to automatically configure the environment.
+This project uses [uv](https://github.com/astral-sh/uv) for Python package management, optionally combined with [conda](https://docs.conda.io/) for system-level libraries, and [direnv](https://direnv.net/) to pick the environment location.
 
 There are **two setup options**:
 
 | | Conda + uv | uv only |
 |---|---|---|
 | **Use when** | You need system libraries (e.g. GDAL, PROJ) only available via conda | Pure Python dependencies are sufficient |
-| **Environment location** | `/anaconda/envs/{{ package_name }}` | `~/.local/share/uv/envs/{{ package_name }}` |
+| **Environment location** | `/anaconda/envs/{{ package_name }}` | `.venv` in the repo on local disk; `~/.local/share/uv/envs/{{ package_name }}` on a network mount (e.g. `~/cloudfiles/code`) |
 | **Sync command** | `uv sync --inexact` (keeps conda packages) | `uv sync` |
 
-Both options require direnv and the `.envrc` file included in this project. The `.envrc` auto-detects which option you're using and sets `UV_PROJECT_ENVIRONMENT` accordingly, so uv installs packages to local disk rather than a network mount.
+Both options use direnv and the `.envrc` file included in this project. The `.envrc` sets `UV_PROJECT_ENVIRONMENT` to the conda environment, or on a network mount to a local disk path (a venv on a network mount is very slow). On local disk without conda it sets nothing and uv uses `.venv` in the repo, so `direnv allow` is safe on any disk.
 
 ### Prerequisites: install uv and direnv
 

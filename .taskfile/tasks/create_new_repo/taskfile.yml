@@ -2,6 +2,19 @@
 
 version: '3'
 
+vars:
+  # Shell function for the *_devops tasks: `pipeline_id <repo> <org url> <project> <name>` prints the id of the pipeline of
+  # that repo running devops_pipelines/templates/<name>.yml, or nothing. Found by yml instead of by name, so a pipeline
+  # that was created by hand under another name also counts as done.
+  PIPELINE_ID_FN: |-
+    pipeline_id() {
+      repo_id=$(az repos show --repository "$1" --org "$2" --project "$3" --query id --output tsv) || return 1
+      az devops invoke --area build --resource definitions --route-parameters project="$3" \
+        --query-parameters repositoryId=$repo_id repositoryType=TfsGit includeAllProperties=true \
+        --api-version 7.1 --org "$2" --output tsv \
+        --query "value[?process.yamlFilename=='devops_pipelines/templates/$4.yml' || process.yamlFilename=='/devops_pipelines/templates/$4.yml'].id | [0]"
+    }
+
 tasks:
 
   copier_check:
@@ -19,35 +32,265 @@ tasks:
     cmds:
       - cmd: echo "Follow the raptor copier steps"
         silent: true
-      - cmd: uv run copier copy --trust {{.COPIER_URL}} {{.REPO_NAME}} --data repo_type={{.REPO_TYPE}}
+      # COPIER_ARGS: extra copier arguments, e.g. --prereleases, --defaults or --data key=value
+      - cmd: uv run copier copy --trust {{.COPIER_URL}} {{.REPO_NAME}} --data repo_type={{.REPO_TYPE}} {{.COPIER_ARGS}}
     status:
       - test -d {{.REPO_NAME}}
 
+  # The *_devops tasks use the azure devops cli. Each can be run on its own, in the repo dir (or pass RUN_DIR), e.g. for
+  # repos that were set up by hand:
+  #   task create_new_repo:setup_build_pipelines_devops REPO_NAME=pkg_x GIT_ROOT_HTTPS=https://dev.azure.com/ORG/PROJECT
+  # Org and project are taken from GIT_ROOT_HTTPS. Steps that are already done are skipped (status checks).
+  # Pipelines: one per yml in devops_pipelines/templates: ci, cd and release for a package repo, main for a project repo.
+  # Build validation (branch policy) and the status badge use ci, or main when there is no ci.yml.
+
+  # install the azure devops extension of the azure cli
+  install_az_devops:
+    cmds:
+      - az extension add --name azure-devops --yes
+    status:
+      - az extension show --name azure-devops
+
+  create_repo_devops:
+    prompt: Create repo '{{.REPO_NAME}}' in {{.GIT_ROOT_HTTPS}}?
+    requires:
+      vars: [REPO_NAME, GIT_ROOT_HTTPS]
+    vars:
+      DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
+      DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
+      AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
+    cmds:
+      - az repos create --name {{.REPO_NAME}} {{.AZ_ARGS}} --query webUrl --output tsv
+    status:
+      - az repos show --repository {{.REPO_NAME}} {{.AZ_ARGS}} --output none 2>/dev/null
+
   add_remote:
     dir: '{{.RUN_DIR}}'
-    prompt: If not done yet, create a new repo with name '{{.REPO_NAME}}' within {{.GIT_ROOT_HTTPS}}, without readme and gitignore. The git repo url should look like {{.GIT_ROOT}}/{{.REPO_NAME}}. If not, change GIT_ROOT variable and rerun the task. Continue?
+    prompt: 'Push all branches of {{.RUN_DIR}} to {{.GIT_ROOT}}/{{.REPO_NAME}}?{{if not (.GIT_ROOT_HTTPS | default "" | contains "dev.azure.com")}} Create that repo first, without readme and gitignore.{{end}}'
+    requires:
+      vars: [REPO_NAME, GIT_ROOT]
+    vars:
+      RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
     cmds:
-      - git remote add origin {{.GIT_ROOT}}/{{.REPO_NAME}}
+      - git remote get-url origin >/dev/null 2>&1 || git remote add origin {{.GIT_ROOT}}/{{.REPO_NAME}}
       - git push -u origin --all
-  
+    status:
+      - git ls-remote --exit-code --heads origin develop >/dev/null 2>&1
+
   setup_default_branch_devops:
-    prompt: Go to {{.GIT_ROOT_HTTPS}}/_git/{{.REPO_NAME}}/branches, you can change the default branch here. You probably want to keep it at default (develop). Continue?
+    prompt: Set the default branch of '{{.REPO_NAME}}' to {{.DEFAULT_BRANCH}}?
+    requires:
+      vars: [REPO_NAME, GIT_ROOT_HTTPS]
+    vars:
+      DEFAULT_BRANCH: '{{.DEFAULT_BRANCH | default "develop"}}'
+      DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
+      DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
+      AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
+    cmds:
+      - az repos update --repository {{.REPO_NAME}} --default-branch {{.DEFAULT_BRANCH}} {{.AZ_ARGS}} --output none
+    status:
+      - test "$(az repos show --repository {{.REPO_NAME}} {{.AZ_ARGS}} --query defaultBranch --output tsv)" = "refs/heads/{{.DEFAULT_BRANCH}}"
+
+  # create pipelines "<repo> (<name>)" from devops_pipelines/templates/<name>.yml (name in PIPELINES)
+  setup_build_pipelines_devops:
+    prompt: 'Create pipelines {{range .PIPELINES | trim | splitList " "}}"{{$.REPO_NAME}} ({{.}})" {{end}}in folder {{.PIPELINE_FOLDER}} of {{.GIT_ROOT_HTTPS}}?'
+    vars:
+      RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
+      PIPELINES:
+        sh: '{{if .PIPELINES}}echo "{{.PIPELINES}}"{{else}}cd "{{.RUN_DIR}}" && for p in ci cd release main; do if [ -f devops_pipelines/templates/$p.yml ]; then printf "%s " $p; fi; done{{end}}'
+      PIPELINE_FOLDER: '{{.PIPELINE_FOLDER | default "\\"}}'
+    cmds:
+      - for: {var: PIPELINES}
+        task: setup_build_pipeline_devops
+        vars:
+          PIPELINE: '{{.ITEM}}'
+          PIPELINE_FOLDER: '{{.PIPELINE_FOLDER}}'
+          REPO_NAME: '{{.REPO_NAME}}'
+          GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS}}'
+          RUN_DIR: '{{.RUN_DIR}}'
 
   setup_build_pipeline_devops:
-    prompt: |-
-      1. Go to {{.GIT_ROOT_HTTPS}}/_git/{{.REPO_NAME}}, click "Set up build", select "Existing Azure Pipelines YAML file", use path "/devops_pipelines/templates/ci.yml", then "save" (under "run"). Hit the three-dots menu (next to 'Run pipeline'), Rename, then rename to "{{.REPO_NAME}} (ci)".
-      2. Go back to the repo and repeat this for path "/devops_pipelines/templates/cd.yml" to create pipeline "{{.REPO_NAME}} (cd)".
-      3. Repeat again for path "/devops_pipelines/templates/release.yml" to create pipeline "{{.REPO_NAME}} (release)".
-      Done?
+    silent: true
+    dir: '{{.RUN_DIR}}'
+    requires:
+      vars: [REPO_NAME, GIT_ROOT_HTTPS, PIPELINE]
+    vars:
+      RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
+      PIPELINE_FOLDER: '{{.PIPELINE_FOLDER | default "\\"}}'
+      DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
+      DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
+      AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
+    cmds:
+      - |
+        if [ ! -f devops_pipelines/templates/{{.PIPELINE}}.yml ]; then
+          echo "No devops_pipelines/templates/{{.PIPELINE}}.yml, skipping pipeline '{{.REPO_NAME}} ({{.PIPELINE}})'"
+          exit 0
+        fi
+        az pipelines create --name "{{.REPO_NAME}} ({{.PIPELINE}})" --repository {{.REPO_NAME}} --repository-type tfsgit \
+          --branch develop --yml-path /devops_pipelines/templates/{{.PIPELINE}}.yml --folder-path '{{.PIPELINE_FOLDER}}' \
+          --skip-first-run true {{.AZ_ARGS}} --output none
+    status:
+      - |
+        {{.PIPELINE_ID_FN}}
+        test -n "$(pipeline_id {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} {{.PIPELINE}})"
 
+  # Give the pipelines access to the service connections, variable groups and agent pools their yml uses, so the first
+  # run does not wait for "This pipeline needs permission". Only for these pipelines, never for all pipelines.
+  # Without the rights to do so, it prints a warning: then click "Permit" on the first run.
+  authorize_pipeline_resources_devops:
+    silent: true
+    dir: '{{.RUN_DIR}}'
+    prompt: Authorize pipelines of '{{.REPO_NAME}}' for the service connections, variable groups and agent pools in their yml?
+    requires:
+      vars: [REPO_NAME, GIT_ROOT_HTTPS]
+    vars:
+      RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
+      PIPELINES:
+        sh: '{{if .PIPELINES}}echo "{{.PIPELINES}}"{{else}}cd "{{.RUN_DIR}}" && for p in ci cd release main; do if [ -f devops_pipelines/templates/$p.yml ]; then printf "%s " $p; fi; done{{end}}'
+      DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
+      DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
+      AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
+    cmds:
+      - |
+        {{.PIPELINE_ID_FN}}
+        for p in {{.PIPELINES}}; do
+          yml=devops_pipelines/templates/$p.yml
+          [ -f "$yml" ] || continue
+          pid=$(pipeline_id {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} $p)
+          if [ -z "$pid" ]; then echo "No pipeline for $yml, skipping"; continue; fi
+          # resources as type:id:name
+          resources=""
+          for name in $(sed -n 's/^ *endpoint: *//p' "$yml" | sort -u); do
+            id=$(az devops service-endpoint list {{.AZ_ARGS}} --query "[?name=='$name'].id | [0]" --output tsv)
+            resources="$resources endpoint:$id:$name"
+          done
+          for name in $(sed -n 's/^ *- group: *//p' "$yml" | sort -u); do
+            id=$(az pipelines variable-group list --group-name "$name" {{.AZ_ARGS}} --query '[0].id' --output tsv)
+            resources="$resources variablegroup:$id:$name"
+          done
+          # a pool is a name ("pool: <name>") or a template expression with a variable from config.yml
+          pools=$(sed -n 's/^ *pool: *\([A-Za-z0-9_-][A-Za-z0-9_ -]*\)$/\1/p' "$yml")
+          for var in $(sed -n 's/^ *pool: *\$.*variables\.\([A-Za-z0-9_]*\).*/\1/p' "$yml" | sort -u); do
+            pools="$pools $(sed -n "s/^ *$var: *//p" devops_pipelines/templates/config.yml)"
+          done
+          for name in $(echo $pools | tr ' ' '\n' | sort -u); do
+            id=$(az pipelines queue list --queue-name "$name" {{.AZ_ARGS}} --query '[0].id' --output tsv)
+            resources="$resources queue:$id:$name"
+          done
+          for r in $resources; do
+            type=${r%%:*}; rest=${r#*:}; id=${rest%%:*}; name=${rest#*:}
+            if [ -z "$id" ]; then echo "WARNING: $type '$name' not found, skipping"; continue; fi
+            route="project={{.DEVOPS_PROJECT}} resourceType=$type resourceId=$id"
+            state=$(az devops invoke --area pipelinePermissions --resource pipelinePermissions --route-parameters $route \
+              --api-version 7.1-preview --org {{.DEVOPS_ORG}} \
+              --query "[allPipelines.authorized, pipelines[?id==\`$pid\`].authorized | [0]]" --output tsv)
+            case "$state" in
+              *[Tt]rue*) echo "'{{.REPO_NAME}} ($p)' already has access to $type '$name'";;
+              *)
+                body=$(mktemp)
+                echo "{\"pipelines\": [{\"id\": $pid, \"authorized\": true}]}" > "$body"
+                if az devops invoke --area pipelinePermissions --resource pipelinePermissions --route-parameters $route \
+                    --api-version 7.1-preview --org {{.DEVOPS_ORG}} --http-method PATCH --in-file "$body" --output none; then
+                  echo "Authorized '{{.REPO_NAME}} ($p)' for $type '$name'"
+                else
+                  echo "WARNING: could not authorize '{{.REPO_NAME}} ($p)' for $type '$name', click Permit on the first run"
+                fi
+                rm -f "$body";;
+            esac
+          done
+        done
+
+  # branch policies on develop and main: 2 reviewers (requestor may approve own changes), comment resolution and
+  # build validation with pipeline "<repo> (ci)" (or "<repo> (main)"). The other pipelines are no build validation.
   setup_build_policies_devops:
     prompt: |-
-      Go to {{.GIT_ROOT_HTTPS}}/_git/{{.REPO_NAME}}/branches to set up build policies.
-      Set up the following policies for develop and main branches.
+      Set up branch policies on {{.POLICY_BRANCHES}} of '{{.REPO_NAME}}'?
       - Require a minimum of 2 reviewers (allow requestor to approve own changes)
       - Check for comment resolution
-      - Build validation, select pipeline "{{.REPO_NAME}} (ci)" created in previous step
-      Done?
+      - Build validation with pipeline "{{.REPO_NAME}} ({{.BUILD_PIPELINE}})"
+    vars:
+      POLICY_BRANCHES: '{{.POLICY_BRANCHES | default "develop main"}}'
+      RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
+      BUILD_PIPELINE:
+        sh: '{{if .BUILD_PIPELINE}}echo "{{.BUILD_PIPELINE}}"{{else}}cd "{{.RUN_DIR}}" && if [ -f devops_pipelines/templates/ci.yml ]; then echo ci; else echo main; fi{{end}}'
+    cmds:
+      - for: {var: POLICY_BRANCHES}
+        task: setup_build_policy_devops
+        vars:
+          BRANCH: '{{.ITEM}}'
+          BUILD_PIPELINE: '{{.BUILD_PIPELINE}}'
+          REPO_NAME: '{{.REPO_NAME}}'
+          GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS}}'
+
+  setup_build_policy_devops:
+    silent: true
+    requires:
+      vars: [REPO_NAME, GIT_ROOT_HTTPS, BRANCH]
+    vars:
+      BUILD_PIPELINE: '{{.BUILD_PIPELINE | default "ci"}}'
+      DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
+      DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
+      AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
+    cmds:
+      - |
+        {{.PIPELINE_ID_FN}}
+        repo_id=$(az repos show --repository {{.REPO_NAME}} {{.AZ_ARGS}} --query id --output tsv)
+        policy="--repository-id $repo_id --branch {{.BRANCH}} --blocking true --enabled true {{.AZ_ARGS}} --output none"
+        existing=$(az repos policy list --repository-id $repo_id --branch {{.BRANCH}} {{.AZ_ARGS}} --query '[].type.displayName' --output tsv)
+        if echo "$existing" | grep -qx 'Minimum number of reviewers'; then
+          echo "{{.BRANCH}}: reviewer policy exists"
+        else
+          az repos policy approver-count create --minimum-approver-count 2 --creator-vote-counts true \
+            --allow-downvotes false --reset-on-source-push false $policy
+          echo "{{.BRANCH}}: added reviewer policy"
+        fi
+        if echo "$existing" | grep -qx 'Comment requirements'; then
+          echo "{{.BRANCH}}: comment policy exists"
+        else
+          az repos policy comment-required create $policy
+          echo "{{.BRANCH}}: added comment policy"
+        fi
+        build_id=$(pipeline_id {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} {{.BUILD_PIPELINE}})
+        if echo "$existing" | grep -qx 'Build'; then
+          echo "{{.BRANCH}}: build validation policy exists"
+        elif [ -z "$build_id" ]; then
+          echo "WARNING: no pipeline for devops_pipelines/templates/{{.BUILD_PIPELINE}}.yml, skipping build validation on {{.BRANCH}}"
+        else
+          az repos policy build create --build-definition-id $build_id --display-name '{{.REPO_NAME}} ({{.BUILD_PIPELINE}})' \
+            --manual-queue-only false --queue-on-source-update-only true --valid-duration 720 $policy
+          echo "{{.BRANCH}}: added build validation policy"
+        fi
+    status:
+      - |
+        repo_id=$(az repos show --repository {{.REPO_NAME}} {{.AZ_ARGS}} --query id --output tsv)
+        existing=$(az repos policy list --repository-id $repo_id --branch {{.BRANCH}} {{.AZ_ARGS}} --query '[].type.displayName' --output tsv)
+        for type in 'Minimum number of reviewers' 'Comment requirements' 'Build'; do echo "$existing" | grep -qx "$type" || exit 1; done
+
+  # replace the "NB: Add ... status badge" instructions in the README by the badge of pipeline "<repo> (ci)"
+  # (or "<repo> (main)"); only edits README.md, commit it yourself
+  add_status_badge_devops:
+    silent: true
+    dir: '{{.RUN_DIR}}'
+    requires:
+      vars: [REPO_NAME, GIT_ROOT_HTTPS]
+    vars:
+      RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
+      BUILD_PIPELINE:
+        sh: '{{if .BUILD_PIPELINE}}echo "{{.BUILD_PIPELINE}}"{{else}}cd "{{.RUN_DIR}}" && if [ -f devops_pipelines/templates/ci.yml ]; then echo ci; else echo main; fi{{end}}'
+      DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
+      DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
+      AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
+    cmds:
+      - |
+        {{.PIPELINE_ID_FN}}
+        id=$(pipeline_id {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} {{.BUILD_PIPELINE}})
+        if [ -z "$id" ]; then echo "No pipeline for devops_pipelines/templates/{{.BUILD_PIPELINE}}.yml, skipping status badge"; exit 0; fi
+        badge="[![Build Status]({{.GIT_ROOT_HTTPS}}/_apis/build/status/$id?branchName=develop)]({{.GIT_ROOT_HTTPS}}/_build/latest?definitionId=$id&branchName=develop)"
+        awk -v badge="$badge" 'n < 3 && /^################$/ {n++; if (n == 1) print badge; next} n == 1 || n == 2 {next} {print}' \
+          README.md > README.md.tmp && mv README.md.tmp README.md
+        echo "Added status badge to README.md"
+    status:
+      - "! grep -q 'status badge' README.md"
 
   next_steps_pkg:
     silent: true

@@ -16,6 +16,15 @@ includes:
 #   UV_SYNC_EXTRA: "--extra submodules"
 #   SUBMODULES: ["lib/azureml_utils"]
 
+env:
+  # UV_PROJECT_ENVIRONMENT is set by .envrc (direnv): it keeps the environment off a network mount (e.g. ~/cloudfiles),
+  # where a venv is very slow. A repo on local disk does not need direnv: default to uv's own .venv in the repo.
+  # With conda, or on a network mount, it stays unset when .envrc was not allowed (check_venv_dir then stops).
+  UV_PROJECT_ENVIRONMENT:
+    sh: |
+      if [ -n "$UV_PROJECT_ENVIRONMENT" ] || [ "{{.USE_CONDA}}" = "true" ]; then echo "$UV_PROJECT_ENVIRONMENT"
+      else case "$(findmnt -T "{{.USER_WORKING_DIR}}" -no FSTYPE)" in cifs|smb*|nfs*|fuse*) ;; *) echo "{{.USER_WORKING_DIR}}/.venv";; esac; fi
+
 tasks:
 
   _main:
@@ -68,7 +77,7 @@ tasks:
       - test -d $UV_PROJECT_ENVIRONMENT
     preconditions:
       - sh: '[ -n "$UV_PROJECT_ENVIRONMENT" ]'
-        msg: UV_PROJECT_ENVIRONMENT is not set, is .envrc correct and did you run `direnv allow`?
+        msg: UV_PROJECT_ENVIRONMENT is not set (needed with conda or on a network mount), is .envrc correct and did you run `direnv allow`?
 
   # create python environment with uv
   create_uv_env:
@@ -77,12 +86,17 @@ tasks:
     cmds:
       - task: check_venv_dir
       - uv venv --python {{.PYTHON_VERSION}}
+    status:
+      # never recreate an existing environment
+      - test -x "$UV_PROJECT_ENVIRONMENT/bin/python"
 
   # create python environment with conda
   create_conda_env:
     cmds:
       - task: check_venv_dir
       - conda env create -f environment.yml -n {{.ENV_NAME}}
+    status:
+      - conda env list | awk '{print $1}' | grep -qx '{{.ENV_NAME}}'
 
   # install python dependencies with uv
   uv_sync:
@@ -93,6 +107,9 @@ tasks:
     preconditions:
       - sh: '[ -n "$UV_PROJECT_ENVIRONMENT" ]'
         msg: UV_PROJECT_ENVIRONMENT is not set, is .envrc correct?
+    status:
+      # environment already matches uv.lock (no network needed)
+      - '[ -n "$UV_PROJECT_ENVIRONMENT" ] && uv sync --check --locked --offline {{.UV_SYNC_EXTRA}} >/dev/null 2>&1'
 
   # install precommit hook
   precommit_install:
@@ -119,6 +136,8 @@ tasks:
       # add current repo to git maintenance
       # for setup check https://stackoverflow.com/a/79741474
       - git maintenance register
+    status:
+      - git config --global --get-all maintenance.repo | grep -qxF "$(git rev-parse --show-toplevel)"
   
   # print final message
   print_uv_path:

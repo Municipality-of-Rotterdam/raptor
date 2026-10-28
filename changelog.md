@@ -24,6 +24,8 @@ Change from cookiecutter to copier
 
 ### **Fixed**
 - Taskfile create_new_repo: a project repo gets its main pipeline instead of ci, cd and release
+- Package repo pipelines (ci, cd, release) set `pool: vmImage: 'ubuntu-latest'`, like the project repo; without it
+  jobs ran on the pipeline's default pool, which `az pipelines create` sets to the retired Hosted Ubuntu 1604
 
 ### **Removed**
 - Removed pre/post hooks, now use built-in prompt validators and tasks

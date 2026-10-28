@@ -5,6 +5,9 @@ trigger:
       - main
       - develop
 
+pool:
+  vmImage: 'ubuntu-latest'
+
 variables:
   # Shared config
   - template: config.yml

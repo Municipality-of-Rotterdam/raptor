@@ -4,6 +4,9 @@ trigger:
     include:
       - '*'   # Trigger on any tag
 
+pool:
+  vmImage: 'ubuntu-latest'
+
 # Load shared config
 variables:
   - template: config.yml

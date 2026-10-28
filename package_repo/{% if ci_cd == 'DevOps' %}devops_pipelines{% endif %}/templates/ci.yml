@@ -8,6 +8,9 @@ pr:
     exclude: 
       - "generated/*"
 
+pool:
+  vmImage: 'ubuntu-latest'
+
 variables:
   # Load shared config
   - template: config.yml

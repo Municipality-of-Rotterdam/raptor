@@ -25,8 +25,6 @@ To configure taskfile itself, create a .taskrc.yml in your home folder, for exam
 
 ```
 interactive: true  # get prompts for missing variables instead of errors
-experiments:
-  REMOTE_TASKFILES: 1  # enable remote taskfiles
 remote:
   cache-dir: ~/.task  # store cache in home folder, not within git repos
   trusted-hosts:
@@ -104,25 +102,8 @@ task create_new_repo:setup_build_policies_devops REPO_NAME=pkg_x GIT_ROOT_HTTPS=
 
 An AI coding agent (Claude Code, Codex, GitHub Copilot, Cursor, ...) can walk through these steps (and `setup_repo`)
 with the `new-repo` skill in `skills/new-repo` ([Agent Skills](https://agentskills.io) format): it skips what is done
-and asks before each change in Azure DevOps. It runs the tasks of a local raptor clone. Install it for the agents you
-use (`-g`: for all your projects; `npx skills update` to update):
-
-```
-npx skills add https://dev.azure.com/GemeenteRotterdam/DAPR/_git/raptor -g
-```
-
-`npx` comes with Node.js. If `npx --version` fails, install Node.js with [nvm](https://github.com/nvm-sh/nvm) (no sudo
-needed):
-
-```
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash
-# open a new terminal (to load nvm), then:
-nvm install --lts
-```
-
-Or link it from your raptor clone, so it follows the checked-out branch, e.g.
-`ln -s <raptor clone>/skills/new-repo ~/.agents/skills/` (Codex, Copilot, ...) or `~/.claude/skills/` (Claude Code).
-Then ask the agent for a new repo.
+and asks before each change in Azure DevOps. It runs the tasks of a local raptor clone. Installation: see
+[skills/README.md](../skills/README.md).
 
 ### setup_repo
 
@@ -143,5 +124,5 @@ Arguments:
 ## Resources
 
 * [Taskfile website](https://taskfile.dev)
-* [Documentation remote taskfiles](https://taskfile.dev/docs/experiments/remote-taskfiles)
+* [Documentation remote taskfiles](https://taskfile.dev/docs/remote-taskfiles)
  

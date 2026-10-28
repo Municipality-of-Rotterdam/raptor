@@ -11,7 +11,7 @@ skill gathers the inputs, checks what is already done, asks for approval, runs t
 task fails: read the task, fix the cause, re-run it.
 
 This skill lives in the raptor repo (`skills/new-repo`, Agent Skills format) and works in any agent that supports
-skills. Installation: see `.taskfile/readme.md` in raptor.
+skills. Installation: see `skills/README.md` in raptor.
 
 **Asking the user**: where this skill says "ask", use the agent's structured question tool if it has one (options,
 multiselect, previews), otherwise a numbered list of options in chat, and wait for the answer. A "preview" is shown in
@@ -32,23 +32,32 @@ the question tool's preview field, or else as a code block in the message just a
 
 ## 0. Mode and preflight (read-only)
 
-- **Mode**: the user names a directory (or the cwd) with a `.copier-answers.yml` → **existing repo**: start at
-  step 3, take all inputs from that file (`repo_name`, `repo_type`, `devops_organisation_name`, `devops_project_name`).
-  A raptor repo without `.copier-answers.yml` (cookiecutter) is out of scope: say so and stop. Otherwise **new repo**.
-- `copier --version` (new repo only), `task --version`, `az version`, `az extension show -n azure-devops` (if missing:
-  the `create_new_repo:install_az_devops` task installs it, say so).
-- `RAPTOR`: a local raptor clone, preferably the one that holds this skill, so the skill and the tasks match. In
-  order: the `realpath` of this skill's directory, two levels up, if it has `.taskfile/taskfile_main.yml` (skill
-  symlinked from a clone); else `$RAPTOR_DIR`; else a `raptor` directory next to the target parent dir or in `~/repos`
-  with `copier.yaml` and `.taskfile`; else ask where it is, or offer to clone `<GIT_ROOT>/raptor` (ask first).
-  Taskfile `T=$RAPTOR/.taskfile/taskfile_main.yml` (check it has `create_repo_devops`). Report the branch and whether
-  it is behind its upstream (`timeout 60 git -C $RAPTOR fetch` + `git status -sb`); if behind, ask whether to pull.
-- `GIT_ROOT_HTTPS=https://dev.azure.com/<org>/<project>`, `GIT_ROOT=git@ssh.dev.azure.com:v3/<org>/<project>`: from
-  `~/taskfile.env`; for an existing repo from its answers file (and `git remote get-url origin`); if they disagree, ask.
-  Never hardcode them.
-- Auth: `timeout 60 az devops project show --org https://dev.azure.com/<org> -p <project> --query name -o tsv`. On an
-  AADSTS / "run the login command" error, stop and ask the user to run
-  `az login --tenant <tenantId from az account show> --use-device-code` in their terminal (conditional access expires it regularly).
+Run the preflight script of this skill (`scripts/preflight.sh` next to this file; it changes nothing) and do not
+replace it with your own checks:
+```bash
+timeout 600 bash <this skill's dir>/scripts/preflight.sh --dir <the directory the user names, else the cwd>
+# add --raptor <dir> when the user names a raptor clone
+```
+Show the user its `STOP`, `WARN` and `HINT` lines as they are, then act on the exit code:
+- **1 (`RESULT=STOP`)**: stop here, change nothing. For a missing tool, offer to run the matching
+  `setup_compute_instance:*` task (ask first); for a missing Azure login, ask the user to run the `az login` command
+  from the output in their own terminal; with no raptor clone found, ask where it is (`--raptor`) or offer to clone
+  `<GIT_ROOT>/raptor` (ask first). Then run the script again.
+- **2 (`RESULT=WARN`)**: ask **Continue** / **Stop**. Stop: the user fixes it first (e.g. creates `~/.taskrc.yml` or
+  the copier settings file like the example in the output, with the values from the company documentation) and asks
+  again. A WARN that says
+  "ask which one" (git roots differ) needs that answer before going on. A WARN about the `azure-devops` extension:
+  offer the `create_new_repo:install_az_devops` task (ask first), then run the script again.
+- **0 (`RESULT=OK`)**: go on.
+- Never create or edit `~/taskfile.env`, `~/.taskrc.yml` or the copier settings yourself.
+
+Use the `KEY=VALUE` lines of the output from here on, never your own guesses:
+- `MODE=new` → step 1; `MODE=existing` → step 3, with `REPO_NAME`, `REPO_TYPE` from the output and the rest from
+  `<DIR>/.copier-answers.yml`.
+- `RAPTOR`, `T` (taskfile), `GIT_ROOT`, `GIT_ROOT_HTTPS`: use as is, never hardcode them.
+- `RAPTOR_BEHIND` > 0: ask whether to pull the raptor clone.
+- `COPIER_SETTINGS` (new repo): if set, its `defaults` go before the sibling answers for the personal answers
+  (`user_name`, `user_email`, `author_*`), see step 1.
 
 Below, `TASK="timeout 900 task -t $T"` and `DV="REPO_NAME=<repo> GIT_ROOT_HTTPS=<GIT_ROOT_HTTPS>"`, run in `<repo>`.
 
@@ -86,7 +95,8 @@ Then, without asking, work out the rest:
 - Template source: a git URL, never a local folder (`_src_path` lands in `.copier-answers.yml`; a folder breaks
   `copier update` for colleagues and other machines): `git -C $RAPTOR remote get-url origin`. Only the template version
   `HEAD` (uncommitted changes) needs the local folder `$RAPTOR`; then say so.
-- Defaults for the other copier answers from the newest sibling answers file: user/author name+email, `ci_cd`,
+- Defaults for the other copier answers from the newest sibling answers file (personal answers from copier's
+  `settings.yml` first, see step 0): user/author name+email, `ci_cd`,
   `devops_organisation_name`, `devops_project_name`, `private_agent_name`, `github_service_connection`,
   `package_feed`, `python_version`, `uv_version`, `precommit_version` (not raptor's `copier.yaml` defaults:
   placeholders, old versions). No sibling: user name/email from `git config --global`, the rest from `copier.yaml`

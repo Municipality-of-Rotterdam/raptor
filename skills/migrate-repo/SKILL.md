@@ -31,6 +31,12 @@ migration script is always the one that runs.
 - The migration only rewrites *tracked* files; untracked files are left alone.
   It refuses to run if tracked files have uncommitted changes — ask the user to
   commit or `git stash` them first.
+- Migrate from a branch that is up to date with the remote's default branch.
+  `--check` warns and `--yes` refuses when HEAD is behind it, because the PR
+  back onto that branch re-conflicts with the commits missed. If it warns,
+  report this to the user and suggest `git fetch && git rebase origin/<default>`
+  (or merging it) before migrating; only pass `--allow-behind` when the user
+  explicitly wants to proceed anyway.
 
 ## 1. Preview (read-only)
 

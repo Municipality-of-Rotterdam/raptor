@@ -28,6 +28,10 @@ pairs override detected answers. For a copier-era repo, unrecognized arguments
 are passed straight to ``copier update`` (add ``--defaults`` to run it
 non-interactively).
 
+Both routes warn when the branch being updated is behind the remote's default
+branch (the PR back onto it would re-conflict); the migration additionally
+refuses ``--yes`` until you rebase or pass ``--allow-behind``.
+
 Requires git, and uv (to run the migration with python >= 3.11) or copier on
 PATH for copier-era repos. Stdlib only otherwise.
 """
@@ -47,10 +51,17 @@ SCRIPT_NAME = "migrate_to_copier.py"
 
 
 def git_env(*paths: Path | str) -> dict[str, str] | None:
-    """Env trusting git to operate in the given dirs (CIFS/root-owned /tmp)."""
+    """Env trusting git to operate in the given dirs (CIFS/root-owned /tmp).
+
+    ``GIT_TERMINAL_PROMPT=0`` makes git fail instead of hanging on a credential
+    prompt we could never answer (our git output is captured, not a tty).
+    """
     if not paths:
-        return None
+        env = os.environ.copy()
+        env.setdefault("GIT_TERMINAL_PROMPT", "0")
+        return env
     env = os.environ.copy()
+    env.setdefault("GIT_TERMINAL_PROMPT", "0")
     base = int(env.get("GIT_CONFIG_COUNT", "0"))
     names = list(dict.fromkeys(str(p) for p in paths))
     for offset, path in enumerate(names):
@@ -68,6 +79,57 @@ def run(cmd: list[str], cwd: Path | None = None, *, check: bool = True, trust: t
 def die(msg: str) -> None:
     print(f"ERROR: {msg}", file=sys.stderr)
     raise SystemExit(1)
+
+
+def check_fresh(repo: Path) -> None:
+    """Warn when the branch being updated is behind the remote's default branch.
+
+    Both update paths are 3-way merges and work fine from an outdated branch,
+    but the PR back onto the default branch re-conflicts with everything that
+    landed since the branch was cut. Warn only: unlike the one-time migration,
+    ``copier update`` on a feature branch is a normal thing to do, so this must
+    not block. The migration script enforces it for ``--yes``.
+
+    Never fatal: a failed fetch (offline, no remote) just skips the check.
+    """
+    remotes = run(["git", "-C", str(repo), "remote"], check=False).stdout.split()
+    if not remotes:
+        return
+    remote = "origin" if "origin" in remotes else remotes[0]
+
+    def default_branch() -> str | None:
+        out = run(["git", "-C", str(repo), "symbolic-ref", "--quiet", "--short",
+                   f"refs/remotes/{remote}/HEAD"], check=False).stdout.strip()
+        name = out.removeprefix(f"{remote}/")
+        if name:
+            return name
+        run(["git", "-C", str(repo), "remote", "set-head", remote, "--auto"], check=False)
+        out = run(["git", "-C", str(repo), "symbolic-ref", "--quiet", "--short",
+                   f"refs/remotes/{remote}/HEAD"], check=False).stdout.strip()
+        name = out.removeprefix(f"{remote}/")
+        if name:
+            return name
+        for candidate in ("develop", "main", "master"):
+            if run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet",
+                    f"refs/remotes/{remote}/{candidate}"], check=False).returncode == 0:
+                return candidate
+        return None
+
+    branch = default_branch()
+    if branch is None:
+        return
+    remote_ref = f"{remote}/{branch}"
+    if run(["git", "-C", str(repo), "fetch", "--quiet", remote, branch], check=False).returncode != 0:
+        return
+    behind = run(["git", "-C", str(repo), "rev-list", "--count", f"HEAD..{remote_ref}"],
+                 check=False).stdout.strip()
+    if not behind.isdigit() or int(behind) == 0:
+        return
+    print(
+        f"warning: HEAD is {behind} commit(s) behind {remote_ref}. The update works,\n"
+        f"but the PR back onto {branch} will re-conflict with those commits; consider\n"
+        f"rebasing onto {remote_ref} first.\n"
+    )
 
 
 def latest_copier_tag(clone: Path) -> str:
@@ -132,6 +194,10 @@ def main() -> int:
     parser.add_argument("--ref", default=None, help="template ref; default: newest copier tag")
     parser.add_argument("--check", action="store_true", help="preview (cookiecutter repos)")
     parser.add_argument("--yes", action="store_true", help="apply (cookiecutter repos)")
+    parser.add_argument(
+        "--allow-behind", action="store_true",
+        help="proceed even when HEAD is behind the remote's default branch",
+    )
     parser.add_argument("-d", "--data", action="append", default=[], metavar="key=value")
     args, extra = parser.parse_known_args()
 
@@ -143,6 +209,8 @@ def main() -> int:
         # copier-era repo: nothing to migrate, hand everything to copier
         if args.check or args.yes or args.data or args.ref:
             die("this repo is already a copier repo; pass copier's own flags, e.g. --vcs-ref <ref>")
+        if not args.allow_behind:
+            check_fresh(repo)
         cmd = ["copier", "update", "--trust", *extra]
         print(f"copier repo: running {' '.join(cmd)}")
         return subprocess.run(cmd, cwd=repo, check=False, env=git_env(repo)).returncode
@@ -164,6 +232,8 @@ def main() -> int:
         ]
         if args.ref:
             cmd += ["--ref", args.ref]
+        if args.allow_behind:
+            cmd += ["--allow-behind"]
         cmd += ["--yes"] if args.yes else ["--check"]
         return subprocess.run(cmd, check=False).returncode
 

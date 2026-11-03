@@ -151,6 +151,8 @@ uv run --python 3.11 <raptor>/scripts/update.py --yes     # migrate to a branch
 ```
 The migration is a git 3-way merge (base = the repo's first commit, ours = HEAD, theirs = the freshly rendered target template), so it works from **any** old version to **any** target and writes `.copier-answers.yml` for future native updates. It runs on a new `migrate-to-copier` branch and never pushes.
 
+Start from a branch that is up to date with the remote's default branch: the check warns (and `--yes` refuses) when HEAD is behind it, because the PR back onto that branch would re-conflict with the commits you missed. Rebase or merge it first, or pass `--allow-behind` to proceed anyway.
+
 You can also supply a user config .yml file with default values being set.
 Create a file `~/.config/copier/settings.yml`
 with schema e.g.

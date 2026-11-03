@@ -34,6 +34,9 @@ The migration runs on a new branch (default ``migrate-to-copier``); the current
 branch is never modified. Requires a clean working tree. The template ref
 defaults to its newest tag (pass ``--ref`` for a branch or specific tag).
 Override detected answers with ``-d key=value`` (repeatable), same as copier.
+The branch being migrated should be up to date with the remote's default
+branch: ``--yes`` refuses when it is behind, since the PR back onto that branch
+would re-conflict with the commits missed (``--allow-behind`` overrides).
 
 Stdlib only (tomllib needs python >= 3.11); shells out to git, rsync and copier.
 """
@@ -61,8 +64,13 @@ def git_env(*paths: Path) -> dict[str, str]:
     git refuses to operate with "detected dubious ownership". Injecting the
     exception through the environment (rather than the command line) also covers
     git processes we do not spawn ourselves, such as the ones copier runs.
+
+    ``GIT_TERMINAL_PROMPT=0`` makes any git command that would ask for credentials
+    fail immediately instead of hanging forever on a terminal prompt (we capture
+    output, so nobody could answer it anyway).
     """
     env = os.environ.copy()
+    env.setdefault("GIT_TERMINAL_PROMPT", "0")
     base = int(env.get("GIT_CONFIG_COUNT", "0"))
     for offset, path in enumerate(dict.fromkeys(str(p) for p in paths)):
         env[f"GIT_CONFIG_KEY_{base + offset}"] = "safe.directory"
@@ -121,6 +129,75 @@ def report_dirty(repo: Path, do_it: bool) -> None:
     if do_it:
         die(f"tracked files have uncommitted changes; commit or stash first:\n{show(tracked)}")
     print(f"note: tracked files have uncommitted changes (--yes needs them clean):\n{show(tracked)}")
+
+
+def remote_default_branch(repo: Path, remote: str = "origin") -> str | None:
+    """The remote's default branch name (e.g. ``develop``), or None if unknown.
+
+    Read from the remote HEAD symref when present; otherwise populated with
+    ``git remote set-head --auto`` (a network call, cheap and harmless), then
+    narrowed to whichever of the usual names actually exists on the remote.
+    """
+    def read() -> str | None:
+        out = run(["git", "symbolic-ref", "--quiet", "--short", f"refs/remotes/{remote}/HEAD"],
+                  repo, check=False).stdout.strip()
+        return out.removeprefix(f"{remote}/") or None
+
+    if read():
+        return read()
+    run(["git", "remote", "set-head", remote, "--auto"], repo, check=False)
+    if read():
+        return read()
+    for name in ("develop", "main", "master"):
+        if run(["git", "rev-parse", "--verify", "--quiet", f"refs/remotes/{remote}/{name}"],
+               repo, check=False).returncode == 0:
+            return name
+    return None
+
+
+def check_fresh(repo: Path, do_it: bool, allow_behind: bool) -> None:
+    """Warn (or block) when the branch being migrated is behind the default branch.
+
+    The migration itself is a 3-way merge and handles an outdated branch fine,
+    but the *resulting PR* re-conflicts with everything that landed on the
+    default branch after this branch was cut -- exactly the work the migration
+    would have to redo by hand. Rebasing onto the default branch first makes the
+    PR contain only the template drift.
+
+    A fetch failure (offline, no remote, no permission) is not fatal: freshness
+    is a courtesy check, and refusing to migrate because a network call failed
+    would be worse than warning about it.
+    """
+    remotes = run(["git", "remote"], repo).stdout.split()
+    if not remotes:
+        return
+    remote = "origin" if "origin" in remotes else remotes[0]
+    branch = remote_default_branch(repo, remote)
+    if branch is None:
+        print("note: could not determine the remote's default branch; skipped the freshness check")
+        return
+    remote_ref = f"{remote}/{branch}"
+    fetch = run(["git", "fetch", "--quiet", remote, branch], repo, check=False)
+    if fetch.returncode != 0:
+        print(f"note: could not fetch {remote_ref}; skipped the freshness check")
+        return
+    behind = int(run(["git", "rev-list", "--count", f"HEAD..{remote_ref}"], repo).stdout.strip())
+    if behind == 0:
+        print(f"fresh:   {remote_ref} has no commits missing from HEAD")
+        return
+    print(f"behind:  {remote_ref} has {behind} commit(s) that HEAD does not have:")
+    log = run(["git", "log", "--oneline", f"HEAD..{remote_ref}"], repo).stdout.splitlines()
+    print("\n".join(f"  {line}" for line in log[:10]))
+    if len(log) > 10:
+        print(f"  ... and {len(log) - 10} more")
+    print(
+        f"\nThe migration would branch from HEAD and the PR back onto {branch} would\n"
+        f"re-conflict with those commits. Consider: git fetch && git rebase {remote_ref}\n"
+        "(or merge it) before migrating."
+    )
+    if do_it and not allow_behind:
+        die(f"HEAD is {behind} commit(s) behind {remote_ref}; update the branch first,\n"
+            "or pass --allow-behind to migrate anyway")
 
 
 def detect_answers(repo: Path) -> dict[str, str]:
@@ -295,13 +372,14 @@ def build_target_copy(raptor: Path, ref: str | None, answers: dict[str, str], wo
     return out_dir, resolved
 
 
-def migrate(repo: Path, raptor: Path, ref: str | None, answers: dict[str, str], branch: str, do_it: bool) -> int:
+def migrate(repo: Path, raptor: Path, ref: str | None, answers: dict[str, str], branch: str, do_it: bool, allow_behind: bool = False) -> int:
     if run(["git", "rev-parse", "--is-inside-work-tree"], repo, check=False).returncode != 0:
         die(f"{repo} is not a git repo")
     if (repo / ".copier-answers.yml").is_file():
         die("repo already has a .copier-answers.yml; use 'copier update' instead")
     # only a real migration needs a clean tree; a dry run never writes
     report_dirty(repo, do_it)
+    check_fresh(repo, do_it, allow_behind)
 
     base = first_commit(repo)
     head = git_head(repo)
@@ -370,6 +448,10 @@ def main() -> int:
     parser.add_argument("-d", "--data", action="append", default=[], metavar="key=value", help="override a detected answer")
     parser.add_argument("--check", action="store_true", help="dry run: show what would happen")
     parser.add_argument("--yes", action="store_true", help="actually create the migration branch")
+    parser.add_argument(
+        "--allow-behind", action="store_true",
+        help="migrate even when HEAD is behind the remote's default branch",
+    )
     args = parser.parse_args()
 
     repo = args.repo.resolve()
@@ -379,7 +461,8 @@ def main() -> int:
     if not (args.check or args.yes):
         die("refusing to write without --yes (use --check to preview)")
 
-    return migrate(repo, args.template, args.ref, answers, args.branch, do_it=args.yes)
+    return migrate(repo, args.template, args.ref, answers, args.branch, do_it=args.yes,
+                   allow_behind=args.allow_behind)
 
 
 if __name__ == "__main__":

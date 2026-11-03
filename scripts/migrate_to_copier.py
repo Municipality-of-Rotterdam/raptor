@@ -41,6 +41,7 @@ Stdlib only (tomllib needs python >= 3.11); shells out to git, rsync and copier.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -52,8 +53,28 @@ from pathlib import Path
 MIGRATE_BRANCH = "migrate-to-copier"
 
 
-def run(cmd: list[str], cwd: Path, *, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, cwd=cwd, check=check, text=True, capture_output=True)
+def git_env(*paths: Path) -> dict[str, str]:
+    """Environment scoping git's ownership trust to the given directories.
+
+    On network-mounted filesystems (CIFS) and in scratch dirs under a root-owned
+    /tmp, the filesystem is owned by root while the process runs as the user, so
+    git refuses to operate with "detected dubious ownership". Injecting the
+    exception through the environment (rather than the command line) also covers
+    git processes we do not spawn ourselves, such as the ones copier runs.
+    """
+    env = os.environ.copy()
+    base = int(env.get("GIT_CONFIG_COUNT", "0"))
+    for offset, path in enumerate(dict.fromkeys(str(p) for p in paths)):
+        env[f"GIT_CONFIG_KEY_{base + offset}"] = "safe.directory"
+        env[f"GIT_CONFIG_VALUE_{base + offset}"] = path
+    if paths:
+        env["GIT_CONFIG_COUNT"] = str(base + len(dict.fromkeys(str(p) for p in paths)))
+    return env
+
+
+def run(cmd: list[str], cwd: Path, *, check: bool = True, trust: tuple[Path, ...] = ()) -> subprocess.CompletedProcess[str]:
+    env = git_env(cwd, *trust) if cmd and cmd[0] == "git" else None
+    return subprocess.run(cmd, cwd=cwd, check=check, text=True, capture_output=True, env=env)
 
 
 def die(msg: str) -> None:
@@ -254,7 +275,9 @@ def build_target_copy(raptor: Path, ref: str | None, answers: dict[str, str], wo
     for key, value in answers.items():
         cmd += ["--data", f"{key}={value}"]
     cmd += [str(tpl_src), str(out_dir)]
-    proc = subprocess.run(cmd, check=False, text=True, capture_output=True)
+    # copier shells out to git inside the scratch output dir, which may sit on a
+    # root-owned mount; trust both scratch paths for that subprocess.
+    proc = subprocess.run(cmd, check=False, text=True, capture_output=True, env=git_env(out_dir, tpl_dir))
     if proc.returncode != 0:
         sys.stdout.write(proc.stdout)
         sys.stderr.write(proc.stderr)
@@ -303,7 +326,8 @@ def migrate(repo: Path, raptor: Path, ref: str | None, answers: dict[str, str], 
         # .direnv) are invisible to 'git status', so the clean-tree check would
         # pass and 'rsync --delete' would destroy them in place.
         wt = Path(tmp) / "theirs"
-        add = run(["git", "worktree", "add", "--detach", str(wt), base], repo, check=False)
+        # The worktree lives outside the repo, so git checks its ownership too.
+        add = run(["git", "worktree", "add", "--detach", str(wt), base], repo, check=False, trust=(wt,))
         if add.returncode != 0:
             die(f"git worktree add failed: {add.stdout}{add.stderr}")
         try:
@@ -314,7 +338,7 @@ def migrate(repo: Path, raptor: Path, ref: str | None, answers: dict[str, str], 
             run(["git", "commit", "-q", "-m", f"template: {resolved}"], wt)
             theirs = run(["git", "rev-parse", "HEAD"], wt).stdout.strip()
         finally:
-            run(["git", "worktree", "remove", "--force", str(wt)], repo, check=False)
+            run(["git", "worktree", "remove", "--force", str(wt)], repo, check=False, trust=(wt,))
             run(["git", "worktree", "prune"], repo, check=False)
         run(["git", "branch", "-q", theirs_branch, theirs], repo)
 

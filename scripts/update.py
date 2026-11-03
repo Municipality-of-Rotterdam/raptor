@@ -35,6 +35,7 @@ PATH for copier-era repos. Stdlib only otherwise.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -45,8 +46,23 @@ DEFAULT_TEMPLATE = "git@ssh.dev.azure.com:v3/GemeenteRotterdam/DAPR/raptor"
 SCRIPT_NAME = "migrate_to_copier.py"
 
 
-def run(cmd: list[str], cwd: Path | None = None, *, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, cwd=cwd, check=check, text=True, capture_output=True)
+def git_env(*paths: Path | str) -> dict[str, str] | None:
+    """Env trusting git to operate in the given dirs (CIFS/root-owned /tmp)."""
+    if not paths:
+        return None
+    env = os.environ.copy()
+    base = int(env.get("GIT_CONFIG_COUNT", "0"))
+    names = list(dict.fromkeys(str(p) for p in paths))
+    for offset, path in enumerate(names):
+        env[f"GIT_CONFIG_KEY_{base + offset}"] = "safe.directory"
+        env[f"GIT_CONFIG_VALUE_{base + offset}"] = path
+    env["GIT_CONFIG_COUNT"] = str(base + len(names))
+    return env
+
+
+def run(cmd: list[str], cwd: Path | None = None, *, check: bool = True, trust: tuple[str, ...] = ()) -> subprocess.CompletedProcess[str]:
+    env = git_env(*( ([str(cwd)] if cwd else []) + list(trust) )) if cmd and cmd[0] == "git" else None
+    return subprocess.run(cmd, cwd=cwd, check=check, text=True, capture_output=True, env=env)
 
 
 def die(msg: str) -> None:
@@ -59,12 +75,13 @@ def latest_copier_tag(clone: Path) -> str:
     tags = run(
         ["git", "-C", str(clone), "for-each-ref", "--sort=-v:refname",
          "--format=%(refname:short)", "refs/tags"],
-        check=False,
+        check=False, trust=(str(clone),),
     )
     names = [t for t in tags.stdout.split() if not t.endswith("^{}")]
     for tag in names:
         for marker in ("copier.yaml", "copier.yml"):
-            probe = run(["git", "-C", str(clone), "cat-file", "-e", f"{tag}:{marker}"], check=False)
+            probe = run(["git", "-C", str(clone), "cat-file", "-e", f"{tag}:{marker}"],
+                        check=False, trust=(str(clone),))
             if probe.returncode == 0:
                 return tag
     return "HEAD"
@@ -86,8 +103,8 @@ def fetch_script(template: str, ref: str | None, workdir: Path) -> tuple[Path, s
     if sibling.is_file():
         return sibling, ref or "(next to update.py)"
 
-    clone = workdir / "template"
-    proc = run(["git", "clone", "--quiet", "--no-local", template, str(clone)], check=False)
+    clone = workdir / ".template"
+    proc = run(["git", "clone", "--quiet", "--no-local", template, str(clone)], check=False, trust=(str(clone),))
     if proc.returncode != 0:
         die(
             f"could not clone the template {template}:\n{proc.stdout}{proc.stderr}"
@@ -119,7 +136,7 @@ def main() -> int:
     args, extra = parser.parse_known_args()
 
     repo = args.repo.resolve()
-    if run(["git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"], check=False).returncode != 0:
+    if run(["git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"], check=False, trust=(str(repo),)).returncode != 0:
         die(f"{repo} is not a git repo")
 
     if (repo / ".copier-answers.yml").is_file():
@@ -128,7 +145,7 @@ def main() -> int:
             die("this repo is already a copier repo; pass copier's own flags, e.g. --vcs-ref <ref>")
         cmd = ["copier", "update", "--trust", *extra]
         print(f"copier repo: running {' '.join(cmd)}")
-        return subprocess.run(cmd, cwd=repo, check=False).returncode
+        return subprocess.run(cmd, cwd=repo, check=False, env=git_env(repo)).returncode
 
     # cookiecutter-era repo: one-time migration, fetched from the template itself
     print("no .copier-answers.yml: cookiecutter-era repo, running the one-time migration")

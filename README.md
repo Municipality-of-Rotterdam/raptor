@@ -144,6 +144,13 @@ copier update --trust
 ```
 Copier merges the template changes with your own changes. Tasks like `git init` only run when creating the repo, not on update.
 
+Repos created with the **old cookiecutter** template have no `.copier-answers.yml`, so `copier update` cannot help them — they must be migrated once first. Use the [migrate-repo skill](skills/migrate-repo/SKILL.md), which runs `scripts/update.py` from the template: it detects the repo type and either runs `copier update` (copier repos) or performs the one-time migration (cookiecutter repos), fetching the latest migration script from the remote template so no local raptor checkout is needed:
+```bash
+uv run --python 3.11 <raptor>/scripts/update.py --check   # preview
+uv run --python 3.11 <raptor>/scripts/update.py --yes     # migrate to a branch
+```
+The migration is a git 3-way merge (base = the repo's first commit, ours = HEAD, theirs = the freshly rendered target template), so it works from **any** old version to **any** target and writes `.copier-answers.yml` for future native updates. It runs on a new `migrate-to-copier` branch and never pushes.
+
 You can also supply a user config .yml file with default values being set.
 Create a file `~/.config/copier/settings.yml`
 with schema e.g.

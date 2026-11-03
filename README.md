@@ -1,6 +1,6 @@
 # Raptor
 
-![build status](https://github.com/Municipality-of-Rotterdam/raptor/actions/workflows/main.yml/badge.svg?branch=feature/github_actions)
+[![Build Status](https://dev.azure.com/GemeenteRotterdam/DAPR/_apis/build/status%2Fraptor?branchName=develop)](https://dev.azure.com/GemeenteRotterdam/DAPR/_build/latest?definitionId=626&branchName=develop)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
 ![Raptor](raptor_logo.png)
@@ -241,16 +241,21 @@ git config --global --add safe.directory PATH/TO/REPO
 
 #### 3.4. CI/CD
 
-To add Continuous Integration, Continuous Delivery (CI/CD) in DevOps, go to the repository and click "set up build".
+Since raptor 3.x there is **no root `azure-pipelines.yml`**. The pipeline definitions live in `devops_pipelines/templates/` and are split by trigger, so you create a separate Azure DevOps pipeline for each:
 
-It will automatically use the azure-pipelines.yml from the root of the repository.
-Click, under "run", on "save".
-Now we have created a pipeline, which will be triggered when there are changes in specified folders (in principle package folder and tests folder) on specified branches (in principle main, develop and release branches).
-Now we need to set branch policies (by default we only have the main and develop branch, and others need to be created). 
+| file | trigger | stages |
+| --- | --- | --- |
+| `ci.yml` | pull requests (any source branch) | Pre-commit, AI code review, Unit tests, Build |
+| `cd.yml` | pushes to `main` and `develop` | Build, Register AML environment, Tag release |
+| `release.yml` | any git tag | builds, registers and publishes the tagged release |
+
+To add Continuous Integration, Continuous Delivery (CI/CD) in DevOps, go to the repository and click "set up build" **once per file above** (Pipeline > New pipeline > Existing Azure Pipelines YAML file > pick the file). For each, click under "run" on "save". The triggers are defined inside the YAML, so you do not configure them in the pipeline editor.
+
+Now we need to set branch policies (by default we only have the main and develop branch, and others need to be created).
 
 Navigate to branches and then set the following for the main and develop branch:
   - Require a minimum number of reviewers (2)
-  - Build validation -> add build policy -> select the pipeline we just created -> save.
+  - Build validation -> add build policy -> select the **CI pipeline** (`ci.yml`) -> save.
 
 #TODO Github variant
 

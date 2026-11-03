@@ -17,6 +17,10 @@ set -euo pipefail
 TEMPLATE="${TEMPLATE:-git@ssh.dev.azure.com:v3/GemeenteRotterdam/DAPR/raptor}"
 REF="${REF:-}"
 
+# The repo to update is wherever the user ran this from; update.py defaults
+# --repo to its own cwd, which is the template clone, so pass it explicitly.
+REPO="$(pwd -P)"
+
 command -v git >/dev/null || { echo "ERROR: git not found" >&2; exit 1; }
 command -v uv  >/dev/null || { echo "ERROR: uv not found (curl -LsSf https://astral.sh/uv/install.sh | sh)" >&2; exit 1; }
 
@@ -42,4 +46,4 @@ git -C "$work/template" checkout --quiet "$REF"
 echo "running update.py from $TEMPLATE @ $REF" >&2
 
 cd "$work/template"
-exec uv run --no-project --python 3.11 scripts/update.py "$@"
+exec uv run --no-project --python 3.11 scripts/update.py --repo "$REPO" "$@"

@@ -226,9 +226,10 @@ def build_target_copy(raptor: Path, ref: str | None, answers: dict[str, str], wo
     which would break every later ``copier update``. A clean clone guarantees
     ``_commit`` is a real, reachable description of ``ref``.
     """
-    tpl_dir = workdir / "template"
+    tpl_dir = workdir / ".template"
     # the template validates repo_name against the destination folder name, so
-    # render into a folder named after the repo
+    # render into a folder named after the repo (the clone dir is dotted so a
+    # repo literally named 'template' can never collide with it)
     out_dir = workdir / answers.get("repo_name", "target")
     clone = run(["git", "clone", "--quiet", "--no-local", str(raptor), str(tpl_dir)], workdir, check=False)
     if clone.returncode != 0:
@@ -245,7 +246,9 @@ def build_target_copy(raptor: Path, ref: str | None, answers: dict[str, str], wo
             die(f"ref '{resolved}' not found in template {raptor}")
         tpl_src = tpl_dir
         vcs_ref = resolved
-    cmd = ["copier", "copy", "--trust", "--defaults"]
+    # --overwrite: the destination is a scratch dir, so a file already being
+    # there is never the user's data; never stop on an interactive prompt.
+    cmd = ["copier", "copy", "--trust", "--defaults", "--overwrite"]
     if vcs_ref:
         cmd += ["--vcs-ref", vcs_ref]
     for key, value in answers.items():

@@ -7,6 +7,7 @@ and, if needed, `scripts/`. The agent loads a skill when a request matches its d
 | Skill | What it does |
 |---|---|
 | [new-repo](new-repo/SKILL.md) | Create a new package or project repo from raptor, or finish the setup of an existing one, including Azure DevOps (repo, pipelines, permissions, branch policies, status badge). It runs the tasks of a local raptor clone (see `.taskfile/readme.md`), skips what is done and asks before each change in Azure DevOps. |
+| [migrate-repo](migrate-repo/SKILL.md) | Bring an existing raptor repo up to the latest raptor: a one-time migration for repos from the old cookiecutter template (no `.copier-answers.yml`), or `copier update` for repos already on copier. It fetches the migration script from the remote template, so no local raptor checkout is needed. |
 
 ## Installation
 

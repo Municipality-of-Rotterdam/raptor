@@ -19,14 +19,17 @@ Usage (from the root of the repo to update)
 -------------------------------------------
     uv run --python 3.11 <raptor>/scripts/update.py --check     # preview (cookiecutter repo)
     uv run --python 3.11 <raptor>/scripts/update.py --yes       # migrate  (cookiecutter repo)
-    uv run --python 3.11 <raptor>/scripts/update.py --vcs-ref <ref>   # copier update (copier repo)
+    uv run --python 3.11 <raptor>/scripts/update.py --ref <ref> --check   # copier update --pretend (copier repo)
+    uv run --python 3.11 <raptor>/scripts/update.py --ref <ref> --yes     # copier update --defaults (copier repo)
 
 ``--template`` selects the template URL/path; it defaults to the raptor repo.
 ``--ref`` picks the template ref (tag/branch) for both the migration script and
-the target; the default is the template's newest copier tag. Extra ``-d key=value``
-pairs override detected answers. For a copier-era repo, unrecognized arguments
-are passed straight to ``copier update`` (add ``--defaults`` to run it
-non-interactively).
+the target; the default is the template's newest copier tag. For a copier-era
+repo the same flags map onto ``copier update``: ``--ref`` -> ``--vcs-ref``,
+``--check`` -> ``--pretend --defaults``, ``--yes`` -> ``--defaults`` and
+``-d key=value`` -> ``--data key=value``. Extra ``-d key=value`` pairs override
+detected answers. For a copier-era repo, unrecognized arguments are passed
+straight to ``copier update``.
 
 Both routes warn when the branch being updated is behind the remote's default
 branch (the PR back onto it would re-conflict); the migration additionally
@@ -71,9 +74,21 @@ def git_env(*paths: Path | str) -> dict[str, str] | None:
     return env
 
 
-def run(cmd: list[str], cwd: Path | None = None, *, check: bool = True, trust: tuple[str, ...] = ()) -> subprocess.CompletedProcess[str]:
-    env = git_env(*( ([str(cwd)] if cwd else []) + list(trust) )) if cmd and cmd[0] == "git" else None
-    return subprocess.run(cmd, cwd=cwd, check=check, text=True, capture_output=True, env=env)
+def run(
+    cmd: list[str],
+    cwd: Path | None = None,
+    *,
+    check: bool = True,
+    trust: tuple[str, ...] = (),
+) -> subprocess.CompletedProcess[str]:
+    env = (
+        git_env(*(([str(cwd)] if cwd else []) + list(trust)))
+        if cmd and cmd[0] == "git"
+        else None
+    )
+    return subprocess.run(
+        cmd, cwd=cwd, check=check, text=True, capture_output=True, env=env
+    )
 
 
 def die(msg: str) -> None:
@@ -98,20 +113,56 @@ def check_fresh(repo: Path) -> None:
     remote = "origin" if "origin" in remotes else remotes[0]
 
     def default_branch() -> str | None:
-        out = run(["git", "-C", str(repo), "symbolic-ref", "--quiet", "--short",
-                   f"refs/remotes/{remote}/HEAD"], check=False).stdout.strip()
+        out = run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "symbolic-ref",
+                "--quiet",
+                "--short",
+                f"refs/remotes/{remote}/HEAD",
+            ],
+            check=False,
+        ).stdout.strip()
         name = out.removeprefix(f"{remote}/")
         if name:
             return name
-        run(["git", "-C", str(repo), "remote", "set-head", remote, "--auto"], check=False)
-        out = run(["git", "-C", str(repo), "symbolic-ref", "--quiet", "--short",
-                   f"refs/remotes/{remote}/HEAD"], check=False).stdout.strip()
+        run(
+            ["git", "-C", str(repo), "remote", "set-head", remote, "--auto"],
+            check=False,
+        )
+        out = run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "symbolic-ref",
+                "--quiet",
+                "--short",
+                f"refs/remotes/{remote}/HEAD",
+            ],
+            check=False,
+        ).stdout.strip()
         name = out.removeprefix(f"{remote}/")
         if name:
             return name
         for candidate in ("develop", "main", "master"):
-            if run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet",
-                    f"refs/remotes/{remote}/{candidate}"], check=False).returncode == 0:
+            if (
+                run(
+                    [
+                        "git",
+                        "-C",
+                        str(repo),
+                        "rev-parse",
+                        "--verify",
+                        "--quiet",
+                        f"refs/remotes/{remote}/{candidate}",
+                    ],
+                    check=False,
+                ).returncode
+                == 0
+            ):
                 return candidate
         return None
 
@@ -119,10 +170,17 @@ def check_fresh(repo: Path) -> None:
     if branch is None:
         return
     remote_ref = f"{remote}/{branch}"
-    if run(["git", "-C", str(repo), "fetch", "--quiet", remote, branch], check=False).returncode != 0:
+    if (
+        run(
+            ["git", "-C", str(repo), "fetch", "--quiet", remote, branch], check=False
+        ).returncode
+        != 0
+    ):
         return
-    behind = run(["git", "-C", str(repo), "rev-list", "--count", f"HEAD..{remote_ref}"],
-                 check=False).stdout.strip()
+    behind = run(
+        ["git", "-C", str(repo), "rev-list", "--count", f"HEAD..{remote_ref}"],
+        check=False,
+    ).stdout.strip()
     if not behind.isdigit() or int(behind) == 0:
         return
     print(
@@ -135,15 +193,26 @@ def check_fresh(repo: Path) -> None:
 def latest_copier_tag(clone: Path) -> str:
     """Newest tag that is a copier template (has copier.yaml/copier.yml)."""
     tags = run(
-        ["git", "-C", str(clone), "for-each-ref", "--sort=-v:refname",
-         "--format=%(refname:short)", "refs/tags"],
-        check=False, trust=(str(clone),),
+        [
+            "git",
+            "-C",
+            str(clone),
+            "for-each-ref",
+            "--sort=-v:refname",
+            "--format=%(refname:short)",
+            "refs/tags",
+        ],
+        check=False,
+        trust=(str(clone),),
     )
     names = [t for t in tags.stdout.split() if not t.endswith("^{}")]
     for tag in names:
         for marker in ("copier.yaml", "copier.yml"):
-            probe = run(["git", "-C", str(clone), "cat-file", "-e", f"{tag}:{marker}"],
-                        check=False, trust=(str(clone),))
+            probe = run(
+                ["git", "-C", str(clone), "cat-file", "-e", f"{tag}:{marker}"],
+                check=False,
+                trust=(str(clone),),
+            )
             if probe.returncode == 0:
                 return tag
     return "HEAD"
@@ -166,7 +235,11 @@ def fetch_script(template: str, ref: str | None, workdir: Path) -> tuple[Path, s
         return sibling, ref or "(next to update.py)"
 
     clone = workdir / ".template"
-    proc = run(["git", "clone", "--quiet", "--no-local", template, str(clone)], check=False, trust=(str(clone),))
+    proc = run(
+        ["git", "clone", "--quiet", "--no-local", template, str(clone)],
+        check=False,
+        trust=(str(clone),),
+    )
     if proc.returncode != 0:
         die(
             f"could not clone the template {template}:\n{proc.stdout}{proc.stderr}"
@@ -186,54 +259,114 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--repo", default=".", type=Path, help="repo to update (default: cwd)")
     parser.add_argument(
-        "--template", default=DEFAULT_TEMPLATE,
+        "--repo", default=".", type=Path, help="repo to update (default: cwd)"
+    )
+    parser.add_argument(
+        "--template",
+        default=DEFAULT_TEMPLATE,
         help=f"template URL/path (default: {DEFAULT_TEMPLATE})",
     )
-    parser.add_argument("--ref", default=None, help="template ref; default: newest copier tag")
-    parser.add_argument("--check", action="store_true", help="preview (cookiecutter repos)")
-    parser.add_argument("--yes", action="store_true", help="apply (cookiecutter repos)")
     parser.add_argument(
-        "--allow-behind", action="store_true",
+        "--ref", default=None, help="template ref; default: newest copier tag"
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="preview (copier repos: copier update --pretend)",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="apply (copier repos: copier update --defaults)",
+    )
+    parser.add_argument(
+        "--allow-behind",
+        action="store_true",
         help="proceed even when HEAD is behind the remote's default branch",
     )
-    parser.add_argument("-d", "--data", action="append", default=[], metavar="key=value")
+    parser.add_argument(
+        "-d", "--data", action="append", default=[], metavar="key=value"
+    )
+    parser.add_argument(
+        "--keep-old-pipelines",
+        action="store_true",
+        help="migration of a package repo with the old azure-pipelines.yml: keep it (default: switch to ci/cd/release)",
+    )
     args, extra = parser.parse_known_args()
 
     repo = args.repo.resolve()
-    if run(["git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"], check=False, trust=(str(repo),)).returncode != 0:
+    if (
+        run(
+            ["git", "-C", str(repo), "rev-parse", "--is-inside-work-tree"],
+            check=False,
+            trust=(str(repo),),
+        ).returncode
+        != 0
+    ):
         die(f"{repo} is not a git repo")
 
     if (repo / ".copier-answers.yml").is_file():
         # copier-era repo: nothing to migrate, hand everything to copier
-        if args.check or args.yes or args.data or args.ref:
-            die("this repo is already a copier repo; pass copier's own flags, e.g. --vcs-ref <ref>")
+        if args.check and args.yes:
+            die("pass either --check or --yes, not both")
         if not args.allow_behind:
             check_fresh(repo)
-        cmd = ["copier", "update", "--trust", *extra]
+        # same flags as the migration, in copier's spelling, so run.sh and the
+        # skill work unchanged on both routes:
+        #   --ref -> --vcs-ref (run.sh always passes --ref, the ref it checked out)
+        #   --check -> --pretend --defaults (preview, keep the recorded answers)
+        #   --yes -> --defaults (apply non-interactively with the recorded answers)
+        #   -d k=v -> --data k=v
+        has_vcs_ref = any(a == "--vcs-ref" or a.startswith("--vcs-ref=") for a in extra)
+        ref_args = ["--vcs-ref", args.ref] if args.ref and not has_vcs_ref else []
+        mode_args = (
+            ["--pretend", "--defaults"]
+            if args.check
+            else ["--defaults"]
+            if args.yes
+            else []
+        )
+        data_args = [arg for item in args.data for arg in ("--data", item)]
+        cmd = ["copier", "update", "--trust", *ref_args, *mode_args, *data_args, *extra]
         print(f"copier repo: running {' '.join(cmd)}")
         return subprocess.run(cmd, cwd=repo, check=False, env=git_env(repo)).returncode
 
     # cookiecutter-era repo: one-time migration, fetched from the template itself
-    print("no .copier-answers.yml: cookiecutter-era repo, running the one-time migration")
+    print(
+        "no .copier-answers.yml: cookiecutter-era repo, running the one-time migration"
+    )
     if not (args.check or args.yes):
         die("refusing to write without --yes (use --check to preview)")
     if extra:
         die(f"unknown arguments for the migration: {' '.join(extra)}")
     if shutil.which("uv") is None:
-        die("uv is required to run the migration (curl -LsSf https://astral.sh/uv/install.sh | sh)")
+        die(
+            "uv is required to run the migration (curl -LsSf https://astral.sh/uv/install.sh | sh)"
+        )
     with tempfile.TemporaryDirectory() as tmp:
         script, resolved = fetch_script(args.template, args.ref, Path(tmp))
         print(f"migration script: {SCRIPT_NAME} from {args.template} @ {resolved}")
         cmd = [
-            "uv", "run", "--no-project", "--python", "3.11", str(script),
-            "--repo", str(repo), "--template", args.template, *args.data,
+            "uv",
+            "run",
+            "--no-project",
+            "--python",
+            "3.11",
+            str(script),
+            "--repo",
+            str(repo),
+            "--template",
+            args.template,
         ]
+        for item in args.data:
+            cmd += ["-d", item]
         if args.ref:
             cmd += ["--ref", args.ref]
         if args.allow_behind:
             cmd += ["--allow-behind"]
+        if args.keep_old_pipelines:
+            cmd += ["--keep-old-pipelines"]
         cmd += ["--yes"] if args.yes else ["--check"]
         return subprocess.run(cmd, check=False).returncode
 

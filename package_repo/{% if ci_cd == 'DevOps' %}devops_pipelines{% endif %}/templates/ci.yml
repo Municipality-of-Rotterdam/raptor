@@ -84,7 +84,7 @@ stages:
     displayName: 'Build and store staging artifact'
     variables:
       build: false
-      prod: eq(variables['toMain'], true
+      prod: eq(variables['toMain'], true)
     steps:
     - template: .azuredevops/templates/build.yml@raptor
       parameters:

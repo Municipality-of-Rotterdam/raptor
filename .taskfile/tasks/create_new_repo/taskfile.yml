@@ -6,13 +6,18 @@ vars:
   # Shell function for the *_devops tasks: `pipeline_id <repo> <org url> <project> <name>` prints the id of the pipeline of
   # that repo running devops_pipelines/templates/<name>.yml, or nothing. Found by yml instead of by name, so a pipeline
   # that was created by hand under another name also counts as done.
+  # `pipeline_id_yml <repo> <org url> <project> <path>` does the same for any yml path (e.g. azure-pipelines.yml) and
+  # prints the ids of all such pipelines.
   PIPELINE_ID_FN: |-
-    pipeline_id() {
+    pipeline_id_yml() {
       repo_id=$(az repos show --repository "$1" --org "$2" --project "$3" --query id --output tsv) || return 1
       az devops invoke --area build --resource definitions --route-parameters project="$3" \
         --query-parameters repositoryId=$repo_id repositoryType=TfsGit includeAllProperties=true \
         --api-version 7.1 --org "$2" --output tsv \
-        --query "value[?process.yamlFilename=='devops_pipelines/templates/$4.yml' || process.yamlFilename=='/devops_pipelines/templates/$4.yml'].id | [0]"
+        --query "value[?process.yamlFilename=='$4' || process.yamlFilename=='/$4'].id"
+    }
+    pipeline_id() {
+      pipeline_id_yml "$1" "$2" "$3" "devops_pipelines/templates/$4.yml" | head -n 1
     }
 
 tasks:
@@ -99,12 +104,15 @@ tasks:
       PIPELINES:
         sh: '{{if .PIPELINES}}echo "{{.PIPELINES}}"{{else}}cd "{{.RUN_DIR}}" && for p in ci cd release main; do if [ -f devops_pipelines/templates/$p.yml ]; then printf "%s " $p; fi; done{{end}}'
       PIPELINE_FOLDER: '{{.PIPELINE_FOLDER | default "\\"}}'
+      # branch that has the ymls; a migration creates the pipelines from its PR branch, before the merge
+      PIPELINE_BRANCH: '{{.PIPELINE_BRANCH | default "develop"}}'
     cmds:
       - for: {var: PIPELINES}
         task: setup_build_pipeline_devops
         vars:
           PIPELINE: '{{.ITEM}}'
           PIPELINE_FOLDER: '{{.PIPELINE_FOLDER}}'
+          PIPELINE_BRANCH: '{{.PIPELINE_BRANCH}}'
           REPO_NAME: '{{.REPO_NAME}}'
           GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS}}'
           RUN_DIR: '{{.RUN_DIR}}'
@@ -117,6 +125,7 @@ tasks:
     vars:
       RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
       PIPELINE_FOLDER: '{{.PIPELINE_FOLDER | default "\\"}}'
+      PIPELINE_BRANCH: '{{.PIPELINE_BRANCH | default "develop"}}'
       DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
       DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
       AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
@@ -127,7 +136,7 @@ tasks:
           exit 0
         fi
         az pipelines create --name "{{.REPO_NAME}} ({{.PIPELINE}})" --repository {{.REPO_NAME}} --repository-type tfsgit \
-          --branch develop --yml-path /devops_pipelines/templates/{{.PIPELINE}}.yml --folder-path '{{.PIPELINE_FOLDER}}' \
+          --branch {{.PIPELINE_BRANCH}} --yml-path /devops_pipelines/templates/{{.PIPELINE}}.yml --folder-path '{{.PIPELINE_FOLDER}}' \
           --skip-first-run true {{.AZ_ARGS}} --output none
     status:
       - |
@@ -207,9 +216,12 @@ tasks:
       Set up branch policies on {{.POLICY_BRANCHES}} of '{{.REPO_NAME}}'?
       - Require a minimum of 2 reviewers (allow requestor to approve own changes)
       - Check for comment resolution
-      - Build validation with pipeline "{{.REPO_NAME}} ({{.BUILD_PIPELINE}})"
+      - Build validation with pipeline "{{.REPO_NAME}} ({{.BUILD_PIPELINE}})"{{if eq .REPLACE_BUILD "true"}}, replacing the pipeline of an existing build validation{{end}}
     vars:
       POLICY_BRANCHES: '{{.POLICY_BRANCHES | default "develop main"}}'
+      # true: an existing build validation that runs another pipeline (e.g. the old azure-pipelines.yml one) is switched
+      # to "<repo> (<BUILD_PIPELINE>)" in place; default: an existing build validation counts as done
+      REPLACE_BUILD: '{{.REPLACE_BUILD | default "false"}}'
       RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
       BUILD_PIPELINE:
         sh: '{{if .BUILD_PIPELINE}}echo "{{.BUILD_PIPELINE}}"{{else}}cd "{{.RUN_DIR}}" && if [ -f devops_pipelines/templates/ci.yml ]; then echo ci; else echo main; fi{{end}}'
@@ -219,6 +231,7 @@ tasks:
         vars:
           BRANCH: '{{.ITEM}}'
           BUILD_PIPELINE: '{{.BUILD_PIPELINE}}'
+          REPLACE_BUILD: '{{.REPLACE_BUILD}}'
           REPO_NAME: '{{.REPO_NAME}}'
           GIT_ROOT_HTTPS: '{{.GIT_ROOT_HTTPS}}'
 
@@ -228,6 +241,7 @@ tasks:
       vars: [REPO_NAME, GIT_ROOT_HTTPS, BRANCH]
     vars:
       BUILD_PIPELINE: '{{.BUILD_PIPELINE | default "ci"}}'
+      REPLACE_BUILD: '{{.REPLACE_BUILD | default "false"}}'
       DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
       DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
       AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
@@ -251,7 +265,19 @@ tasks:
           echo "{{.BRANCH}}: added comment policy"
         fi
         build_id=$(pipeline_id {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} {{.BUILD_PIPELINE}})
-        if echo "$existing" | grep -qx 'Build'; then
+        # build validation policies on this branch as "<policy id> <pipeline id>" lines
+        builds=$(az repos policy list --repository-id $repo_id --branch {{.BRANCH}} {{.AZ_ARGS}} \
+          --query "[?type.displayName=='Build'].[id, settings.buildDefinitionId]" --output tsv)
+        if [ -n "$builds" ] && [ "{{.REPLACE_BUILD}}" = "true" ] && [ -n "$build_id" ] \
+            && ! echo "$builds" | awk '{print $2}' | grep -qx "$build_id"; then
+          set -- $builds
+          az repos policy build update --id $1 --build-definition-id $build_id \
+            --display-name '{{.REPO_NAME}} ({{.BUILD_PIPELINE}})' {{.AZ_ARGS}} --output none
+          echo "{{.BRANCH}}: build validation policy $1 switched from pipeline $2 to '{{.REPO_NAME}} ({{.BUILD_PIPELINE}})' ($build_id)"
+          echo "$builds" | tail -n +2 | while read -r pol def; do
+            echo "WARNING: {{.BRANCH}}: build validation policy $pol still runs pipeline $def; remove it if that is the old pipeline"
+          done
+        elif [ -n "$builds" ]; then
           echo "{{.BRANCH}}: build validation policy exists"
         elif [ -z "$build_id" ]; then
           echo "WARNING: no pipeline for devops_pipelines/templates/{{.BUILD_PIPELINE}}.yml, skipping build validation on {{.BRANCH}}"
@@ -265,6 +291,89 @@ tasks:
         repo_id=$(az repos show --repository {{.REPO_NAME}} {{.AZ_ARGS}} --query id --output tsv)
         existing=$(az repos policy list --repository-id $repo_id --branch {{.BRANCH}} {{.AZ_ARGS}} --query '[].type.displayName' --output tsv)
         for type in 'Minimum number of reviewers' 'Comment requirements' 'Build'; do echo "$existing" | grep -qx "$type" || exit 1; done
+        if [ "{{.REPLACE_BUILD}}" = "true" ]; then
+          {{.PIPELINE_ID_FN}}
+          build_id=$(pipeline_id {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} {{.BUILD_PIPELINE}})
+          az repos policy list --repository-id $repo_id --branch {{.BRANCH}} {{.AZ_ARGS}} \
+            --query "[?type.displayName=='Build'].settings.buildDefinitionId" --output tsv | grep -qx "$build_id"
+        fi
+
+  # after a migration's merge: the pipelines were created from the PR branch, point them at develop (their default
+  # branch for manual and scheduled runs; triggers read the yml of the branch that is pushed anyway)
+  set_pipelines_branch_devops:
+    silent: true
+    dir: '{{.RUN_DIR}}'
+    prompt: 'Set the default branch of pipelines {{range .PIPELINES | trim | splitList " "}}"{{$.REPO_NAME}} ({{.}})" {{end}}to {{.PIPELINE_BRANCH}}?'
+    requires:
+      vars: [REPO_NAME, GIT_ROOT_HTTPS]
+    vars:
+      RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
+      PIPELINES:
+        sh: '{{if .PIPELINES}}echo "{{.PIPELINES}}"{{else}}cd "{{.RUN_DIR}}" && for p in ci cd release main; do if [ -f devops_pipelines/templates/$p.yml ]; then printf "%s " $p; fi; done{{end}}'
+      PIPELINE_BRANCH: '{{.PIPELINE_BRANCH | default "develop"}}'
+      DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
+      DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
+      AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
+    cmds:
+      - |
+        {{.PIPELINE_ID_FN}}
+        for p in {{.PIPELINES}}; do
+          pid=$(pipeline_id {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} $p)
+          if [ -z "$pid" ]; then echo "No pipeline for devops_pipelines/templates/$p.yml, skipping"; continue; fi
+          az pipelines update --id $pid --branch {{.PIPELINE_BRANCH}} {{.AZ_ARGS}} --output none
+          # az shows the branch with or without refs/heads/
+          now=$(az pipelines show --id $pid {{.AZ_ARGS}} --query repository.defaultBranch --output tsv)
+          echo "'{{.REPO_NAME}} ($p)': default branch $now"
+          [ "${now#refs/heads/}" = "{{.PIPELINE_BRANCH}}" ] || { echo "WARNING: expected {{.PIPELINE_BRANCH}}"; exit 1; }
+        done
+    status:
+      - |
+        {{.PIPELINE_ID_FN}}
+        for p in {{.PIPELINES}}; do
+          pid=$(pipeline_id {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} $p)
+          [ -z "$pid" ] && continue
+          now=$(az pipelines show --id $pid {{.AZ_ARGS}} --query repository.defaultBranch --output tsv)
+          [ "${now#refs/heads/}" = "{{.PIPELINE_BRANCH}}" ] || exit 1
+        done
+
+  # delete the repo's pipeline(s) running the old single-pipeline yml (default azure-pipelines.yml) once no branch that
+  # still has that yml needs it: refuses while origin/main or an origin/release/* branch has it, unless FORCE=true
+  remove_old_pipeline_devops:
+    silent: true
+    dir: '{{.RUN_DIR}}'
+    prompt: Delete the pipeline(s) of '{{.REPO_NAME}}' that run {{.OLD_YML}}?
+    requires:
+      vars: [REPO_NAME, GIT_ROOT_HTTPS]
+    vars:
+      RUN_DIR: '{{.RUN_DIR | default .USER_WORKING_DIR}}'
+      OLD_YML: '{{.OLD_YML | default "azure-pipelines.yml"}}'
+      FORCE: '{{.FORCE | default "false"}}'
+      DEVOPS_ORG: '{{trimSuffix (print "/" (base .GIT_ROOT_HTTPS)) .GIT_ROOT_HTTPS}}'
+      DEVOPS_PROJECT: '{{base .GIT_ROOT_HTTPS}}'
+      AZ_ARGS: '--org {{.DEVOPS_ORG}} --project {{.DEVOPS_PROJECT}}'
+    cmds:
+      - |
+        {{.PIPELINE_ID_FN}}
+        ids=$(pipeline_id_yml {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} {{.OLD_YML}})
+        if [ -z "$ids" ]; then echo "No pipeline of '{{.REPO_NAME}}' runs {{.OLD_YML}}"; exit 0; fi
+        if [ "{{.FORCE}}" != "true" ]; then
+          git fetch --quiet origin || { echo "ERROR: git fetch failed, cannot check the branches"; exit 1; }
+          for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/main 'refs/remotes/origin/release/*'); do
+            if git cat-file -e "$ref:{{.OLD_YML}}" 2>/dev/null; then
+              echo "ERROR: $ref still has {{.OLD_YML}}, so it still runs the old pipeline. Merge develop into it first (or FORCE=true)."
+              exit 1
+            fi
+          done
+        fi
+        for id in $ids; do
+          name=$(az pipelines show --id $id {{.AZ_ARGS}} --query name --output tsv)
+          az pipelines delete --id $id --yes {{.AZ_ARGS}} --output none
+          echo "Deleted pipeline '$name' ($id)"
+        done
+    status:
+      - |
+        {{.PIPELINE_ID_FN}}
+        test -z "$(pipeline_id_yml {{.REPO_NAME}} {{.DEVOPS_ORG}} {{.DEVOPS_PROJECT}} {{.OLD_YML}})"
 
   # replace the "NB: Add ... status badge" instructions in the README by the badge of pipeline "<repo> (ci)"
   # (or "<repo> (main)"); only edits README.md, commit it yourself

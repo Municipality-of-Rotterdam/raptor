@@ -1,21 +1,21 @@
 exclude:
     (?x)^(
         .*/workflows/|
-        .*/.*/notebooks/|
-        .*/.*/src/|
-        .*/.*/devops_pipelines/|
+        .*/notebooks/|
+        .*/src/|
+        .*/devops_pipelines/|
         .*/\{%.*devops_pipelines.*%\}/|
-        .*/.*/lib/|
-        .*/.*/aml_deployments/|
-        .*/.*/components/|
-        .*/.*/conda.yml|
-        .*/.*/aml_environment.yml|
-        .*/.*/tests/|
-        .*/.*/azure-pipelines.yml|
-        .*/.*/environment.yml|
-        .*/.*/component_env.yml|
+        .*/lib/|
+        .*/aml_deployments/|
+        .*/components/|
+        .*/conda.yml|
+        .*/aml_environment.yml|
+        .*/tests/|
+        .*/azure-pipelines.yml|
+        .*/environment.yml|
+        .*/component_env.yml|
         .*/local_extensions.py|
-        .*/.*/taskfile.yml
+        .*/taskfile.yml
     )
 
 repos:

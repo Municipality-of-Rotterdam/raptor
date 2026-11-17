@@ -3,12 +3,13 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
-## [3.0.0] - TBD
+## [3.0.0] - 2026-11-17
 Change from cookiecutter to copier
 
 ### **Changed**
 - Moved from cookiecutter to copier template
 - Easier prompt templating, merging of package and project prompts
+- `.envrc` (raptor root): same conda / network-mount check as the package repo, on local disk uv uses `.venv`
 
 ### **Added**
 - Use user_name and user_email for git (still use author_name and author_email for package)
@@ -23,9 +24,12 @@ Change from cookiecutter to copier
   DevOps
 
 ### **Fixed**
-- Taskfile create_new_repo: a project repo gets its main pipeline instead of ci, cd and release
-- Package repo pipelines (ci, cd, release) set `pool: vmImage: 'ubuntu-latest'`, like the project repo; without it
-  jobs ran on the pipeline's default pool, which `az pipelines create` sets to the retired Hosted Ubuntu 1604
+- Taskfile create_new_repo: a project repo gets its main pipeline instead of ci, cd and release (previously the
+  instructions always listed the package repo pipelines)
+
+### **Security**
+- pip 23.0 -> 26.2.2 in all conda environment files (package repo `environment.yml` and `conda.yml`, project repo
+  component env) (eMudhra)
 
 ### **Removed**
 - Removed pre/post hooks, now use built-in prompt validators and tasks

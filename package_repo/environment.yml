@@ -5,5 +5,5 @@ channels:
   - nodefaults
 dependencies:
   - python={{ python_version}}
-  - pip==23.0
+  - pip==26.2.2
   - uv={{ uv_version}}

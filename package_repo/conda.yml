@@ -6,6 +6,6 @@ channels:
 dependencies:
   - chardet=5.2.0
   - python={{ python_version }}
-  - pip==23.0
+  - pip==26.2.2
   - pip:
       - {{ package_name }}==<PACKAGE_VERSION>

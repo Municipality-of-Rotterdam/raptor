@@ -1,6 +1,6 @@
 # Raptor
 
-![build status](https://github.com/Municipality-of-Rotterdam/raptor/actions/workflows/main.yml/badge.svg?branch=feature/github_actions)
+![build status](https://github.com/Municipality-of-Rotterdam/raptor/actions/workflows/main.yml/badge.svg?branch=develop)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
 ![Raptor](raptor_logo.png)

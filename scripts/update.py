@@ -49,7 +49,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-DEFAULT_TEMPLATE = "git@ssh.dev.azure.com:v3/GemeenteRotterdam/DAPR/raptor"
+DEFAULT_TEMPLATE = "https://github.com/Municipality-of-Rotterdam/raptor.git"
 SCRIPT_NAME = "migrate_to_copier.py"
 
 

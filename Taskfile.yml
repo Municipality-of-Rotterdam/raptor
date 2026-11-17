@@ -1,5 +1,5 @@
 
-# for setting up taskfile, see: https://dev.azure.com/GemeenteRotterdam/DAPR/_git/aa_taskfile
+# for setting up taskfile, see: .taskfile/readme.md
 
 version: '3'
 
@@ -18,7 +18,7 @@ vars:
 
 includes:
   aa:
-    taskfile: "https://github.com/Municipality-of-Rotterdam/raptor.git//.taskfile/taskfile_main.yml?ref=feature/taskfile"
+    taskfile: "https://github.com/Municipality-of-Rotterdam/raptor.git//.taskfile/taskfile_main.yml?ref=develop"
     flatten: true
   personal:
     taskfile: ~/Taskfile.yml

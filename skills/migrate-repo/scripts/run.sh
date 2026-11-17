@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Bootstrap: run raptor's update.py without a local raptor checkout.
 #
-# Clones the template repo (default: raptor on Azure DevOps), checks out one
+# Clones the template repo (default: the public raptor repo on GitHub), checks out one
 # template ref, runs scripts/update.py from that clone and passes the same ref
 # on as --ref. So the migration script that runs and the template it migrates
 # to are always the same version.
@@ -19,7 +19,7 @@
 # Needs: git, uv. Pure shell + git.
 set -euo pipefail
 
-TEMPLATE="${TEMPLATE:-git@ssh.dev.azure.com:v3/GemeenteRotterdam/DAPR/raptor}"
+TEMPLATE="${TEMPLATE:-https://github.com/Municipality-of-Rotterdam/raptor.git}"
 REF="${REF:-}"
 
 # --ref on the command line wins over REF=; it is taken out of the arguments

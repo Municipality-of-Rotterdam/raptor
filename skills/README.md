@@ -14,7 +14,7 @@ and, if needed, `scripts/`. The agent loads a skill when a request matches its d
 Install the skills for the agents you use (`-g`: for all your projects; `npx skills update` to update):
 
 ```
-npx skills add https://dev.azure.com/GemeenteRotterdam/DAPR/_git/raptor -g
+npx skills add https://github.com/Municipality-of-Rotterdam/raptor -g
 ```
 
 `npx` comes with Node.js. If `npx --version` fails, install Node.js with nvm (no sudo needed): run the install command

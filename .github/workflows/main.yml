@@ -61,12 +61,12 @@ jobs:
 
       - name: Run pre-commit in test repo (DevOps variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name_ado
+          cd ${{ github.workspace }}/../pkg_package_name_ado
           uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Run pytest in test repo (DevOps variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name_ado
+          cd ${{ github.workspace }}/../pkg_package_name_ado
           uv run --group test pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
 
       - name: Create test repo with copier (Github variant)
@@ -76,12 +76,12 @@ jobs:
 
       - name: Run pre-commit in test repo (Github variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name_gh
+          cd ${{ github.workspace }}/../pkg_package_name_gh
           uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Run pytest in test repo (Github variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name_gh
+          cd ${{ github.workspace }}/../pkg_package_name_gh
           uv run --group test pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
 
   Create_and_test_project_repo:
@@ -109,7 +109,7 @@ jobs:
 
       - name: Run pre-commit in test repo (DevOps variant)
         run: |
-          cd ${{ github.workspace }}/project_name_ado
+          cd ${{ github.workspace }}/../project_name_ado
           uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Create test repo with copier (Github variant)
@@ -119,5 +119,5 @@ jobs:
 
       - name: Run pre-commit in test repo (Github variant)
         run: |
-          cd ${{ github.workspace }}/project_name_gh
+          cd ${{ github.workspace }}/../project_name_gh
           uv run --group precommit pre-commit run --all-files --show-diff-on-failure

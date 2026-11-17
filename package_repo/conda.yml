@@ -1,0 +1,11 @@
+name: {{ package_name }}
+channels:
+  - conda-forge
+  - anaconda
+  - nodefaults
+dependencies:
+  - chardet=5.2.0
+  - python={{ python_version }}
+  - pip==26.2.2
+  - pip:
+      - {{ package_name }}==<PACKAGE_VERSION>

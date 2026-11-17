@@ -69,28 +69,46 @@ tasks:
     cmds:
       - git config --global init.defaultBranch main
 
-  install_cookiecutter:
+  install_copier:
     cmds:
-      - pip install cookiecutter
+      - pip install copier
     status:
-      - cookiecutter --version
-  
-  setup_cookiecutter_config:
-    cmds:
-      - task: create_cookiecutter_config
-      - echo 'export COOKIECUTTER_CONFIG=~/raptor_config.yml' >> ~/.bashrc
-    status:
-      - '[ -n "${COOKIECUTTER_CONFIG}" ]'
-  
-  create_cookiecutter_config:
+      - copier --version
+
+  # copier user settings: default answers for every copier copy (copier reads this file, or $COPIER_SETTINGS_PATH).
+  # Only shows how to create it: the values differ per team and are in the company documentation.
+  setup_copier_config:
     vars:
-      COOKIECUTTER_CONFIG: '{{.COOKIECUTTER_CONFIG | default "https://github.com/Municipality-of-Rotterdam/raptor?tab=readme-ov-file#32-create-the-repo-using-the-raptors-url-its-recommended-to-use-ssh"}}'
-    prompt: For simplicity, first setup a cookiecutter config.yml, see {{.COOKIECUTTER_CONFIG}}. Copy the default_context block, paste it in the next window and save with ctrl+x, Y, enter. Did you copy the default_context?
+      COPIER_CONFIG: '{{.COPIER_CONFIG | default "https://github.com/Municipality-of-Rotterdam/raptor?tab=readme-ov-file#32-create-the-repo-using-the-raptors-url-its-recommended-to-use-ssh"}}'
+      COPIER_SETTINGS: '{{if .COPIER_SETTINGS_PATH}}{{.COPIER_SETTINGS_PATH}}{{else}}{{.HOME}}/.config/copier/settings.yml{{end}}'
     cmds:
-      - nano ~/raptor_config.yml
-    interactive: true
+      - cmd: |
+          cat <<'EOF'
+          WARNING: the copier settings file {{.COPIER_SETTINGS}} does not exist. It is optional, but strongly
+          recommended: it holds your default answers for copier. Create it yourself, e.g. with
+          `mkdir -p {{dir .COPIER_SETTINGS}} && nano {{.COPIER_SETTINGS}}`, like the example below.
+          The actual values for your team are in the company documentation (Confluence), see also {{.COPIER_CONFIG}}
+
+          defaults:
+              user_name: "Your Name"
+              user_email: "your.email@organisation.com"
+              author_name: "Team name"
+              author_email: "team@organisation.com"
+              ci_cd: "DevOps"
+              devops_organisation_name: "devops_organisation_name"
+              devops_project_name: "devops_project_name"
+              package_feed: "package_feed"
+              private_agent_name: "private_agent_name"
+          EOF
+        silent: true
+      # ~/raptor_config.yml with COPIER_ANSWERS_FILE was the old setup, copier does not read it
+      - cmd: |
+          if [ -f ~/raptor_config.yml ] || grep -qs COPIER_ANSWERS_FILE ~/.bashrc; then
+            echo "~/raptor_config.yml and the COPIER_ANSWERS_FILE export in ~/.bashrc are no longer used, you can remove them."
+          fi
+        silent: true
     status:
-      - test -f ~/raptor_config.yml
+      - test -f '{{.COPIER_SETTINGS}}'
 
   conda_init:
     cmds:

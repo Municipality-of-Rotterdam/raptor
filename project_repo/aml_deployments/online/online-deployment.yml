@@ -1,0 +1,16 @@
+{% raw %}
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineDeployment.schema.json
+name: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-deployment
+endpoint_name: {% endraw %}{{ aml_base_deployment_name}}{% raw %}-online
+model: azureml:{% endraw %}{{ aml_project_code}}{% raw %}:1
+code_configuration:
+  code: ../../aml_deployments/components/package_c
+  scoring_script: package_c_script.py
+environment: 
+  conda_file: ../../aml_deployments/components/package_c/package_c_env.yml
+  image: mcr.microsoft.com/azureml/openmpi5.0-ubuntu24.04
+instance_type: Standard_DS3_v2
+instance_count: 1
+app_insights_enabled: true
+egress_public_network_access: disabled
+{% endraw %}

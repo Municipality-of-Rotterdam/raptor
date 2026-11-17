@@ -8,7 +8,7 @@ variables:
     value: True
              
 stages:
-  - stage: cookiecutter_self
+  - stage: precommit_self
     dependsOn: []
     jobs:
       - job: self_precommit
@@ -21,21 +21,21 @@ stages:
               uv run pre-commit run --all-files --show-diff-on-failure
             displayName: 'Run pre-commit on raptor repo'
 
-  - stage: cookiecutter_package
+  - stage: precommit_package
     dependsOn: []
     jobs:
       - job: package_pipeline
-        displayName: 'Call cookiecutter on package_repo and run pre-commit'
+        displayName: 'Call precommit on package_repo and run pre-commit'
         steps:
           - checkout: self
             path: $(project_name)
           - template: /devops_pipelines/templates/create_and_check_package_repo.yml
 
-  - stage: cookiecutter_project
+  - stage: precommit_project
     dependsOn: []
     jobs:
       - job: project_pipeline
-        displayName: 'Call cookiecutter on project_repo and run pre-commit'
+        displayName: 'Call precommit on project_repo and run pre-commit'
         steps:
           - checkout: self
             path: $(project_name)
@@ -43,9 +43,9 @@ stages:
 
   - stage: tag_release
     dependsOn:
-    - cookiecutter_self
-    - cookiecutter_package
-    - cookiecutter_project
+    - precommit_self
+    - precommit_package
+    - precommit_project
     jobs:
     - job: RunTagRelease
       displayName: Tagging latest release

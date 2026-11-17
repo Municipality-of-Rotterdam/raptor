@@ -1,13 +1,13 @@
 # Raptor
 
-![build status](https://github.com/Municipality-of-Rotterdam/raptor/actions/workflows/main.yml/badge.svg?branch=feature/github_actions)
+![build status](https://github.com/Municipality-of-Rotterdam/raptor/actions/workflows/main.yml/badge.svg?branch=develop)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
 ![Raptor](raptor_logo.png)
 
 # RAPToR – Rapid Analytics Product Template of Rotterdam
 
-This repository is a cookiecutter template to be used for projects in Azure Machine Learning.
+This repository is a copier template to be used for projects in Azure Machine Learning.
 
 
 # Table of Content
@@ -118,41 +118,57 @@ For setting up an SSH connection on github, click
 
 #### 3.2. Create the repo, using the raptor's url (it's recommended to use SSH)
 
-Optionally, if cookiecutter is not yet installed in the base environment, run
+Optionally, if copier is not yet installed in the base environment, run
 ```bash
-pip install cookiecutter
+uv tool install copier
 ```
-Using your terminal, navigate to your user folder within the compute instance (home/azureuser/cloudfiles/code/Users/<username>)
-There are two types of repos, as outlined in the Introduction above. You can either create a package repo or a project repo.
-Create the repo (when using SSH, copy in the SSH clone URL), in this example a package repository:
+Using your terminal, navigate to your user folder within the compute instance (home/azureuser/cloudfiles/code/Users/<username>).
+Go to the folder in which you want to create the new repo.
+Create the repo (when using SSH, copy in the SSH clone URL), in this example a package repository. The last argument is the folder of the new repo. Copier uses it as the default `repo_name` (press enter to accept). For a package repo the folder should be `pkg_<package_name>`: the default `package_name` is the folder name without the `pkg_` prefix, and a warning is shown at the `package_name` prompt if the prefix is missing. Copier creates the folder:
 ```bash
-cookiecutter <raptor_repo_url> --directory package_repo
+copier copy --trust <raptor_repo_url> <repo_name>
 ```
 If you want to create a repo from a specific raptor branch or tag, run e.g.
 ```bash
-cookiecutter <raptor_repo_url> -c <branch or tag name> --directory package_repo
+copier copy --trust --vcs-ref <branch or tag name> <raptor_repo_url> <repo_name>
 ```
-You can also supply a user config .yaml file with default values being set. 
-You should set env variable COOKIECUTTER_CONFIG to your configuration file:
+By default copier uses the latest release version (using sorted git tags), also when referring to a git directory! If you really want to use your local directory, run e.g.
 ```bash
-export COOKIECUTTER_CONFIG=path/to/config.yml
+copier copy --trust --vcs-ref HEAD <absolute_path_to_raptor_directory> <repo_name>
 ```
+Use a URL or an absolute path as template source: copier stores it in `.copier-answers.yml` and a relative path would break `copier update`.
+
+To pull later raptor changes into an existing repo, run from the root of that repo (clean git working tree needed):
+```bash
+copier update --trust
+```
+Copier merges the template changes with your own changes. Tasks like `git init` only run when creating the repo, not on update.
+
+Repos created with the **old cookiecutter** template have no `.copier-answers.yml`, so `copier update` cannot help them — they must be migrated once first. Use the [migrate-repo skill](skills/migrate-repo/SKILL.md), which runs `scripts/update.py` from the template: it detects the repo type and either runs `copier update` (copier repos) or performs the one-time migration (cookiecutter repos), fetching the latest migration script from the remote template so no local raptor checkout is needed:
+```bash
+uv run --python 3.11 <raptor>/scripts/update.py --check   # preview
+uv run --python 3.11 <raptor>/scripts/update.py --yes     # migrate to a branch
+```
+The migration is a git 3-way merge (base = the repo's first commit, ours = HEAD, theirs = the freshly rendered target template), so it works from **any** old version to **any** target and writes `.copier-answers.yml` for future native updates. It runs on a new `migrate-to-copier` branch and never pushes.
+
+Start from a branch that is up to date with the remote's default branch: the check warns (and `--yes` refuses) when HEAD is behind it, because the PR back onto that branch would re-conflict with the commits you missed. Rebase or merge it first, or pass `--allow-behind` to proceed anyway.
+
+You can also supply a user config .yml file with default values being set.
+Create a file `~/.config/copier/settings.yml`
 with schema e.g.
 ```yaml
-default_context: 
-    organisation_name: "MyOrg"
-    package_feed: "MyFeed"
-    additional_prompts: "devops"
+defaults:
+    devops_organisation_name: "devops_organisation_name"
+    devops_project_name: "devops_project_name"
+    package_feed: "package_feed"
+    private_agent_name: "private_agent_name"
+    ci_cd: "DevOps"
+    author_name: "Team name"
+    author_email: "team@organisation.com"
+    user_name: "User Name"
+    user_email: "user@organisation.com"
 ```
 
-If you want to run noninteractively, run
-```bash
-COOKIECUTTER_NO_INPUT=1 cookiecutter <raptor_repo_url> --no-input --directory package_repo
-```
-Extra input args can be set like this (e.g. specifying to use the github variant and setting the repo_name):
-```bash
-COOKIECUTTER_NO_INPUT=1 cookiecutter <raptor_repo_url> --no-input --directory package_repo additional_prompts=Github repo_name=myrepo
-```
 ##### Prompts Explained
 ---
 
@@ -225,16 +241,21 @@ git config --global --add safe.directory PATH/TO/REPO
 
 #### 3.4. CI/CD
 
-To add Continuous Integration, Continuous Delivery (CI/CD) in DevOps, go to the repository and click "set up build".
+Since raptor 3.x there is **no root `azure-pipelines.yml`**. The pipeline definitions live in `devops_pipelines/templates/` and are split by trigger, so you create a separate Azure DevOps pipeline for each:
 
-It will automatically use the azure-pipelines.yml from the root of the repository.
-Click, under "run", on "save".
-Now we have created a pipeline, which will be triggered when there are changes in specified folders (in principle package folder and tests folder) on specified branches (in principle main, develop and release branches).
-Now we need to set branch policies (by default we only have the main and develop branch, and others need to be created). 
+| file | trigger | stages |
+| --- | --- | --- |
+| `ci.yml` | pull requests (any source branch) | Pre-commit, AI code review, Unit tests, Build |
+| `cd.yml` | pushes to `main` and `develop` | Build, Register AML environment, Tag release |
+| `release.yml` | any git tag | builds, registers and publishes the tagged release |
+
+To add Continuous Integration, Continuous Delivery (CI/CD) in DevOps, go to the repository and click "set up build" **once per file above** (Pipeline > New pipeline > Existing Azure Pipelines YAML file > pick the file). For each, click under "run" on "save". The triggers are defined inside the YAML, so you do not configure them in the pipeline editor.
+
+Now we need to set branch policies (by default we only have the main and develop branch, and others need to be created).
 
 Navigate to branches and then set the following for the main and develop branch:
   - Require a minimum number of reviewers (2)
-  - Build validation -> add build policy -> select the pipeline we just created -> save.
+  - Build validation -> add build policy -> select the **CI pipeline** (`ci.yml`) -> save.
 
 #TODO Github variant
 
@@ -358,7 +379,7 @@ uv run pytest
 #### 4.5. Installing private packages
 In this section, we will explain how to use other private packages within your repository. This is very useful for re-using generic code from colleagues.
 ##### 4.5.1 Installing private packages from artifacts feed
-With the cookiecutter setup, we can install private packages from a private artifacts feed in our environment using uv.
+With the copier setup, we can install private packages from a private artifacts feed in our environment using uv.
 This is the preferred way to use private code from other repos in our current repository. It can be used in all different CI/CD locations: locally in VS Code, remotely in the devops agent, and as a dependency in an AML environment.
 
 **DevOps**
@@ -482,7 +503,7 @@ files you may need to deal with (`.coveragerc` for local tests and `.coveragerc_
 ## Writing code
 
 #### 6.1 Using the API functionality
-Our cookiecutter template is designed with simplicity and effectiveness in mind, especially for new users. It includes two key Python files: __version__.py and _api.py, each serving a distinct purpose.
+Our copier template is designed with simplicity and effectiveness in mind, especially for new users. It includes two key Python files: __version__.py and _api.py, each serving a distinct purpose.
 The __version__.py helps with providing single-sourcing of the package version. Whereas the _api.py file acts as the primary interface for the core functionalities of the package. It is the outward-facing part of your code, meant to be used by the end-users of your package. Here's how you can use it:
 The __version__.py file contains a __version__ attribute. This is useful for keeping track of the package you are working with. You can access it as follows:
 ```python

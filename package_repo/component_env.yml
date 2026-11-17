@@ -1,0 +1,12 @@
+name: {{ package_name }}
+channels:
+  - conda-forge
+  - anaconda
+  - nodefaults
+dependencies:
+  - python={{ python_version}}
+  - pip:
+    - {{ package_name }}==X.X.X
+    - >-
+      --extra-index-url
+      https://pkgs.dev.azure.com/{{ devops_organisation_name }}/{{ devops_project_name }}/_packaging/${feed_view}/pypi/simple/

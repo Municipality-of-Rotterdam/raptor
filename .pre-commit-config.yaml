@@ -1,20 +1,21 @@
 exclude:
     (?x)^(
         .*/workflows/|
-        .*/.*/notebooks/|
-        .*/.*/src/|
-        .*/.*/devops_pipelines/|
-        .*/.*/lib/|
-        .*/.*/aml_deployments/|
-        .*/.*/components/|
-        .*/.*/conda.yml|
-        .*/.*/aml_environment.yml|
-        .*/.*/tests/|
-        .*/.*/azure-pipelines.yml|
-        .*/.*/environment.yml|
-        .*/.*/component_env.yml|
+        .*/notebooks/|
+        .*/src/|
+        .*/devops_pipelines/|
+        .*/\{%.*devops_pipelines.*%\}/|
+        .*/lib/|
+        .*/aml_deployments/|
+        .*/components/|
+        .*/conda.yml|
+        .*/aml_environment.yml|
+        .*/tests/|
+        .*/azure-pipelines.yml|
+        .*/environment.yml|
+        .*/component_env.yml|
         .*/local_extensions.py|
-        .*/.*/taskfile.yml
+        .*/taskfile.yml
     )
 
 repos:
@@ -24,6 +25,15 @@ repos:
    -  id: check-merge-conflict
    -  id: check-yaml
    
+-   repo: local
+    hooks:
+    -   id: check-template-version
+        name: raptor_template_version in copier.yaml matches pyproject.toml
+        entry: uv run --no-sync python scripts/check_template_version.py
+        language: system
+        files: ^(copier\.yaml|pyproject\.toml)$
+        pass_filenames: false
+
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:

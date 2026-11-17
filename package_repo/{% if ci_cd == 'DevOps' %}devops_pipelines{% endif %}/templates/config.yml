@@ -1,0 +1,20 @@
+
+variables:
+  pythonVersion: {{ python_version }}
+  uvVersion: {{ uv_version }}
+  devops_organisation: {{ devops_organisation_name }}
+  devops_project: {{ devops_project_name }}
+  
+  # Name of artifacts feed
+  package_feed:  {{ package_feed }}
+  # UV index name for env var auth (uppercased, hyphens to underscores)
+  uvIndexName: {{ package_feed | upper | replace('-', '_') }}
+  
+  # Whether to register environment in Azure Machine Learning based on package
+  RegisterAmlEnv: {{ create_aml_environment_in_cicd }}
+  aml_environment: {{ package_name }}
+  sh_agent_pool_name: {{ private_agent_name }}
+  base_image: mcr.microsoft.com/azureml/openmpi5.0-ubuntu24.04
+
+  # branch to read the documentation files from
+  docsBranch: 'refs/head/generated/docs'

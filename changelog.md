@@ -3,6 +3,37 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.0.0] - 2026-11-17
+Change from cookiecutter to copier
+
+### **Changed**
+- Moved from cookiecutter to copier template
+- Easier prompt templating, merging of package and project prompts
+- `.envrc` (raptor root): same conda / network-mount check as the package repo, on local disk uv uses `.venv`
+
+### **Added**
+- Use user_name and user_email for git (still use author_name and author_email for package)
+- Taskfile create_new_repo: automated the Azure DevOps steps with the azure devops cli (create repo, push, pipelines,
+  pipeline permissions, default branch, branch policies, status badge), instead of manual instructions
+- Taskfile setup_repo: on local disk a uv environment defaults to `.venv` in the repo, direnv is only needed on a
+  network mount or with conda
+- `.envrc` (package repo): only sets `UV_PROJECT_ENVIRONMENT` with conda or on a network mount, on local disk uv uses
+  `.venv` in the repo, so `direnv allow` is safe on any disk; the package README describes this
+- Agent skill `new-repo` (`skills/new-repo`, Agent Skills format for any coding agent): creates a repo with copier and
+  runs the setup_repo and create_new_repo DevOps tasks, skipping what is done and asking before each change in Azure
+  DevOps
+
+### **Fixed**
+- Taskfile create_new_repo: a project repo gets its main pipeline instead of ci, cd and release (previously the
+  instructions always listed the package repo pipelines)
+
+### **Security**
+- pip 23.0 -> 26.2.2 in all conda environment files (package repo `environment.yml` and `conda.yml`, project repo
+  component env) (eMudhra)
+
+### **Removed**
+- Removed pre/post hooks, now use built-in prompt validators and tasks
+
 ## [2.3.0] - 2026-07-17
 Added pre-commit schema checks on most yaml files.
 

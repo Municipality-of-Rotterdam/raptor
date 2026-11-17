@@ -2,4 +2,4 @@
 variables:
   uvVersion: 0.10.6
   pythonVersion: 3.11
-  project_name: cookiecutter_devops
+  project_name: raptor_devops

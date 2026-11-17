@@ -1,0 +1,9 @@
+name: {{ package_name }}
+channels:
+  - conda-forge
+  - anaconda
+  - nodefaults
+dependencies:
+  - python={{ python_version}}
+  - pip==26.2.2
+  - uv={{ uv_version}}

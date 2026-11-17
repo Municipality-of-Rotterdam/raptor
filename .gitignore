@@ -42,3 +42,6 @@ venv
 
 # Environment variable file
 .env
+
+# Copier
+.copier-answers.yml

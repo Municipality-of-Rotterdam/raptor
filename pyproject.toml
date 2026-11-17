@@ -1,10 +1,10 @@
 [project]
 name = "raptor"
-version = "2.3.0"
+version = "3.0.0"
 requires-python = ">=3.11"
 dependencies = [
     "pre-commit==2.19.0",
-    "cookiecutter==2.4.0"
+    "copier>=9.0.0"
 ]
 
 [tool.uv]
@@ -19,3 +19,6 @@ test = [
     "pytest==7.1.2",
     "pytest-cov",
 ]
+
+[tool.mypy]
+ignore_missing_imports = true

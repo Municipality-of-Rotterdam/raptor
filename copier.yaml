@@ -1,0 +1,274 @@
+# Copier template for Raptor
+# Generates either a project repo or a package repo
+
+# disable suffix, so we do not need to end files where we use template variables to .jinja
+_templates_suffix: ""
+
+repo_type:
+  type: str
+  help: What kind of repo do you want to create?
+  qmark: "🔀"
+  choices:
+    - package_repo
+    - project_repo
+
+_subdirectory: "{{ repo_type }}"
+
+# Copying onto an existing git repo (e.g. converting a cookiecutter repo to copier) overwrites files there.
+# Ask first to confirm the repo is clean (a str question: copier does not validate bool questions interactively), so the changes of the template can be reviewed with git diff.
+# Copier cannot run git before copying: an existing repo is detected by reading .git/HEAD. Not asked in a repo
+# that already uses copier (.copier-answers.yml exists, e.g. copier update): _copier_operation is not available
+# in questions. _message_before_copy cannot be used, because _external_data is not available yet when it is shown.
+_external_data:
+  git_head: .git/HEAD
+  copier_answers: .copier-answers.yml
+
+existing_repo_clean:
+  type: str
+  # Short lines, so the help fits on the screen (copier keeps the line breaks).
+  help: |-
+    WARNING: this is an existing git repo, copier will overwrite files.
+    Make sure the working tree is clean (git status: nothing to commit),
+    so you can review the changes of the template with git diff.
+    Type yes to continue, or press Ctrl+C to abort
+  qmark: "⚠️"
+  when: "{{ true if (_external_data.git_head and not _external_data.copier_answers) else false }}"
+  validator: >-
+    {% if existing_repo_clean != 'yes' %}Type yes, or Ctrl+C to abort{% endif %}
+
+# repo_name defaults to the destination folder name: copier copy <template> <repo_name>
+# For a package repo, package_name is derived from it (pkg_<package_name>).
+
+repo_name:
+  type: str
+  help: "Repo name, defaults to the destination folder name{% if repo_type == 'package_repo' %} (convention for package repo is pkg_<package_name>){% endif %}"
+  qmark: "📂"
+  default: "{{ _copier_conf.dst_path.name if (_copier_conf.dst_path.name and not _copier_conf.dst_path.name.startswith('copier.')) else '' }}"
+  validator: >-
+    {% if not repo_name %}repo_name cannot be empty. Use: copier copy <template> <repo_name> (or: copier copy <template> . --data repo_name=<repo_name>){% endif %}
+
+# --- Package-specific questions ---
+
+package_name:
+  type: str
+  help: "{% if not repo_name.startswith('pkg_') %}WARNING: repo_name '{{ repo_name }}' does not start with 'pkg_' (convention for package repos). {% endif %}Package name (alphanumeric + underscores), derived from repo_name by removing 'pkg_'"
+  qmark: "📦"
+  default: "{{ (repo_name[4:] if repo_name.startswith('pkg_') else repo_name).replace('-', '_') }}"
+  when: "{{ repo_type == 'package_repo' }}"
+
+# --- Project-specific questions ---
+
+project_name:
+  type: str
+  help: Project name
+  qmark: "🏷️"
+  default: "{{ repo_name }}"
+  when: "{{ repo_type == 'project_repo' }}"
+
+type_deployment:
+  type: str
+  help: Type of deployment
+  qmark: "🚀"
+  choices:
+    - none
+    - batch
+    - online
+    - scheduled-pipeline
+  default: none
+  when: "{{ repo_type == 'project_repo' }}"
+
+# --- Back to generic questions (that are less important than the specific questions above) ---
+
+user_name:
+  type: str
+  help: User name (used for git)
+  qmark: "👤"
+  placeholder: Firstname [optional middle name] Surname
+  validator: >-
+    {% if not (user_name | regex_search('([A-Za-z]+ )+[A-Za-z]+$')) %}
+    user_name should be like "Firstname [optional middle name] Surname".
+    {% endif %}
+
+user_email:
+  type: str
+  help: User email (used for git)
+  qmark: "📧"
+  placeholder: your@email.com
+  validator: >-
+    {% if not (user_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
+    user_email should be like "nameornumber[.nameornumber]@my.domain".
+    {% endif %}
+    
+author_name:
+  type: str
+  help: Author name (used for package details)
+  qmark: "✍️"
+  default: "{{ user_name }}"
+  validator: >-
+    {% if not (author_name | regex_search('([A-Za-z]+ )+[A-Za-z]+$')) %}
+    author_name should be like "Firstname [middle name] Surname".
+    {% endif %}
+
+author_email:
+  type: str
+  help: Author email (used for package details)
+  qmark: "✉️"
+  default: "{{ user_email }}"
+  validator: >-
+    {% if not (author_email | regex_search('[A-Za-z0-9._]+@[A-Za-z0-9_].+[A-Za-z]+$')) %}
+    author_email should be like "nameornumber[.nameornumber]@my.domain".
+    {% endif %}
+
+description:
+  type: str
+  help: Short description of the package/project
+  qmark: "📝"
+  default: A short description.
+
+python_version:
+  type: str
+  help: Python version
+  qmark: "🐍"
+  default: "3.11"
+
+uv_version:
+  type: str
+  help: uv version
+  qmark: "⚡"
+  default: "0.10.6"
+
+precommit_version:
+  type: str
+  help: Pre-commit version
+  qmark: "🛡️"
+  default: "3.4.0"
+
+ci_cd:
+  type: str
+  help: CI/CD platform
+  qmark: "🔄"
+  choices:
+    - DevOps
+    - GitHub
+  default: DevOps
+
+# --- DevOps-specific questions ---
+
+devops_organisation_name:
+  type: str
+  help: DevOps organisation name, as in https://dev.azure.com/devops_organisation_name
+  qmark: "🏢"
+  default: devops_organisation_name
+  when: "{{ ci_cd == 'DevOps' }}"
+
+devops_project_name:
+  type: str
+  help: DevOps project name, as in https://dev.azure.com/devops_organisation_name/devops_project_name
+  qmark: "📋"
+  default: devops_project_name
+  when: "{{ ci_cd == 'DevOps' }}"
+
+private_agent_name:
+  type: str
+  help: DevOps private agent name
+  qmark: "🤖"
+  default: private_agent_name
+  when: "{{ ci_cd == 'DevOps' }}"
+
+github_service_connection:
+  type: str
+  help: DevOps service connection for GitHub
+  qmark: "🔗"
+  default: github-ci-templates
+  when: "{{ ci_cd == 'DevOps' }}"
+
+# --- GitHub-specific questions ---
+
+azure_resource_group:
+  type: str
+  help: Azure resource group
+  qmark: "☁️"
+  default: default_resource_group
+  when: "{{ ci_cd == 'GitHub' }}"
+
+azureml_workspace:
+  type: str
+  help: Azure ML workspace
+  qmark: "🗂️"
+  default: default_workspace
+  when: "{{ ci_cd == 'GitHub' }}"
+
+publish_package_on_public_pypi:
+  type: bool
+  help: Publish package on public PyPI?
+  qmark: "🌐"
+  default: false
+  when: "{{ ci_cd == 'GitHub' and repo_type == 'package_repo' }}"
+
+create_aml_environment_in_cicd:
+  type: bool
+  help: Create AML environment in CI/CD?
+  qmark: "🏗️"
+  default: false
+  when: "{{ ci_cd == 'GitHub' and repo_type == 'package_repo' }}"
+
+# --- DevOps package-specific ---
+
+package_feed:
+  type: str
+  help: Package feed name
+  qmark: "📰"
+  default: package_feed
+  when: "{{ ci_cd == 'DevOps' and repo_type == 'package_repo' }}"
+
+# --- Computed variables ---
+
+# Questions with when: false are not asked, but are available in the templates.
+# No leading underscore in the name: copier ignores those keys, as they are settings.
+
+# Only used in project_repo, so project_name is not defined for a package_repo.
+
+aml_project_code:
+  type: str
+  when: false
+  default: "{{ project_name.lower().replace(' ', '_').replace('-', '_') if repo_type == 'project_repo' else '' }}"
+
+aml_base_deployment_name:
+  type: str
+  when: false
+  default: "{{ aml_project_code.replace('_', '-') }}"
+
+# Tag of the raptor repo that the generated workflows and pipelines refer to.
+# Must equal the version in pyproject.toml, this is checked by the check-template-version pre-commit hook.
+raptor_template_version:
+  type: str
+  when: false
+  default: "3.0.0"
+
+# --- Post-generation tasks ---
+# Tasks run in the destination folder, which is the new repo (copier copy raptor <repo_name>).
+
+_tasks:
+  - command: |-
+      git config --global --get-all safe.directory | grep -qxF "$(pwd)" ||
+        git config --global --add safe.directory "$(pwd)"
+    when: "{{ _copier_operation == 'copy' }}"
+  # Only set up git in a new repo. In an existing repo (e.g. converting a cookiecutter repo to copier),
+  # leave reviewing and committing the changes to the user.
+  # A literal block (|-) keeps the line breaks, so the shell gets one command per line.
+  - command: |-
+      if [ -e .git ]; then
+        echo "Existing git repo: review the changes (git status / git diff) and commit them yourself."
+      else
+        git init &&
+        git config user.name '{{ user_name }}' &&
+        git config user.email '{{ user_email }}' &&
+        git add . &&
+        git commit -m init &&
+        git checkout -b develop
+      fi
+    when: "{{ _copier_operation == 'copy' }}"
+
+# --- Migrations ---
+
+_migrations: []

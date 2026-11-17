@@ -31,12 +31,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Install dependencies
-        run: uv sync --group test
-
       - name: Run pre-commit on raptor repo
         run: |
-          cd ${{ github.workspace }} && uv run pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}
+          uv run pre-commit run --all-files --show-diff-on-failure
 
   Create_and_test_package_repo:
     name: Create package repo and run pre-commit
@@ -56,40 +54,35 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Install dependencies
-        run: uv sync --group test
-
-      - name: Create test repo with cookiecutter (DevOps variant)
+      - name: Create test repo with copier (DevOps variant)
         run: |
-          cd ${{ github.workspace }} && uv run cookiecutter . --no-input --directory package_repo
-        env:
-          COOKIECUTTER_NO_INPUT: "1"
+          cd ${{ github.workspace }}
+          uv run copier copy -d repo_type=package_repo -d ci_cd=DevOps -d user_name="Ci Cd" -d user_email=cicd@devops.com -f --vcs-ref HEAD --trust . ../pkg_package_name_ado
 
       - name: Run pre-commit in test repo (DevOps variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name && git add .
-          cd ${{ github.workspace }}/pkg_package_name && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/../pkg_package_name_ado
+          uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Run pytest in test repo (DevOps variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name && uv sync --only-group test
-          cd ${{ github.workspace }}/pkg_package_name && uv run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
+          cd ${{ github.workspace }}/../pkg_package_name_ado
+          uv run --group test pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
 
-      - name: Create test repo with cookiecutter (Github variant)
+      - name: Create test repo with copier (Github variant)
         run: |
-          cd ${{ github.workspace }} && uv run cookiecutter . --no-input --directory package_repo additional_prompts=Github repo_name=pkg_package_name_gh
-        env:
-          COOKIECUTTER_NO_INPUT: "1"
+          cd ${{ github.workspace }}
+          uv run copier copy -d repo_type=package_repo -d ci_cd=GitHub -d user_name="Ci Cd" -d user_email=cicd@devops.com -f --vcs-ref HEAD --trust . ../pkg_package_name_gh
 
       - name: Run pre-commit in test repo (Github variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name_gh && git add .
-          cd ${{ github.workspace }}/pkg_package_name_gh && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/../pkg_package_name_gh
+          uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
       - name: Run pytest in test repo (Github variant)
         run: |
-          cd ${{ github.workspace }}/pkg_package_name_gh && uv sync --only-group test
-          cd ${{ github.workspace }}/pkg_package_name_gh && uv run pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
+          cd ${{ github.workspace }}/../pkg_package_name_gh
+          uv run --group test pytest tests --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc_pipeline --cov-report=xml --cov-report=html -m "not onlylocal"
 
   Create_and_test_project_repo:
     name: Create project repo and run pre-commit
@@ -109,27 +102,22 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Install dependencies
-        run: uv sync --group test
-
-      - name: Create test repo with cookiecutter (DevOps variant)
+      - name: Create test repo with copier (DevOps variant)
         run: |
-          cd ${{ github.workspace }} && uv run cookiecutter . --no-input --directory project_repo
-        env:
-          COOKIECUTTER_NO_INPUT: "1"
+          cd ${{ github.workspace }}
+          uv run copier copy -d repo_type=project_repo -d ci_cd=DevOps -d user_name="Ci Cd" -d user_email=cicd@devops.com -f --vcs-ref HEAD --trust . ../project_name_ado
 
       - name: Run pre-commit in test repo (DevOps variant)
         run: |
-          cd ${{ github.workspace }}/repo_name && git add .
-          cd ${{ github.workspace }}/repo_name && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/../project_name_ado
+          uv run --group precommit pre-commit run --all-files --show-diff-on-failure
 
-      - name: Create test repo with cookiecutter (Github variant)
+      - name: Create test repo with copier (Github variant)
         run: |
-          cd ${{ github.workspace }} && uv run cookiecutter . --no-input --directory project_repo additional_prompts=Github repo_name=repo_name_gh
-        env:
-          COOKIECUTTER_NO_INPUT: "1"
+          cd ${{ github.workspace }}
+          uv run copier copy -d repo_type=project_repo -d ci_cd=GitHub -d user_name="Ci Cd" -d user_email=cicd@devops.com -f --vcs-ref HEAD --trust . ../project_name_gh
 
       - name: Run pre-commit in test repo (Github variant)
         run: |
-          cd ${{ github.workspace }}/repo_name_gh && git add .
-          cd ${{ github.workspace }}/repo_name_gh && uv run --group precommit pre-commit run --all-files --show-diff-on-failure
+          cd ${{ github.workspace }}/../project_name_gh
+          uv run --group precommit pre-commit run --all-files --show-diff-on-failure

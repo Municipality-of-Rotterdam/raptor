@@ -243,7 +243,7 @@ aml_base_deployment_name:
 raptor_template_version:
   type: str
   when: false
-  default: "3.0.0"
+  default: "3.0.1"
 
 # --- Post-generation tasks ---
 # Tasks run in the destination folder, which is the new repo (copier copy raptor <repo_name>).

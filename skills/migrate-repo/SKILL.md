@@ -1,7 +1,7 @@
 ---
 name: migrate-repo
 description: Update any raptor-generated repo to the latest raptor. For repos created with the old cookiecutter template (no .copier-answers.yml) it performs the one-time migration to copier; for repos already on copier it just runs copier update. Use when asked to "migrate a repo to copier", "update an old repo", "bring a repo up to the latest raptor", "migrate to copier", or when copier update fails because a repo has no .copier-answers.yml.
-compatibility: Needs a shell with git, uv and copier. No local raptor checkout required: the migration script is fetched from the remote template.
+compatibility: "Needs a shell with git, uv and copier. No local raptor checkout required: the migration script is fetched from the remote template."
 ---
 
 # Migrate / update a raptor repo

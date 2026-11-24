@@ -3,6 +3,13 @@ All notable changes to this repo will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this repo adheres to [Semantic Versioning](http://semver.org/).
 
+## [3.0.1] - 2026-11-24
+Fix the migrate-repo skill not loading.
+
+### **Fixed**
+- Agent skill `migrate-repo`: quoted the `compatibility` field in the `SKILL.md` frontmatter, its unquoted `: `
+  was a YAML parse error, so agents skipped the skill
+
 ## [3.0.0] - 2026-11-17
 Change from cookiecutter to copier
 
